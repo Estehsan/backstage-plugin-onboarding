@@ -26,12 +26,13 @@ import { OnboardingProgress, OnboardingProgressRow } from '../types';
 const migrationsDir = (() => {
   try {
     return resolvePackagePath(
-      '@estehsan/backstage-plugin-onboarding-backend',
+      '@estehsaan/backstage-plugin-onboarding-backend',
       'migrations',
     );
   } catch {
     // Fallback for local portal-linked source loading where self package
     // resolution may fail at runtime.
+    // eslint-disable-next-line no-restricted-syntax
     return path.resolve(__dirname, '../../migrations');
   }
 })();

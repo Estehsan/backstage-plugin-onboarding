@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, ChangeEvent } from 'react';
 import { Page, Header, Content } from '@backstage/core-components';
 import { identityApiRef, useApi } from '@backstage/core-plugin-api';
 import Tab from '@material-ui/core/Tab';
@@ -146,7 +146,7 @@ export function OnboardingPage() {
     [onboardingApi, progress, userId, currentTemplate, triggerAutomatedTask],
   );
 
-  const handleTabChange = (_event: React.ChangeEvent<{}>, newValue: string) => {
+  const handleTabChange = (_event: ChangeEvent<{}>, newValue: string) => {
     setTab(newValue);
   };
 

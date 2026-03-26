@@ -1,8 +1,6 @@
 /** @type {import('eslint').Linter.Config} */
 module.exports = {
-  extends: [
-    '@backstage/eslint-plugin',
-  ],
+  root: true,
   rules: {
     'no-warning-comments': ['error', { terms: ['FIXME'], location: 'start' }],
   },

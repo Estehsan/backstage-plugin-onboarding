@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import Box from '@material-ui/core/Box';
 import Chip from '@material-ui/core/Chip';
 import Collapse from '@material-ui/core/Collapse';
@@ -198,7 +198,7 @@ export function TeamView(props: TeamViewProps) {
                 </TableHead>
                 <TableBody>
                   {stats.activeJoiners.map(joiner => (
-                    <React.Fragment key={joiner.userId}>
+                    <Fragment key={joiner.userId}>
                       <TableRow
                         hover
                         onClick={() => handleRowExpand(joiner.userId)}
@@ -280,7 +280,7 @@ export function TeamView(props: TeamViewProps) {
                           </Collapse>
                         </TableCell>
                       </TableRow>
-                    </React.Fragment>
+                    </Fragment>
                   ))}
                 </TableBody>
               </Table>

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Box from '@material-ui/core/Box';
 import Button from '@material-ui/core/Button';
 import Card from '@material-ui/core/Card';
@@ -198,6 +198,7 @@ export function TemplatesView(props: TemplatesViewProps) {
             user:default/jane.doe).
           </Typography>
           <TextField
+            // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
             margin="dense"
             label="User Entity Ref"

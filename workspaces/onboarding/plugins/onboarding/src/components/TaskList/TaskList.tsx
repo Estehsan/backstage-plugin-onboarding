@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import React from 'react';
 import Box from '@material-ui/core/Box';
 import Chip from '@material-ui/core/Chip';
 import Typography from '@material-ui/core/Typography';

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import React from 'react';
+import { Fragment, ElementType } from 'react';
 import Box from '@material-ui/core/Box';
 import Chip from '@material-ui/core/Chip';
 import Collapse from '@material-ui/core/Collapse';
@@ -121,7 +121,7 @@ const useStyles = makeStyles((theme: Theme) => ({
   },
 }));
 
-const RESOURCE_ICONS: Record<ResourceType, React.ElementType> = {
+const RESOURCE_ICONS: Record<ResourceType, ElementType> = {
   video: PlayCircleFilledIcon,
   doc: DescriptionIcon,
   article: MenuBookIcon,
@@ -224,7 +224,7 @@ export function TaskDetailPanel(props: TaskDetailPanelProps) {
                   {task.resources.map((res, i) => {
                     const Icon = RESOURCE_ICONS[res.type] ?? DescriptionIcon;
                     return (
-                      <React.Fragment key={i}>
+                      <Fragment key={i}>
                         {i > 0 && <Divider />}
                         <ListItem className={classes.resourceItem}>
                           <ListItemIcon className={classes.resourceIcon}>
@@ -269,7 +269,7 @@ export function TaskDetailPanel(props: TaskDetailPanelProps) {
                             }
                           />
                         </ListItem>
-                      </React.Fragment>
+                      </Fragment>
                     );
                   })}
                 </List>

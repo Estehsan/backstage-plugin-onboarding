@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import React from 'react';
 import { screen, render } from '@testing-library/react';
 import { TaskItem, TaskItemProps } from './TaskItem';
 import { OnboardingTask } from '../../types';
