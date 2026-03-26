@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": {
-    "packages": ["plugins/*"]
+    "packages": [
+      "plugins/*"
+    ]
   },
   "scripts": {
     "tsc": "tsc",
-    "build:all": "tsc && yarn workspaces foreach --all --topological-dev --no-private run build",
+    "build:all": "tsc && yarn workspace @estehsaan/backstage-plugin-onboarding-common build && yarn workspace @estehsaan/backstage-plugin-onboarding build && yarn workspace @estehsaan/backstage-plugin-onboarding-backend build",
     "clean": "yarn workspaces foreach --all --parallel run clean"
   },
   "devDependencies": {

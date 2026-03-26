@@ -20041,6 +20041,14 @@ __metadata:
   languageName: node
   linkType: hard
 
+"onboarding-workspace@workspace:workspaces/onboarding":
+  version: 0.0.0-use.local
+  resolution: "onboarding-workspace@workspace:workspaces/onboarding"
+  dependencies:
+    typescript: ~5.4.0
+  languageName: unknown
+  linkType: soft
+
 "once@npm:^1.3.0, once@npm:^1.3.1, once@npm:^1.4.0":
   version: 1.4.0
   resolution: "once@npm:1.4.0"
