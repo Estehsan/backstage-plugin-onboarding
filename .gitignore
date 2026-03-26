@@ -36,3 +36,9 @@ yarn-error.log*
 
 # Turbo
 .turbo
+
+# Local agent skills — never commit
+.github/skills/
+
+# Packed tarballs
+*.tgz

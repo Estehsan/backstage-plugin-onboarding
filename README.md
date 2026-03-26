@@ -1,26 +1,26 @@
 # backstage-plugins
 
-A standalone monorepo for Backstage plugins published under the `@estehsan` npm scope, following the same workspace pattern as [`backstage/community-plugins`](https://github.com/backstage/community-plugins).
+A standalone monorepo for Backstage plugins published under the `@estehsaan` npm scope, following the same workspace pattern as [`backstage/community-plugins`](https://github.com/backstage/community-plugins).
 
 ## Packages
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| [`@estehsan/backstage-plugin-onboarding`](./workspaces/onboarding/plugins/onboarding) | [![npm](https://img.shields.io/npm/v/@estehsan/backstage-plugin-onboarding)](https://www.npmjs.com/package/@estehsan/backstage-plugin-onboarding) | Frontend onboarding checklist plugin |
-| [`@estehsan/backstage-plugin-onboarding-backend`](./workspaces/onboarding/plugins/onboarding-backend) | [![npm](https://img.shields.io/npm/v/@estehsan/backstage-plugin-onboarding-backend)](https://www.npmjs.com/package/@estehsan/backstage-plugin-onboarding-backend) | Backend for the onboarding plugin |
-| [`@estehsan/backstage-plugin-onboarding-common`](./workspaces/onboarding/plugins/onboarding-common) | [![npm](https://img.shields.io/npm/v/@estehsan/backstage-plugin-onboarding-common)](https://www.npmjs.com/package/@estehsan/backstage-plugin-onboarding-common) | Shared types and permissions |
+| [`@estehsaan/backstage-plugin-onboarding`](./workspaces/onboarding/plugins/onboarding) | [![npm](https://img.shields.io/npm/v/@estehsaan/backstage-plugin-onboarding)](https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding) | Frontend onboarding checklist plugin |
+| [`@estehsaan/backstage-plugin-onboarding-backend`](./workspaces/onboarding/plugins/onboarding-backend) | [![npm](https://img.shields.io/npm/v/@estehsaan/backstage-plugin-onboarding-backend)](https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding-backend) | Backend for the onboarding plugin |
+| [`@estehsaan/backstage-plugin-onboarding-common`](./workspaces/onboarding/plugins/onboarding-common) | [![npm](https://img.shields.io/npm/v/@estehsaan/backstage-plugin-onboarding-common)](https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding-common) | Shared types and permissions |
 
 ## Installation (for consumers)
 
 ```bash
 # In your Backstage app
-yarn --cwd packages/app add @estehsan/backstage-plugin-onboarding
+yarn --cwd packages/app add @estehsaan/backstage-plugin-onboarding
 
 # In your Backstage backend
-yarn --cwd packages/backend add @estehsan/backstage-plugin-onboarding-backend
+yarn --cwd packages/backend add @estehsaan/backstage-plugin-onboarding-backend
 ```
 
-See the package readmes and `workspaces/onboarding/PUBLISHING.md` for full wiring and publishing instructions.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for full contribution and publishing instructions.
 
 ## Repository Structure
 
@@ -28,10 +28,9 @@ See the package readmes and `workspaces/onboarding/PUBLISHING.md` for full wirin
 workspaces/
   onboarding/              # workspace root (independent yarn workspace)
     plugins/
-      onboarding/          # @estehsan/backstage-plugin-onboarding
-      onboarding-backend/  # @estehsan/backstage-plugin-onboarding-backend
-      onboarding-common/   # @estehsan/backstage-plugin-onboarding-common
-    app-config.yaml        # local dev config
+      onboarding/          # @estehsaan/backstage-plugin-onboarding
+      onboarding-backend/  # @estehsaan/backstage-plugin-onboarding-backend
+      onboarding-common/   # @estehsaan/backstage-plugin-onboarding-common
     package.json
 ```
 
@@ -41,12 +40,18 @@ workspaces/
 # Install all dependencies
 yarn install
 
+# Type check
+yarn tsc
+
+# Build all packages
+yarn build:all
+
 # Run the frontend plugin dev server
 cd workspaces/onboarding/plugins/onboarding
 yarn start
 
 # Run tests
-yarn test workspaces/onboarding
+yarn test
 ```
 
 ## Releasing
@@ -62,32 +67,19 @@ yarn changeset
 # Commit the generated .changeset/*.md file
 ```
 
-### Publishing to npm
+### Automated publishing via GitHub Actions
 
-Releases are fully automated via GitHub Actions:
+1. Open a PR with your change + a changeset
+2. Merge the PR → the **Release** workflow creates a **"chore: version packages"** PR automatically
+3. Merge that PR → packages are built and published to npm
 
-1. Merge a PR with a changeset into `main`.
-2. The **Release** workflow opens (or updates) a "Version Packages" PR.
-3. Merge that PR — packages are built and published to npm automatically.
-
-To publish manually (first time / local):
-
-```bash
-npm login
-yarn install
-yarn build:all
-yarn changeset publish
-```
+> **First-time setup:** add an `NPM_TOKEN` secret to GitHub Actions — see [CONTRIBUTING.md#github-actions--npm_token](./CONTRIBUTING.md#github-actions--npm_token).
 
 ## Contributing
 
-1. Fork this repository.
-2. Create a feature branch.
-3. Make your changes in the relevant workspace.
-4. Add a changeset (`yarn changeset`).
-5. Open a pull request against `main`.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for commit conventions, branch naming, changeset workflow, and more.
 
 ## License
 
 [Apache-2.0](./LICENSE)
-# backstage-plugin-onboarding
+

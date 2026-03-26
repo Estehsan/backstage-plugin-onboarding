@@ -379,7 +379,7 @@ async function findTemplateForUser(
 
     return undefined;
   } catch (error) {
-    logger.warn(`Failed to find template for user ${userId}`, { error });
+    logger.warn(`Failed to find template for user ${userId}`, { error: String(error) });
     return undefined;
   }
 }
@@ -400,7 +400,7 @@ async function getAllTemplates(
       return entities.items.map(entity => entityToTemplate(entity));
     }
   } catch (error) {
-    logger.warn('Failed to fetch onboarding templates from catalog', { error });
+    logger.warn('Failed to fetch onboarding templates from catalog', { error: String(error) });
   }
 
   // Fallback: read templates from config when catalog has none

@@ -1,14 +1,14 @@
 {
-  "name": "@estehsan/backstage-plugin-onboarding",
+  "name": "@estehsaan/backstage-plugin-onboarding",
   "version": "0.1.0",
   "description": "A structured, interactive onboarding checklist plugin for Backstage",
   "backstage": {
     "role": "frontend-plugin",
     "pluginId": "onboarding",
     "pluginPackages": [
-      "@estehsan/backstage-plugin-onboarding",
-      "@estehsan/backstage-plugin-onboarding-backend",
-      "@estehsan/backstage-plugin-onboarding-common"
+      "@estehsaan/backstage-plugin-onboarding",
+      "@estehsaan/backstage-plugin-onboarding-backend",
+      "@estehsaan/backstage-plugin-onboarding-common"
     ]
   },
   "keywords": [
@@ -47,7 +47,7 @@
     "@backstage/errors": "^1.2.7",
     "@backstage/plugin-scaffolder-react": "^1.20.0",
     "@backstage/theme": "^0.7.2",
-    "@estehsan/backstage-plugin-onboarding-common": "^0.1.0",
+    "@estehsaan/backstage-plugin-onboarding-common": "^0.1.0",
     "@material-ui/core": "^4.12.2",
     "@material-ui/icons": "^4.9.1",
     "@material-ui/lab": "^4.0.0-alpha.61",

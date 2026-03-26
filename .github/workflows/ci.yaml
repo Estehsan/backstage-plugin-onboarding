@@ -11,7 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-lint:
+    name: Build, Lint & Test
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -31,11 +32,26 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
+      - name: Get yarn cache directory
+        id: yarn-cache-dir
+        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+
+      - name: Cache yarn dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.yarn-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
       - name: Install dependencies
         run: yarn install --immutable
 
       - name: Type check
         run: yarn tsc
+
+      - name: Build all packages
+        run: yarn build:all
 
       - name: Lint
         run: yarn lint
@@ -45,9 +61,11 @@ jobs:
         env:
           CI: true
 
-  validate-changesets:
+  validate-changeset:
+    name: Validate Changeset
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,11 +80,23 @@ jobs:
       - name: Enable Corepack
         run: corepack enable
 
+      - name: Get yarn cache directory
+        id: yarn-cache-dir
+        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+
+      - name: Cache yarn dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.yarn-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
       - name: Install dependencies
         run: yarn install --immutable
 
       - name: Check for changeset
         run: |
           if ! yarn changeset status --since=origin/main; then
-            echo "::warning::No changesets found. If this PR changes published packages, add a changeset."
+            echo "::warning::No changesets found. If this PR changes published packages, add a changeset with 'yarn changeset'."
           fi
