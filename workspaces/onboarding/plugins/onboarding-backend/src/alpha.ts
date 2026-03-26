@@ -1,4 +1,4 @@
-    /*
+/*
  * Copyright 2024 Ehsan Tehrani
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
-export { onboardingPlugin, OnboardingPage } from './plugin';
-export { onboardingApiRef } from './api/OnboardingApi';
-export type { OnboardingApi } from './api/OnboardingApi';
+/**
+ * The catalog module that registers the OnboardingTemplate entity kind.
+ *
+ * @alpha
+ */
+export { catalogModuleOnboardingEntityModel as default } from './module';

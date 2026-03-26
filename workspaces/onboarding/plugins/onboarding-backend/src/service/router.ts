@@ -95,7 +95,7 @@ export async function createRouter(
     let progress = await store.getProgress(userId);
 
     if (!progress) {
-      const template = await findTemplateForUser(catalogApi, userId);
+      const template = await findTemplateForUser(catalogApi, userId, logger);
       if (template) {
         progress = initializeProgress(userId, template);
         await store.upsertProgress(progress);
@@ -149,7 +149,7 @@ export async function createRouter(
     }
 
     if (status === 'done') {
-      const templates = await getAllTemplates(catalogApi, config);
+      const templates = await getAllTemplates(catalogApi, config, logger);
       const template = templates.find(
         t => t.metadata.name === progress.templateName,
       );
@@ -282,7 +282,7 @@ export async function createRouter(
       throw new NotAllowedError('Unauthorized');
     }
 
-    const templates = await getAllTemplates(catalogApi, config);
+    const templates = await getAllTemplates(catalogApi, config, logger);
     res.status(200).json(templates);
   });
 
@@ -300,7 +300,7 @@ export async function createRouter(
       throw new NotAllowedError('Unauthorized');
     }
 
-    const templates = await getAllTemplates(catalogApi, config);
+    const templates = await getAllTemplates(catalogApi, config, logger);
     const template = templates.find(t => t.metadata.name === templateName);
 
     if (!template) {
@@ -348,6 +348,7 @@ function initializeProgress(
 async function findTemplateForUser(
   catalogApi: CatalogApi,
   userId: string,
+  logger: LoggerService,
 ): Promise<OnboardingTemplate | undefined> {
   try {
     const userEntity = await catalogApi.getEntityByRef(userId);
@@ -377,7 +378,8 @@ async function findTemplateForUser(
     }
 
     return undefined;
-  } catch {
+  } catch (error) {
+    logger.warn(`Failed to find template for user ${userId}`, { error });
     return undefined;
   }
 }
@@ -385,6 +387,7 @@ async function findTemplateForUser(
 async function getAllTemplates(
   catalogApi: CatalogApi,
   config: RootConfigService,
+  logger: LoggerService,
 ): Promise<OnboardingTemplate[]> {
   try {
     const entities = await catalogApi.getEntities({
@@ -396,8 +399,8 @@ async function getAllTemplates(
     if (entities.items.length > 0) {
       return entities.items.map(entity => entityToTemplate(entity));
     }
-  } catch {
-    // Fall through to config-based templates
+  } catch (error) {
+    logger.warn('Failed to fetch onboarding templates from catalog', { error });
   }
 
   // Fallback: read templates from config when catalog has none

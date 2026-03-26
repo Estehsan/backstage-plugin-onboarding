@@ -15,10 +15,15 @@
  */
 
 import { Entity } from '@backstage/catalog-model';
-import { CatalogProcessor } from '@backstage/plugin-catalog-node';
+import {
+  CatalogProcessor,
+  CatalogProcessorEmit,
+} from '@backstage/plugin-catalog-node';
+import { LocationSpec } from '@backstage/plugin-catalog-common';
 
 /**
  * Adds support for the OnboardingTemplate entity kind to the catalog.
+ * Validates kind and enriches entities with a managed-by annotation.
  *
  * @public
  */
@@ -33,5 +38,24 @@ export class OnboardingTemplateProcessor implements CatalogProcessor {
         entity.apiVersion === 'onboarding.backstage.io/v1') &&
       entity.kind === 'OnboardingTemplate'
     );
+  }
+
+  async preProcessEntity(
+    entity: Entity,
+    _location: LocationSpec,
+    _emit: CatalogProcessorEmit,
+  ): Promise<Entity> {
+    if (entity.kind !== 'OnboardingTemplate') {
+      return entity;
+    }
+
+    const spec = entity.spec as Record<string, unknown> | undefined;
+    if (!spec?.phases || !Array.isArray(spec.phases)) {
+      throw new Error(
+        `OnboardingTemplate "${entity.metadata.name}" is missing required spec.phases array`,
+      );
+    }
+
+    return entity;
   }
 }

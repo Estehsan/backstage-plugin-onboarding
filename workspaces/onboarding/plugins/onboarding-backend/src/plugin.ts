@@ -35,6 +35,7 @@ export const onboardingPlugin = createBackendPlugin({
         permissions: coreServices.permissions,
         httpRouter: coreServices.httpRouter,
         httpAuth: coreServices.httpAuth,
+        auth: coreServices.auth,
         discovery: coreServices.discovery,
       },
       async init({
@@ -44,10 +45,24 @@ export const onboardingPlugin = createBackendPlugin({
         permissions,
         httpRouter,
         httpAuth,
+        auth,
         discovery,
       }) {
         const store = await DatabaseOnboardingStore.create({ database });
-        const catalogApi = new CatalogClient({ discoveryApi: discovery, fetchApi: { fetch: globalThis.fetch } });
+        const catalogApi = new CatalogClient({
+          discoveryApi: discovery,
+          fetchApi: {
+            fetch: async (input, init) => {
+              const { token } = await auth.getPluginRequestToken({
+                onBehalfOf: await auth.getOwnServiceCredentials(),
+                targetPluginId: 'catalog',
+              });
+              const headers = new Headers(init?.headers);
+              headers.set('Authorization', `Bearer ${token}`);
+              return globalThis.fetch(input, { ...init, headers });
+            },
+          },
+        });
 
         httpRouter.use(
           await createRouter({

@@ -4,5 +4,13 @@
   "private": true,
   "workspaces": {
     "packages": ["plugins/*"]
+  },
+  "scripts": {
+    "tsc": "tsc",
+    "build:all": "tsc && yarn workspaces foreach --all --topological-dev --no-private run build",
+    "clean": "yarn workspaces foreach --all --parallel run clean"
+  },
+  "devDependencies": {
+    "typescript": "~5.4.0"
   }
 }

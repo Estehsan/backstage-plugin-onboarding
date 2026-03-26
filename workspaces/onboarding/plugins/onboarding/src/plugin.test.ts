@@ -1,4 +1,4 @@
-    /*
+/*
  * Copyright 2024 Ehsan Tehrani
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +14,16 @@
  * limitations under the License.
  */
 
-export { onboardingPlugin, OnboardingPage } from './plugin';
-export { onboardingApiRef } from './api/OnboardingApi';
-export type { OnboardingApi } from './api/OnboardingApi';
+import { onboardingPlugin } from './plugin';
+
+describe('onboardingPlugin', () => {
+  it('should create the plugin', () => {
+    expect(onboardingPlugin).toBeDefined();
+    expect(onboardingPlugin.getId()).toBe('onboarding');
+  });
+
+  it('should export the OnboardingPage extension', async () => {
+    const { OnboardingPage } = await import('./plugin');
+    expect(OnboardingPage).toBeDefined();
+  });
+});

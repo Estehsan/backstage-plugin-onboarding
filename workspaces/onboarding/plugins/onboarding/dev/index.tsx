@@ -1,4 +1,4 @@
-    /*
+/*
  * Copyright 2024 Ehsan Tehrani
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +14,15 @@
  * limitations under the License.
  */
 
-export { onboardingPlugin, OnboardingPage } from './plugin';
-export { onboardingApiRef } from './api/OnboardingApi';
-export type { OnboardingApi } from './api/OnboardingApi';
+import React from 'react';
+import { createDevApp } from '@backstage/dev-utils';
+import { onboardingPlugin, OnboardingPage } from '../src';
+
+createDevApp()
+  .registerPlugin(onboardingPlugin)
+  .addPage({
+    element: <OnboardingPage />,
+    title: 'Onboarding',
+    path: '/onboarding',
+  })
+  .render();

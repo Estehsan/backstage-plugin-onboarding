@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "build:api-reports": "yarn backstage-repo-tools api-reports",
-    "build:all": "yarn workspaces foreach --all --topological-dev --no-private run build",
+    "build:all": "yarn workspace onboarding-workspace tsc && yarn workspaces foreach --all --topological-dev --no-private run build",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "clean": "yarn workspaces foreach --all --parallel run clean",
@@ -23,6 +23,11 @@
     "prettier:write": "prettier --write .",
     "test": "yarn backstage-cli repo test",
     "tsc": "tsc"
+  },
+  "peerDependencies": {
+    "react": "^18.0.2",
+    "react-dom": "^18.0.2",
+    "react-router-dom": "^6.0.0"
   },
   "devDependencies": {
     "@backstage/cli": "^0.36.0",

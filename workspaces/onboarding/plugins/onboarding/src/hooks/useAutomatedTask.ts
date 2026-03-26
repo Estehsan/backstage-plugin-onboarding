@@ -20,6 +20,7 @@ import { scaffolderApiRef } from '@backstage/plugin-scaffolder-react';
 import { onboardingApiRef } from '../api/OnboardingApi';
 
 const POLL_INTERVAL_MS = 3000;
+const MAX_POLL_ATTEMPTS = 100; // ~5 minutes at 3s intervals
 
 /**
  * Hook to manage scaffolder-based automated task execution.
@@ -69,7 +70,26 @@ export function useAutomatedTask(options: {
         });
 
         // Start polling for task completion
+        let attempts = 0;
         const timer = setInterval(async () => {
+          attempts += 1;
+          if (attempts > MAX_POLL_ATTEMPTS) {
+            clearInterval(timer);
+            pollTimers.current.delete(taskId);
+            await onboardingApi.updateTaskStatus(
+              userId,
+              taskId,
+              'blocked',
+              `Automation timed out after ${Math.round((MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS) / 60000)} minutes`,
+            ).catch(() => {});
+            setRunningTasks(prev => {
+              const next = new Map(prev);
+              next.set(taskId, { scaffolderTaskId, status: 'failed' });
+              return next;
+            });
+            onProgressUpdate();
+            return;
+          }
           try {
             const scaffolderTask =
               await scaffolderApi.getTask(scaffolderTaskId);

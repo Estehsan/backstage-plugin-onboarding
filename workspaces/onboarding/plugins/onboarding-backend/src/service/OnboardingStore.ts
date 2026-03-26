@@ -16,16 +16,25 @@
 
 import { Knex } from 'knex';
 import { v4 as uuid } from 'uuid';
+import path from 'path';
 import {
   DatabaseService,
   resolvePackagePath,
 } from '@backstage/backend-plugin-api';
 import { OnboardingProgress, OnboardingProgressRow } from '../types';
 
-const migrationsDir = resolvePackagePath(
-  '@estehsan/backstage-plugin-onboarding-backend',
-  'migrations',
-);
+const migrationsDir = (() => {
+  try {
+    return resolvePackagePath(
+      '@estehsan/backstage-plugin-onboarding-backend',
+      'migrations',
+    );
+  } catch {
+    // Fallback for local portal-linked source loading where self package
+    // resolution may fail at runtime.
+    return path.resolve(__dirname, '../../migrations');
+  }
+})();
 
 /** @public */
 export class DatabaseOnboardingStore {
@@ -101,11 +110,18 @@ export class DatabaseOnboardingStore {
   }
 
   private rowToProgress(row: OnboardingProgressRow): OnboardingProgress {
+    let tasks: OnboardingProgress['tasks'];
+    try {
+      const parsed = JSON.parse(row.tasks);
+      tasks = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      tasks = [];
+    }
     return {
       userId: row.user_id,
       templateName: row.template_name,
       startDate: row.start_date,
-      tasks: JSON.parse(row.tasks),
+      tasks,
     };
   }
 }

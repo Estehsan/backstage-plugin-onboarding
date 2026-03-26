@@ -27,6 +27,7 @@ export interface Config {
 
     /**
      * Template configuration.
+     * @visibility backend
      */
     templates?: {
       /**
