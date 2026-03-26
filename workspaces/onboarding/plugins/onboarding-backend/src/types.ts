@@ -24,7 +24,7 @@ export type {
   OnboardingTemplate,
   OnboardingProgress,
   TeamOnboardingStats,
-} from '@estehsan/backstage-plugin-onboarding-common';
+} from '@estehsaan/backstage-plugin-onboarding-common';
 
 /** Database row representation of onboarding progress */
 export interface OnboardingProgressRow {

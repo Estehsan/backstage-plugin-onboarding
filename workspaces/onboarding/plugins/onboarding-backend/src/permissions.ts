@@ -20,4 +20,4 @@ export {
   onboardingTeamReadPermission,
   onboardingTemplateAssignPermission,
   onboardingPermissions,
-} from '@estehsan/backstage-plugin-onboarding-common';
+} from '@estehsaan/backstage-plugin-onboarding-common';

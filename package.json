@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "build:api-reports": "yarn backstage-repo-tools api-reports",
-    "build:all": "yarn workspaces foreach --all --topological-dev --no-private run build",
+    "build:all": "yarn workspace @estehsaan/backstage-plugin-onboarding-common build && yarn workspace @estehsaan/backstage-plugin-onboarding build && yarn workspace @estehsaan/backstage-plugin-onboarding-backend build",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "clean": "yarn workspaces foreach --all --parallel run clean",
