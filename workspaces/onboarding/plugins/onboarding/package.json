@@ -18,7 +18,7 @@
     "checklist",
     "developer-portal"
   ],
-  "homepage": "https://github.com/estehsan/backstage-plugins/tree/main/workspaces/onboarding/plugins/onboarding#readme",
+  "homepage": "https://github.com/Estehsan/backstage-plugin-onboarding/tree/main/workspaces/onboarding/plugins/onboarding#readme",
   "publishConfig": {
     "access": "public",
     "main": "dist/index.esm.js",
@@ -26,7 +26,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/estehsan/backstage-plugins",
+    "url": "https://github.com/Estehsan/backstage-plugin-onboarding",
     "directory": "workspaces/onboarding/plugins/onboarding"
   },
   "license": "Apache-2.0",
@@ -47,7 +47,7 @@
     "@backstage/errors": "^1.2.7",
     "@backstage/plugin-scaffolder-react": "^1.20.0",
     "@backstage/theme": "^0.7.2",
-    "@estehsaan/backstage-plugin-onboarding-common": "^0.1.0",
+    "@estehsaan/backstage-plugin-onboarding-common": "workspace:*",
     "@material-ui/core": "^4.12.2",
     "@material-ui/icons": "^4.9.1",
     "@material-ui/lab": "^4.0.0-alpha.61",

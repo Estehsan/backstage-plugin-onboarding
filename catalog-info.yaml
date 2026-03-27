@@ -5,19 +5,18 @@ metadata:
   title: Onboarding Plugin
   description: A structured, interactive onboarding checklist plugin for Backstage
   annotations:
-    github.com/project-slug: estehsan/backstage-plugins
+    github.com/project-slug: Estehsan/backstage-plugin-onboarding
   links:
-    - url: https://github.com/estehsan/backstage-plugins
+    - url: https://github.com/Estehsan/backstage-plugin-onboarding
       title: GitHub Repository
-    - url: https://www.npmjs.com/package/@estehsan/backstage-plugin-onboarding
+    - url: https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding
       title: npm - Frontend
-    - url: https://www.npmjs.com/package/@estehsan/backstage-plugin-onboarding-backend
+    - url: https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding-backend
       title: npm - Backend
 spec:
   type: backstage-plugin
   lifecycle: experimental
   owner: user:default/estehsan
-  subcomponentOf: backstage-plugins
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -26,12 +25,11 @@ metadata:
   title: Onboarding Backend Plugin
   description: Backend for the Backstage onboarding checklist plugin
   annotations:
-    github.com/project-slug: estehsan/backstage-plugins
+    github.com/project-slug: Estehsan/backstage-plugin-onboarding
 spec:
   type: backstage-plugin
   lifecycle: experimental
   owner: user:default/estehsan
-  subcomponentOf: backstage-plugins
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -40,9 +38,8 @@ metadata:
   title: Onboarding Common Library
   description: Shared types and permissions for the Backstage onboarding plugin
   annotations:
-    github.com/project-slug: estehsan/backstage-plugins
+    github.com/project-slug: Estehsan/backstage-plugin-onboarding
 spec:
   type: backstage-plugin
   lifecycle: experimental
   owner: user:default/estehsan
-  subcomponentOf: backstage-plugins

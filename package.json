@@ -2,24 +2,23 @@
   "name": "estehsan-backstage-plugins",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "yarn@3.8.1",
+  "packageManager": "yarn@4.8.1",
   "engines": {
     "node": "22 || 24"
   },
   "workspaces": [
-    "workspaces/*",
     "workspaces/*/plugins/*"
   ],
   "scripts": {
     "build:api-reports": "yarn backstage-repo-tools api-reports",
-    "build:all": "yarn workspace @estehsaan/backstage-plugin-onboarding-common build && yarn workspace @estehsaan/backstage-plugin-onboarding build && yarn workspace @estehsaan/backstage-plugin-onboarding-backend build",
+    "build:all": "yarn workspace onboarding-workspace tsc && yarn workspaces foreach --all --topological-dev --no-private run build",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "clean": "yarn workspaces foreach --all --parallel run clean",
     "fix": "yarn backstage-cli repo fix",
     "lint": "yarn backstage-cli repo lint",
     "lint:type-deps": "yarn backstage-cli repo lint:type-deps",
-    "new": "backstage-cli new --scope @estehsaan",
+    "new": "backstage-cli new --scope @estehsan",
     "prettier:check": "prettier --check .",
     "prettier:write": "prettier --write .",
     "test": "yarn backstage-cli repo test",
@@ -33,15 +32,9 @@
   "devDependencies": {
     "@backstage/cli": "^0.36.0",
     "@backstage/cli-defaults": "^0.1.0",
-    "@backstage/eslint-plugin": "^0.2.2",
     "@backstage/repo-tools": "^0.17.0",
     "@changesets/changelog-github": "^0.5.0",
     "@changesets/cli": "^2.27.1",
-    "@jest/environment-jsdom-abstract": "^30.0.0",
-    "@types/jest": "^30.0.0",
-    "jest": "^30.0.0",
-    "jest-cli": "^30.0.0",
-    "jsdom": "^27.1.0",
     "prettier": "^3.0.0",
     "typescript": "~5.4.0"
   },

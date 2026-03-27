@@ -44,9 +44,8 @@ export function useAutomatedTask(options: {
 
   // Clean up poll timers on unmount
   useEffect(() => {
-    const timers = pollTimers.current;
     return () => {
-      for (const timer of timers.values()) {
+      for (const timer of pollTimers.current.values()) {
         clearInterval(timer);
       }
     };

@@ -36,7 +36,7 @@ const useStyles = makeStyles((theme: Theme) => ({
     fontWeight: 600,
   },
   countBadge: {
-    height: 23,
+    height: 22,
     fontSize: '0.75rem',
   },
   taskPaper: {

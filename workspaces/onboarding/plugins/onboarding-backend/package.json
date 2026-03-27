@@ -1,14 +1,14 @@
 {
-  "name": "@estehsaan/backstage-plugin-onboarding-backend",
+  "name": "@estehsan/backstage-plugin-onboarding-backend",
   "version": "0.1.0",
   "description": "Backend for the Backstage onboarding checklist plugin",
   "backstage": {
     "role": "backend-plugin",
     "pluginId": "onboarding",
     "pluginPackages": [
-      "@estehsaan/backstage-plugin-onboarding",
-      "@estehsaan/backstage-plugin-onboarding-backend",
-      "@estehsaan/backstage-plugin-onboarding-common"
+      "@estehsan/backstage-plugin-onboarding",
+      "@estehsan/backstage-plugin-onboarding-backend",
+      "@estehsan/backstage-plugin-onboarding-common"
     ]
   },
   "keywords": [
@@ -18,7 +18,7 @@
     "onboarding",
     "developer-portal"
   ],
-  "homepage": "https://github.com/estehsan/backstage-plugins/tree/main/workspaces/onboarding/plugins/onboarding-backend#readme",
+  "homepage": "https://github.com/Estehsan/backstage-plugin-onboarding/tree/main/workspaces/onboarding/plugins/onboarding-backend#readme",
   "publishConfig": {
     "access": "public",
     "main": "dist/index.cjs.js",
@@ -29,7 +29,7 @@
         "default": "./dist/index.cjs.js"
       },
       "./alpha": {
-        "types": "./dist/index.d.ts",
+        "types": "./dist/alpha.d.ts",
         "default": "./dist/alpha.cjs.js"
       },
       "./package.json": "./package.json"
@@ -37,7 +37,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/estehsan/backstage-plugins",
+    "url": "https://github.com/Estehsan/backstage-plugin-onboarding",
     "directory": "workspaces/onboarding/plugins/onboarding-backend"
   },
   "license": "Apache-2.0",
@@ -57,10 +57,9 @@
     "@backstage/catalog-client": "^1.14.0",
     "@backstage/catalog-model": "^1.7.7",
     "@backstage/errors": "^1.2.7",
-    "@backstage/plugin-catalog-common": "^1.1.5",
     "@backstage/plugin-catalog-node": "^2.1.0",
     "@backstage/plugin-permission-common": "^0.9.7",
-    "@estehsaan/backstage-plugin-onboarding-common": "^0.1.0",
+    "@estehsaan/backstage-plugin-onboarding-common": "workspace:*",
     "express": "^4.17.1",
     "express-promise-router": "^4.1.0",
     "knex": "^3.0.0",
