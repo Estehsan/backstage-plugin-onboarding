@@ -37,7 +37,11 @@
     "@backstage/repo-tools": "^0.17.0",
     "@changesets/changelog-github": "^0.5.0",
     "@changesets/cli": "^2.27.1",
-    "jest": "^30.2.0",
+    "@jest/environment-jsdom-abstract": "^30.0.0",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.0.0",
+    "jest-cli": "^30.0.0",
+    "jsdom": "^27.1.0",
     "prettier": "^3.0.0",
     "typescript": "~5.4.0"
   },

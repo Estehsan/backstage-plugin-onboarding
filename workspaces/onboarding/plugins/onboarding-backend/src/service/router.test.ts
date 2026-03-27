@@ -25,6 +25,8 @@ import {
 import { createRouter } from './router';
 import { DatabaseOnboardingStore } from './OnboardingStore';
 
+const enc = encodeURIComponent;
+
 // ---- Shared test fixtures ----
 
 const mockCatalogApi = {
@@ -58,7 +60,7 @@ async function createApp() {
     config: new ConfigReader({ onboarding: { defaults: { activeJoinerWindowDays: 90 } } }),
     store: mockStore,
     permissions: mockPermissions,
-    httpAuth: mockServices.httpAuth(),
+    httpAuth: mockServices.httpAuth.mock(),
     catalogApi: mockCatalogApi as any,
   });
 
@@ -104,7 +106,7 @@ describe('createRouter', () => {
       mockStore.getProgress.mockResolvedValue(progress);
 
       const res = await request(app)
-        .get('/progress/user:default/jane.doe')
+        .get(`/progress/${enc('user:default/jane.doe')}`)
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(200);
@@ -148,7 +150,7 @@ describe('createRouter', () => {
       mockStore.upsertProgress.mockResolvedValue(undefined);
 
       const res = await request(app)
-        .get('/progress/user:default/jane.doe')
+        .get(`/progress/${enc('user:default/jane.doe')}`)
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(200);
@@ -163,7 +165,7 @@ describe('createRouter', () => {
       mockCatalogApi.getEntityByRef.mockResolvedValue(undefined);
 
       const res = await request(app)
-        .get('/progress/user:default/unknown')
+        .get(`/progress/${enc('user:default/unknown')}`)
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(404);
@@ -175,7 +177,7 @@ describe('createRouter', () => {
       ]);
 
       const res = await request(app)
-        .get('/progress/user:default/jane.doe')
+        .get(`/progress/${enc('user:default/jane.doe')}`)
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(403);
@@ -233,7 +235,7 @@ describe('createRouter', () => {
       mockStore.upsertProgress.mockResolvedValue(undefined);
 
       const res = await request(app)
-        .post('/progress/user:default/jane.doe/tasks/setup-laptop')
+        .post(`/progress/${enc('user:default/jane.doe')}/tasks/setup-laptop`)
         .set('Authorization', 'Bearer mock-token')
         .send({ status: 'done' });
 
@@ -247,7 +249,7 @@ describe('createRouter', () => {
       mockStore.getProgress.mockResolvedValue({ ...existingProgress });
 
       const res = await request(app)
-        .post('/progress/user:default/jane.doe/tasks/setup-laptop')
+        .post(`/progress/${enc('user:default/jane.doe')}/tasks/setup-laptop`)
         .set('Authorization', 'Bearer mock-token')
         .send({ status: 'invalid-status' });
 
@@ -258,7 +260,7 @@ describe('createRouter', () => {
       mockStore.getProgress.mockResolvedValue({ ...existingProgress });
 
       const res = await request(app)
-        .post('/progress/user:default/jane.doe/tasks/nonexistent-task')
+        .post(`/progress/${enc('user:default/jane.doe')}/tasks/nonexistent-task`)
         .set('Authorization', 'Bearer mock-token')
         .send({ status: 'done' });
 
@@ -312,7 +314,7 @@ describe('createRouter', () => {
       });
 
       const res = await request(app)
-        .post('/progress/user:default/jane.doe/tasks/oncall-shadow')
+        .post(`/progress/${enc('user:default/jane.doe')}/tasks/oncall-shadow`)
         .set('Authorization', 'Bearer mock-token')
         .send({ status: 'done' });
 
@@ -326,7 +328,7 @@ describe('createRouter', () => {
       ]);
 
       const res = await request(app)
-        .post('/progress/user:default/jane.doe/tasks/setup-laptop')
+        .post(`/progress/${enc('user:default/jane.doe')}/tasks/setup-laptop`)
         .set('Authorization', 'Bearer mock-token')
         .send({ status: 'done' });
 
@@ -448,7 +450,7 @@ describe('createRouter', () => {
       mockStore.upsertProgress.mockResolvedValue(undefined);
 
       const res = await request(app)
-        .post('/templates/be-template/assign/user:default/new-joiner')
+        .post(`/templates/be-template/assign/${enc('user:default/new-joiner')}`)
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(200);
@@ -461,7 +463,7 @@ describe('createRouter', () => {
       mockCatalogApi.getEntities.mockResolvedValue({ items: [] });
 
       const res = await request(app)
-        .post('/templates/nonexistent/assign/user:default/someone')
+        .post(`/templates/nonexistent/assign/${enc('user:default/someone')}`)
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(404);
@@ -473,7 +475,7 @@ describe('createRouter', () => {
       ]);
 
       const res = await request(app)
-        .post('/templates/be-template/assign/user:default/someone')
+        .post(`/templates/be-template/assign/${enc('user:default/someone')}`)
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(403);

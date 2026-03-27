@@ -15,14 +15,19 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, ChangeEvent } from 'react';
-import { Page, Header, Content } from '@backstage/core-components';
+import {
+  Page,
+  Header,
+  Content,
+  ResponseErrorPanel,
+  Progress,
+} from '@backstage/core-components';
 import { identityApiRef, useApi } from '@backstage/core-plugin-api';
 import Tab from '@material-ui/core/Tab';
 import { makeStyles } from '@material-ui/core/styles';
 import TabContext from '@material-ui/lab/TabContext';
 import TabList from '@material-ui/lab/TabList';
 import TabPanel from '@material-ui/lab/TabPanel';
-import { Progress } from '@backstage/core-components';
 import { onboardingApiRef } from '../../api/OnboardingApi';
 import {
   OnboardingProgress,
@@ -58,7 +63,9 @@ export function OnboardingPage() {
   const reloadProgress = useCallback(async () => {
     if (!userId) return;
     try {
-      const updated = await onboardingApi.getProgress(userId).catch(() => undefined);
+      const updated = await onboardingApi
+        .getProgress(userId)
+        .catch(() => undefined);
       setProgress(updated);
     } catch {
       // ignore
@@ -146,14 +153,20 @@ export function OnboardingPage() {
     [onboardingApi, progress, userId, currentTemplate, triggerAutomatedTask],
   );
 
-  const handleTabChange = (_event: ChangeEvent<{}>, newValue: string) => {
-    setTab(newValue);
-  };
+  const handleTabChange = useCallback(
+    (_event: ChangeEvent<{}>, newValue: string) => {
+      setTab(newValue);
+    },
+    [],
+  );
 
   if (loading) {
     return (
       <Page themeId="tool">
-        <Header title="Developer Onboarding" subtitle="Your onboarding checklist" />
+        <Header
+          title="Developer Onboarding"
+          subtitle="Your onboarding checklist"
+        />
         <Content>
           <Progress />
         </Content>
@@ -164,9 +177,12 @@ export function OnboardingPage() {
   if (error) {
     return (
       <Page themeId="tool">
-        <Header title="Developer Onboarding" subtitle="Your onboarding checklist" />
+        <Header
+          title="Developer Onboarding"
+          subtitle="Your onboarding checklist"
+        />
         <Content>
-          <div>Error: {error.message}</div>
+          <ResponseErrorPanel error={error} />
         </Content>
       </Page>
     );
@@ -202,8 +218,8 @@ export function OnboardingPage() {
               </>
             ) : (
               <div>
-                No onboarding checklist assigned yet. Ask your manager to
-                assign a template from the Templates tab.
+                No onboarding checklist assigned yet. Ask your manager to assign
+                a template from the Templates tab.
               </div>
             )}
           </TabPanel>

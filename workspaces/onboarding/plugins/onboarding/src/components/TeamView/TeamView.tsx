@@ -75,6 +75,12 @@ const useStyles = makeStyles((theme: Theme) => ({
   },
 }));
 
+function daysSince(dateStr: string): number {
+  const start = new Date(dateStr);
+  const now = new Date();
+  return Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 /** @public */
 export interface TeamViewProps {
   onboardingApi: OnboardingApi;
@@ -118,12 +124,6 @@ export function TeamView(props: TeamViewProps) {
   const handleRowExpand = (userId: string) => {
     setExpandedRow(expandedRow === userId ? undefined : userId);
   };
-
-  function daysSince(dateStr: string): number {
-    const start = new Date(dateStr);
-    const now = new Date();
-    return Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  }
 
   return (
     <Box>
@@ -219,7 +219,10 @@ export function TeamView(props: TeamViewProps) {
                           {daysSince(joiner.startDate)} days
                         </TableCell>
                         <TableCell className={classes.progressCell}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }} style={{ gap: '8px' }}>
+                          <Box
+                            sx={{ display: 'flex', alignItems: 'center' }}
+                            style={{ gap: '8px' }}
+                          >
                             <Box flex={1}>
                               <MiniProgress
                                 variant="determinate"

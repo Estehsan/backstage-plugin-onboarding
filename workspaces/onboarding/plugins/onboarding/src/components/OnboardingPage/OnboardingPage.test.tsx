@@ -19,6 +19,7 @@ import userEvent from '@testing-library/user-event';
 import { renderInTestApp, TestApiRegistry } from '@backstage/test-utils';
 import { ApiProvider } from '@backstage/core-app-api';
 import { identityApiRef } from '@backstage/core-plugin-api';
+import { scaffolderApiRef } from '@backstage/plugin-scaffolder-react';
 import { rootRouteRef } from '../../routes';
 import { onboardingApiRef, OnboardingApi } from '../../api/OnboardingApi';
 import { OnboardingPage } from './OnboardingPage';
@@ -125,9 +126,21 @@ const mockIdentityApi = {
   signOut: jest.fn(),
 };
 
+const mockScaffolderApi = {
+  scaffold: jest.fn(),
+  getTask: jest.fn(),
+  getIntegrationsList: jest.fn(),
+  getTemplateParameterSchema: jest.fn(),
+  streamLogs: jest.fn(),
+  listActions: jest.fn(),
+  listTasks: jest.fn(),
+  cancelTask: jest.fn(),
+};
+
 const apis = TestApiRegistry.from(
   [onboardingApiRef, mockOnboardingApi],
   [identityApiRef, mockIdentityApi],
+  [scaffolderApiRef, mockScaffolderApi],
 );
 
 describe('OnboardingPage', () => {
@@ -161,8 +174,8 @@ describe('OnboardingPage', () => {
 
     expect(await screen.findByText('1 of 4 tasks complete')).toBeInTheDocument();
 
-    expect(screen.getByText('Day 1')).toBeInTheDocument();
-    expect(screen.getByText('Week 1')).toBeInTheDocument();
+    expect(screen.getAllByText('Day 1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Week 1').length).toBeGreaterThan(0);
     expect(screen.getByText('Set up laptop & dev environment')).toBeInTheDocument();
     expect(screen.getByText('Meet your onboarding buddy')).toBeInTheDocument();
     expect(screen.getByText('Complete security training')).toBeInTheDocument();

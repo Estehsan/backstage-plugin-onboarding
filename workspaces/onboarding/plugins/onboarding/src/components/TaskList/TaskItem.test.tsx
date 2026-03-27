@@ -110,7 +110,7 @@ describe('TaskItem', () => {
     renderTaskItem({ task: automatedTask, status: 'in-progress' });
 
     expect(screen.getByText('Automated')).toBeInTheDocument();
-    expect(screen.getByText('in-progress')).toBeInTheDocument();
+    expect(screen.getByText('Running')).toBeInTheDocument();
   });
 
   it('renders link button when task has a link', () => {

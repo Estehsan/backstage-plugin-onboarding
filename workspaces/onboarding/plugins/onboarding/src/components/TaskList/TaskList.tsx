@@ -36,7 +36,7 @@ const useStyles = makeStyles((theme: Theme) => ({
     fontWeight: 600,
   },
   countBadge: {
-    height: 22,
+    height: 23,
     fontSize: '0.75rem',
   },
   taskPaper: {
@@ -97,9 +97,7 @@ export function TaskList(props: TaskListProps) {
                 label={`${doneCount} / ${phaseTasks.length} done`}
                 className={classes.countBadge}
                 size="small"
-                color={
-                  doneCount === phaseTasks.length ? 'primary' : 'default'
-                }
+                color={doneCount === phaseTasks.length ? 'primary' : 'default'}
                 variant="outlined"
               />
             </Box>
@@ -116,7 +114,7 @@ export function TaskList(props: TaskListProps) {
                   );
                   const status = taskProgress?.status ?? 'pending';
 
-                  const locked = isTaskLocked(task, progress, allTasks);
+                  const locked = isTaskLocked(task, progress);
                   const lockedByNames = locked
                     ? getLockedByNames(task, progress, allTasks)
                     : undefined;
@@ -144,7 +142,6 @@ export function TaskList(props: TaskListProps) {
 function isTaskLocked(
   task: OnboardingTask,
   progress: OnboardingProgress,
-  _allTasks: OnboardingTask[],
 ): boolean {
   if (!task.dependsOn || task.dependsOn.length === 0) {
     return false;

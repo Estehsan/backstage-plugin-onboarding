@@ -136,7 +136,10 @@ const PHASE_LABELS: Record<string, string> = {
   month1: 'Month 1',
 };
 
-const AUTOMATED_STATUS_COLORS: Record<string, 'default' | 'primary' | 'secondary'> = {
+const AUTOMATED_STATUS_COLORS: Record<
+  string,
+  'default' | 'primary' | 'secondary'
+> = {
   pending: 'default',
   'in-progress': 'primary',
   done: 'default',
@@ -184,10 +187,7 @@ export function TaskItem(props: TaskItemProps) {
   if (locked) rootClasses.push(classes.locked);
 
   const handleToggle = () => {
-    if (locked) return;
-    if (isDone) {
-      onToggle(task.id);
-    } else {
+    if (!locked) {
       onToggle(task.id);
     }
   };
@@ -210,125 +210,134 @@ export function TaskItem(props: TaskItemProps) {
 
   return (
     <Box className={classes.wrapper} data-testid={`task-item-${task.id}`}>
-    <Box className={rootClasses.join(' ')} style={{ borderBottom: 'none' }}>
-      {locked ? (
-        <Tooltip
-          title={
-            lockedByNames && lockedByNames.length > 0
-              ? `Requires: ${lockedByNames.join(', ')}`
-              : 'Dependencies not yet complete'
+      <Box className={rootClasses.join(' ')} style={{ borderBottom: 'none' }}>
+        {locked ? (
+          <Tooltip
+            title={
+              lockedByNames && lockedByNames.length > 0
+                ? `Requires: ${lockedByNames.join(', ')}`
+                : 'Dependencies not yet complete'
+            }
+          >
+            <span style={{ display: 'flex', alignItems: 'flex-start' }}>
+              <LockIcon className={classes.lockIcon} />
+              {checkbox}
+            </span>
+          </Tooltip>
+        ) : (
+          checkbox
+        )}
+
+        <Box
+          className={`${classes.content} ${hasDetail ? classes.clickableContent : ''}`}
+          onClick={handleExpandToggle}
+          role={hasDetail ? 'button' : undefined}
+          tabIndex={hasDetail ? 0 : undefined}
+          onKeyDown={
+            hasDetail
+              ? e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleExpandToggle();
+                  }
+                }
+              : undefined
           }
         >
-          <span style={{ display: 'flex', alignItems: 'flex-start' }}>
-            <LockIcon className={classes.lockIcon} />
-            {checkbox}
-          </span>
-        </Tooltip>
-      ) : (
-        checkbox
-      )}
+          <Box className={classes.titleRow}>
+            <Typography
+              variant="body1"
+              className={isDone ? classes.titleDone : classes.title}
+            >
+              {task.title}
+            </Typography>
+            {hasDetail && (
+              <Chip
+                icon={<MenuBookIcon style={{ fontSize: 14 }} />}
+                label="Guide"
+                className={classes.hasDocsBadge}
+                size="small"
+                variant="outlined"
+                color="primary"
+                onClick={handleExpandToggle}
+              />
+            )}
+          </Box>
 
-      <Box
-        className={`${classes.content} ${hasDetail ? classes.clickableContent : ''}`}
-        onClick={handleExpandToggle}
-        role={hasDetail ? 'button' : undefined}
-        tabIndex={hasDetail ? 0 : undefined}
-        onKeyDown={hasDetail ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleExpandToggle(); } } : undefined}
-      >
-        <Box className={classes.titleRow}>
-          <Typography
-            variant="body1"
-            className={isDone ? classes.titleDone : classes.title}
-          >
-            {task.title}
+          <Typography variant="body2" className={classes.description}>
+            {task.description}
           </Typography>
-          {hasDetail && (
+
+          <Box className={classes.badges}>
             <Chip
-              icon={<MenuBookIcon style={{ fontSize: 14 }} />}
-              label="Guide"
-              className={classes.hasDocsBadge}
+              label={PHASE_LABELS[task.duePhase] ?? task.duePhase}
+              className={classes.phaseBadge}
               size="small"
               variant="outlined"
-              color="primary"
-              onClick={handleExpandToggle}
             />
-          )}
+            <Chip
+              label={isAutomated ? 'Automated' : 'Manual'}
+              className={classes.typeBadge}
+              size="small"
+              variant="outlined"
+              color={isAutomated ? 'primary' : 'default'}
+            />
+            {isBlocked && (
+              <Chip
+                label="Blocked"
+                className={classes.blockedBadge}
+                size="small"
+              />
+            )}
+            {isAutomated && (
+              <Chip
+                label={status === 'in-progress' ? 'Running' : status}
+                className={classes.automatedChip}
+                size="small"
+                color={AUTOMATED_STATUS_COLORS[status] ?? 'default'}
+              />
+            )}
+          </Box>
         </Box>
 
-        <Typography variant="body2" className={classes.description}>
-          {task.description}
-        </Typography>
-
-        <Box className={classes.badges}>
-          <Chip
-            label={PHASE_LABELS[task.duePhase] ?? task.duePhase}
-            className={classes.phaseBadge}
-            size="small"
-            variant="outlined"
-          />
-          <Chip
-            label={isAutomated ? 'Automated' : 'Manual'}
-            className={classes.typeBadge}
-            size="small"
-            variant="outlined"
-            color={isAutomated ? 'primary' : 'default'}
-          />
-          {isBlocked && (
-            <Chip
-              label="Blocked"
-              className={classes.blockedBadge}
-              size="small"
-            />
+        <Box className={classes.actions}>
+          <Tooltip title={task.assignee}>
+            <Avatar className={classes.avatar}>
+              {getAssigneeInitials(task.assignee)}
+            </Avatar>
+          </Tooltip>
+          {task.link && (
+            <Tooltip title={task.link.label}>
+              <IconButton
+                size="small"
+                href={task.link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={task.link.label}
+              >
+                <OpenInNewIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           )}
-          {isAutomated && (
-            <Chip
-              label={status === 'in-progress' ? 'Running' : status}
-              className={classes.automatedChip}
-              size="small"
-              color={AUTOMATED_STATUS_COLORS[status] ?? 'default'}
-            />
+          {hasDetail && (
+            <Tooltip title={expanded ? 'Hide guide' : 'View guide'}>
+              <IconButton
+                size="small"
+                className={classes.expandButton}
+                onClick={handleExpandToggle}
+                aria-label={expanded ? 'Collapse details' : 'Expand details'}
+              >
+                {expanded ? (
+                  <ExpandLessIcon fontSize="small" />
+                ) : (
+                  <ExpandMoreIcon fontSize="small" />
+                )}
+              </IconButton>
+            </Tooltip>
           )}
         </Box>
       </Box>
-
-      <Box className={classes.actions}>
-        <Tooltip title={task.assignee}>
-          <Avatar className={classes.avatar}>
-            {getAssigneeInitials(task.assignee)}
-          </Avatar>
-        </Tooltip>
-        {task.link && (
-          <Tooltip title={task.link.label}>
-            <IconButton
-              size="small"
-              href={task.link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={task.link.label}
-            >
-              <OpenInNewIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-        {hasDetail && (
-          <Tooltip title={expanded ? 'Hide guide' : 'View guide'}>
-            <IconButton
-              size="small"
-              className={classes.expandButton}
-              onClick={handleExpandToggle}
-              aria-label={expanded ? 'Collapse details' : 'Expand details'}
-            >
-              {expanded ? (
-                <ExpandLessIcon fontSize="small" />
-              ) : (
-                <ExpandMoreIcon fontSize="small" />
-              )}
-            </IconButton>
-          </Tooltip>
-        )}
-      </Box>
-    </Box>
-    <TaskDetailPanel task={task} open={expanded} />
+      <TaskDetailPanel task={task} open={expanded} />
     </Box>
   );
 }
