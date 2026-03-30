@@ -1,12 +1,12 @@
-# @estehsan/backstage-plugin-onboarding-common
+# @estehsaan/backstage-plugin-onboarding-common
 
-Shared types and permissions for the [`@estehsan/backstage-plugin-onboarding`](https://www.npmjs.com/package/@estehsan/backstage-plugin-onboarding) plugin.
+Shared types and permissions for the [`@estehsaan/backstage-plugin-onboarding`](https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding) plugin.
 
 ## Installation
 
 ```bash
 # From your Backstage root directory
-yarn --cwd packages/backend add @estehsan/backstage-plugin-onboarding-common
+yarn --cwd packages/backend add @estehsaan/backstage-plugin-onboarding-common
 ```
 
 ## Exported Types

@@ -1,14 +1,14 @@
 {
-  "name": "@estehsan/backstage-plugin-onboarding-backend",
+  "name": "@estehsaan/backstage-plugin-onboarding-backend",
   "version": "0.1.0",
   "description": "Backend for the Backstage onboarding checklist plugin",
   "backstage": {
     "role": "backend-plugin",
     "pluginId": "onboarding",
     "pluginPackages": [
-      "@estehsan/backstage-plugin-onboarding",
-      "@estehsan/backstage-plugin-onboarding-backend",
-      "@estehsan/backstage-plugin-onboarding-common"
+      "@estehsaan/backstage-plugin-onboarding",
+      "@estehsaan/backstage-plugin-onboarding-backend",
+      "@estehsaan/backstage-plugin-onboarding-common"
     ]
   },
   "keywords": [
@@ -57,9 +57,10 @@
     "@backstage/catalog-client": "^1.14.0",
     "@backstage/catalog-model": "^1.7.7",
     "@backstage/errors": "^1.2.7",
+    "@backstage/plugin-catalog-common": "^1.1.0",
     "@backstage/plugin-catalog-node": "^2.1.0",
     "@backstage/plugin-permission-common": "^0.9.7",
-    "@estehsaan/backstage-plugin-onboarding-common": "workspace:*",
+    "@estehsaan/backstage-plugin-onboarding-common": "workspace:^",
     "express": "^4.17.1",
     "express-promise-router": "^4.1.0",
     "knex": "^3.0.0",

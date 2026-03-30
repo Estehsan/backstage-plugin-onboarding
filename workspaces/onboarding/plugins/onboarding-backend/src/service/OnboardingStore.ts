@@ -16,25 +16,16 @@
 
 import { Knex } from 'knex';
 import { v4 as uuid } from 'uuid';
-import path from 'path';
 import {
   DatabaseService,
   resolvePackagePath,
 } from '@backstage/backend-plugin-api';
 import { OnboardingProgress, OnboardingProgressRow } from '../types';
 
-const migrationsDir = (() => {
-  try {
-    return resolvePackagePath(
-      '@estehsan/backstage-plugin-onboarding-backend',
-      'migrations',
-    );
-  } catch {
-    // Fallback for local portal-linked source loading where self package
-    // resolution may fail at runtime.
-    return path.resolve(__dirname, '../../migrations');
-  }
-})();
+const migrationsDir = resolvePackagePath(
+  '@estehsaan/backstage-plugin-onboarding-backend',
+  'migrations',
+);
 
 /** @public */
 export class DatabaseOnboardingStore {

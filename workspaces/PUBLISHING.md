@@ -1,20 +1,20 @@
 # Publishing to npm
 
-This guide walks you through publishing the onboarding plugin packages to npm under the `@estehsan` scope.
+This guide walks you through publishing the onboarding plugin packages to npm under the `@estehsaan` scope.
 
 ## Packages
 
 | Package | Directory |
 |---------|-----------|
-| `@estehsan/backstage-plugin-onboarding` | `plugins/onboarding` |
-| `@estehsan/backstage-plugin-onboarding-backend` | `plugins/onboarding-backend` |
-| `@estehsan/backstage-plugin-onboarding-common` | `plugins/onboarding-common` |
+| `@estehsaan/backstage-plugin-onboarding` | `plugins/onboarding` |
+| `@estehsaan/backstage-plugin-onboarding-backend` | `plugins/onboarding-backend` |
+| `@estehsaan/backstage-plugin-onboarding-common` | `plugins/onboarding-common` |
 
 ## Prerequisites
 
 1. **npm account** — Create one at https://www.npmjs.com/signup
 2. **Login** — Run `npm login` and authenticate
-3. **Scope access** — The first publish of an `@estehsan/*` package will create the scope automatically (tied to your npm username)
+3. **Scope access** — The first publish of an `@estehsaan/*` package will create the scope automatically (tied to your npm username)
 
 ## Build & Publish (first time)
 
@@ -52,17 +52,17 @@ Users install the packages in their own Backstage instance:
 
 ```bash
 # Frontend
-yarn --cwd packages/app add @estehsan/backstage-plugin-onboarding
+yarn --cwd packages/app add @estehsaan/backstage-plugin-onboarding
 
 # Backend
-yarn --cwd packages/backend add @estehsan/backstage-plugin-onboarding-backend
+yarn --cwd packages/backend add @estehsaan/backstage-plugin-onboarding-backend
 ```
 
 Then wire them up:
 
 **`packages/app/src/App.tsx`**:
 ```tsx
-import { OnboardingPage } from '@estehsan/backstage-plugin-onboarding';
+import { OnboardingPage } from '@estehsaan/backstage-plugin-onboarding';
 
 // In routes:
 <Route path="/onboarding" element={<OnboardingPage />} />
@@ -70,5 +70,5 @@ import { OnboardingPage } from '@estehsan/backstage-plugin-onboarding';
 
 **`packages/backend/src/index.ts`**:
 ```ts
-backend.add(import('@estehsan/backstage-plugin-onboarding-backend'));
+backend.add(import('@estehsaan/backstage-plugin-onboarding-backend'));
 ```

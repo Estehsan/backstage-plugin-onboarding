@@ -52,9 +52,6 @@ jobs:
       - name: Type check
         run: yarn tsc
 
-      - name: Generate declaration files
-        run: yarn workspace onboarding-workspace tsc
-
       - name: Build all packages
         run: yarn build:all
 

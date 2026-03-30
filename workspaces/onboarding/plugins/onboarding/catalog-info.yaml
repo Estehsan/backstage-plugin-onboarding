@@ -8,7 +8,7 @@ metadata:
     backstage.io/source-location: url:https://github.com/Estehsan/backstage-plugin-onboarding/tree/main/workspaces/onboarding/plugins/onboarding
   links:
     - title: npm
-      url: https://www.npmjs.com/package/@estehsan/backstage-plugin-onboarding
+      url: https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding
 spec:
   type: backstage-plugin
   lifecycle: experimental

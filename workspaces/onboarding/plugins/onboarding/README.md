@@ -1,4 +1,4 @@
-# @estehsan/backstage-plugin-onboarding
+# @estehsaan/backstage-plugin-onboarding
 
 A structured, interactive onboarding checklist plugin for [Backstage](https://backstage.io) that guides new engineers through their first Day 1, Week 1, Week 2, and Month 1.
 
@@ -22,13 +22,13 @@ It replaces static Confluence/Notion docs with a live, trackable, automated chec
 
 ```bash
 # From your Backstage root directory
-yarn --cwd packages/app add @estehsan/backstage-plugin-onboarding
+yarn --cwd packages/app add @estehsaan/backstage-plugin-onboarding
 ```
 
 Add the plugin page to your app routes in `packages/app/src/App.tsx`:
 
 ```tsx
-import { OnboardingPage } from '@estehsan/backstage-plugin-onboarding';
+import { OnboardingPage } from '@estehsaan/backstage-plugin-onboarding';
 
 // In your routes:
 <Route path="/onboarding" element={<OnboardingPage />} />
@@ -47,13 +47,13 @@ import SchoolIcon from '@material-ui/icons/School';
 
 ```bash
 # From your Backstage root directory
-yarn --cwd packages/backend add @estehsan/backstage-plugin-onboarding-backend
+yarn --cwd packages/backend add @estehsaan/backstage-plugin-onboarding-backend
 ```
 
 Add the backend plugin to `packages/backend/src/index.ts`:
 
 ```ts
-backend.add(import('@estehsan/backstage-plugin-onboarding-backend'));
+backend.add(import('@estehsaan/backstage-plugin-onboarding-backend'));
 ```
 
 ## Configuration
