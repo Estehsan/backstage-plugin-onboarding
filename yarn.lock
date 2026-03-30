@@ -3744,7 +3744,7 @@ __metadata:
     "@backstage/plugin-catalog-common": "npm:^1.1.0"
     "@backstage/plugin-catalog-node": "npm:^2.1.0"
     "@backstage/plugin-permission-common": "npm:^0.9.7"
-    "@estehsaan/backstage-plugin-onboarding-common": "workspace:^"
+    "@estehsaan/backstage-plugin-onboarding-common": "npm:^0.1.0"
     "@types/express": "npm:^4.17.6"
     "@types/supertest": "npm:^6.0.0"
     "@types/uuid": "npm:^9.0.0"
@@ -3756,7 +3756,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@estehsaan/backstage-plugin-onboarding-common@workspace:^, @estehsaan/backstage-plugin-onboarding-common@workspace:workspaces/onboarding/plugins/onboarding-common":
+"@estehsaan/backstage-plugin-onboarding-common@npm:^0.1.0, @estehsaan/backstage-plugin-onboarding-common@workspace:workspaces/onboarding/plugins/onboarding-common":
   version: 0.0.0-use.local
   resolution: "@estehsaan/backstage-plugin-onboarding-common@workspace:workspaces/onboarding/plugins/onboarding-common"
   dependencies:
@@ -3777,7 +3777,7 @@ __metadata:
     "@backstage/plugin-scaffolder-react": "npm:^1.20.0"
     "@backstage/test-utils": "npm:^1.7.16"
     "@backstage/theme": "npm:^0.7.2"
-    "@estehsaan/backstage-plugin-onboarding-common": "workspace:^"
+    "@estehsaan/backstage-plugin-onboarding-common": "npm:^0.1.0"
     "@material-ui/core": "npm:^4.12.2"
     "@material-ui/icons": "npm:^4.9.1"
     "@material-ui/lab": "npm:^4.0.0-alpha.61"
