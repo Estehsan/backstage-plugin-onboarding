@@ -22,22 +22,33 @@ import {
   TeamOnboardingStats,
 } from '../types';
 
-/** @public */
+/**
+ * API ref for the Onboarding plugin service.
+ * @public
+ */
 export const onboardingApiRef = createApiRef<OnboardingApi>({
   id: 'plugin.onboarding.service',
 });
 
-/** @public */
+/**
+ * API interface for the Onboarding plugin.
+ * @public
+ */
 export interface OnboardingApi {
+  /** Retrieves the onboarding progress for a given user. */
   getProgress(userId: string): Promise<OnboardingProgress>;
+  /** Updates the status of a specific onboarding task for a user. */
   updateTaskStatus(
     userId: string,
     taskId: string,
     status: TaskStatus,
     blockedReason?: string,
   ): Promise<OnboardingProgress>;
+  /** Retrieves onboarding completion statistics for a team. */
   getTeamStats(teamName: string): Promise<TeamOnboardingStats>;
+  /** Retrieves all available onboarding templates. */
   getTemplates(): Promise<OnboardingTemplate[]>;
+  /** Assigns an onboarding template to a user. */
   assignTemplate(
     templateName: string,
     userId: string,

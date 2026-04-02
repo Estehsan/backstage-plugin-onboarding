@@ -92,7 +92,10 @@ function computeStats(progress: OnboardingProgress) {
   return { total, done, blocked, inProgress, completionPct };
 }
 
-/** @public */
+/**
+ * Card component that displays onboarding progress for a user entity.
+ * @public
+ */
 export function EntityUserOnboardingCard() {
   const classes = useStyles();
   const { entity } = useEntity();

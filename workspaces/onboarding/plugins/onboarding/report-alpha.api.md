@@ -6,7 +6,6 @@
 import { AnyApiFactory } from '@backstage/frontend-plugin-api';
 import { AnyRouteRefParams } from '@backstage/frontend-plugin-api';
 import { ApiFactory } from '@backstage/frontend-plugin-api';
-import { ApiRef } from '@backstage/core-plugin-api';
 import { ConfigurableExtensionDataRef } from '@backstage/frontend-plugin-api';
 import { Entity } from '@backstage/catalog-model';
 import { EntityCardType } from '@backstage/plugin-catalog-react/alpha';
@@ -17,18 +16,10 @@ import { FilterPredicate } from '@backstage/filter-predicates';
 import { IconComponent } from '@backstage/frontend-plugin-api';
 import { IconElement } from '@backstage/frontend-plugin-api';
 import { JSX as JSX_2 } from 'react';
-import { JSX as JSX_3 } from 'react/jsx-runtime';
-import { OnboardingProgress } from '@estehsaan/backstage-plugin-onboarding-common';
-import { OnboardingTemplate } from '@estehsaan/backstage-plugin-onboarding-common';
 import { OverridableExtensionDefinition } from '@backstage/frontend-plugin-api';
 import { OverridableFrontendPlugin } from '@backstage/frontend-plugin-api';
 import { RouteRef } from '@backstage/core-plugin-api';
 import { RouteRef as RouteRef_2 } from '@backstage/frontend-plugin-api';
-import { TaskStatus } from '@estehsaan/backstage-plugin-onboarding-common';
-import { TeamOnboardingStats } from '@estehsaan/backstage-plugin-onboarding-common';
-
-// @public
-export function EntityUserOnboardingCard(): JSX_3.Element;
 
 // @public
 export const EntityUserOnboardingCardExtension: OverridableExtensionDefinition<{
@@ -91,26 +82,6 @@ export const OnboardingApi: OverridableExtensionDefinition<{
     params: ApiFactory<TApi, TImpl, TDeps>,
   ) => ExtensionBlueprintParams<AnyApiFactory>;
 }>;
-
-// @public
-export const onboardingApiRef: ApiRef<OnboardingApiType>;
-
-// @public
-export interface OnboardingApiType {
-  assignTemplate(
-    templateName: string,
-    userId: string,
-  ): Promise<OnboardingProgress>;
-  getProgress(userId: string): Promise<OnboardingProgress>;
-  getTeamStats(teamName: string): Promise<TeamOnboardingStats>;
-  getTemplates(): Promise<OnboardingTemplate[]>;
-  updateTaskStatus(
-    userId: string,
-    taskId: string,
-    status: TaskStatus,
-    blockedReason?: string,
-  ): Promise<OnboardingProgress>;
-}
 
 // @public
 export const OnboardingNavItem: OverridableExtensionDefinition<{
@@ -378,5 +349,6 @@ const onboardingPlugin: OverridableFrontendPlugin<
   }
 >;
 export default onboardingPlugin;
-export { onboardingPlugin };
+
+// (No @packageDocumentation comment for this package)
 ```

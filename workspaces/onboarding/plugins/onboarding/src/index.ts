@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+/**
+ * Backstage plugin for developer onboarding checklists and progress tracking.
+ * @packageDocumentation
+ */
+
 export {
   onboardingPlugin,
   onboardingPlugin as default,

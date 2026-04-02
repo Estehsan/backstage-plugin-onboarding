@@ -28,7 +28,10 @@ import { rootRouteRef } from './routes';
 import { onboardingApiRef } from './api/OnboardingApi';
 import { OnboardingClient } from './api/OnboardingClient';
 
-/** @public */
+/**
+ * Page extension for the Onboarding plugin.
+ * @public
+ */
 export const OnboardingPageExtension = PageBlueprint.make({
   params: {
     path: '/onboarding',
@@ -40,7 +43,10 @@ export const OnboardingPageExtension = PageBlueprint.make({
   },
 });
 
-/** @public */
+/**
+ * Sidebar navigation item for the Onboarding plugin.
+ * @public
+ */
 export const OnboardingNavItem = NavItemBlueprint.make({
   params: {
     title: 'Onboarding',
@@ -49,7 +55,10 @@ export const OnboardingNavItem = NavItemBlueprint.make({
   },
 });
 
-/** @public */
+/**
+ * API extension providing the OnboardingApi factory.
+ * @public
+ */
 export const OnboardingApi = ApiBlueprint.make({
   params: defineParams =>
     defineParams(
@@ -62,7 +71,10 @@ export const OnboardingApi = ApiBlueprint.make({
     ),
 });
 
-/** @public */
+/**
+ * Entity card extension showing onboarding progress for a user entity.
+ * @public
+ */
 export const EntityUserOnboardingCardExtension = EntityCardBlueprint.make({
   name: 'user-onboarding',
   params: {
@@ -74,7 +86,10 @@ export const EntityUserOnboardingCardExtension = EntityCardBlueprint.make({
   },
 });
 
-/** @public */
+/**
+ * The Onboarding Backstage plugin.
+ * @public
+ */
 export const onboardingPlugin = createFrontendPlugin({
   pluginId: 'onboarding',
   info: { packageJson: () => import('../package.json') },
