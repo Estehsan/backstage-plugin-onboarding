@@ -6,7 +6,7 @@ Thank you for contributing! This document explains the conventions used in this 
 
 - [Commit Message Format](#commit-message-format)
 - [Branch Naming](#branch-naming)
-- [Creating a Changeset](#creating-a-changeset)
+- [Automated Releases](#automated-releases)
 - [Pull Request Guidelines](#pull-request-guidelines)
 - [Developer Certificate of Origin](#developer-certificate-of-origin)
 - [GitHub Actions & NPM_TOKEN](#github-actions--npm_token)
@@ -67,34 +67,47 @@ ci/add-caching
 
 ---
 
-## Creating a Changeset
+## Automated Releases
 
-Every PR that changes a published package **must** include a changeset. This drives automatic versioning and changelog generation.
+This repo uses **[semantic-release](https://semantic-release.gitbook.io/)** — no manual versioning or changeset files are needed.
 
-```bash
-# From the repo root
-yarn changeset
-```
+**How it works:**
 
-You will be prompted to:
+| Commit type                           | Release triggered         |
+| ------------------------------------- | ------------------------- |
+| `feat:`                               | Minor (`1.0.0` → `1.1.0`) |
+| `fix:`                                | Patch (`1.0.0` → `1.0.1`) |
+| `feat!:` or `BREAKING CHANGE:` footer | Major (`1.0.0` → `2.0.0`) |
+| `chore:`, `docs:`, `ci:`, `test:`     | No release                |
 
-1. Select which packages changed
-2. Choose a bump type: `patch` (bug fix), `minor` (new feature), `major` (breaking change)
-3. Write a one-line summary of the change (this goes into the CHANGELOG)
+Every merge to `main` triggers the `Release` workflow which:
 
-Commit the generated `.changeset/*.md` file alongside your code changes.
+1. Analyzes commits since the last release
+2. Publishes all three packages to npm at the new version
+3. Auto-generates `CHANGELOG.md` and commits it back
+4. Creates a GitHub Release with release notes
 
-### Bump type guide
+**One-time setup** (repo owner only):
 
-| Change                                 | Bump    |
-| -------------------------------------- | ------- |
-| Bug fix, internal refactor             | `patch` |
-| New feature, non-breaking API addition | `minor` |
-| Breaking API change                    | `major` |
+1. Create an npm **granular access token**:
+   - Go to [npmjs.com → Access Tokens](https://www.npmjs.com/settings/~/tokens)
+   - Click **Generate New Token → Granular Access Token**
+   - Set **Packages and scopes**: Read and write, scoped to `@estehsaan`
+   - Enable **"Bypass 2FA for writes"** (required for CI automation)
+   - Copy the token
+
+2. Add it to GitHub:
+   - Go to **GitHub repo → Settings → Secrets and variables → Actions**
+   - Click **New repository secret**, name it `NPM_TOKEN`, paste the token
+
+3. Bootstrap the initial tag (one time only, after merging the semantic-release setup PR):
+   ```bash
+   git tag v1.0.0 <sha-of-1.0.0-commit>
+   git push origin v1.0.0
+   ```
+   This tells semantic-release where versioning starts from.
 
 ---
-
-## Pull Request Guidelines
 
 - **PR title** must follow the same Conventional Commits format as commit messages.
 - **Squash merge** is the default strategy — your commits will be squashed into one.
@@ -118,28 +131,7 @@ This adds a `Signed-off-by: Your Name <your@email.com>` line to the commit. See 
 
 ## GitHub Actions & NPM_TOKEN
 
-The Release workflow automatically publishes to npm via [Changesets](https://github.com/changesets/changesets).
-
-**One-time setup** (repo owner only):
-
-1. Create an npm **granular access token**:
-   - Go to [npmjs.com → Access Tokens](https://www.npmjs.com/settings/~/tokens)
-   - Click **Generate New Token → Granular Access Token**
-   - Set **Packages and scopes**: Read and write, scoped to `@estehsaan`
-   - Enable **"Bypass 2FA for writes"** (required for CI automation)
-   - Copy the token
-
-2. Add the token to GitHub:
-   - Go to **GitHub repo → Settings → Secrets and variables → Actions**
-   - Click **New repository secret**
-   - Name: `NPM_TOKEN`
-   - Value: the token you copied
-
-Once `NPM_TOKEN` is set, the workflow is fully automatic:
-
-1. Open a PR with your change + a changeset → CI runs
-2. Merge the PR → Release workflow creates a **"chore: version packages"** PR
-3. Merge that PR → packages are built, versioned, and published to npm automatically
+See the [Automated Releases](#automated-releases) section above for setup instructions.
 
 ---
 
