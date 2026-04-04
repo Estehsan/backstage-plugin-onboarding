@@ -230,9 +230,7 @@ export function TaskDetailPanel(props: TaskDetailPanelProps) {
                           <ListItemIcon className={classes.resourceIcon}>
                             <Icon
                               fontSize="small"
-                              color={
-                                res.type === 'video' ? 'error' : 'action'
-                              }
+                              color={res.type === 'video' ? 'error' : 'action'}
                             />
                           </ListItemIcon>
                           <ListItemText

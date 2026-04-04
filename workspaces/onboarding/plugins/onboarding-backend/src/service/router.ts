@@ -231,9 +231,7 @@ export async function createRouter(
           e => `user:default/${e.metadata.name}` === p.userId,
         );
         const doneTasks = p.tasks.filter(t => t.status === 'done').length;
-        const blockedTasks = p.tasks.filter(
-          t => t.status === 'blocked',
-        ).length;
+        const blockedTasks = p.tasks.filter(t => t.status === 'blocked').length;
         const completionPercent =
           p.tasks.length > 0
             ? Math.round((doneTasks / p.tasks.length) * 100)
@@ -432,7 +430,9 @@ async function findTemplateForUser(
 
     return undefined;
   } catch (error) {
-    logger.warn(`Failed to find template for user ${userId}`, { error: String(error) });
+    logger.warn(`Failed to find template for user ${userId}`, {
+      error: String(error),
+    });
     return undefined;
   }
 }
@@ -453,7 +453,9 @@ async function getAllTemplates(
       return entities.items.map(entity => entityToTemplate(entity));
     }
   } catch (error) {
-    logger.warn('Failed to fetch onboarding templates from catalog', { error: String(error) });
+    logger.warn('Failed to fetch onboarding templates from catalog', {
+      error: String(error),
+    });
   }
 
   // Fallback: read templates from config when catalog has none

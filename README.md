@@ -4,11 +4,11 @@ A standalone monorepo for Backstage plugins published under the `@estehsaan` npm
 
 ## Packages
 
-| Package | Version | Description |
-|---------|---------|-------------|
-| [`@estehsaan/backstage-plugin-onboarding`](./workspaces/onboarding/plugins/onboarding) | [![npm](https://img.shields.io/npm/v/@estehsaan/backstage-plugin-onboarding)](https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding) | Frontend onboarding checklist plugin |
-| [`@estehsaan/backstage-plugin-onboarding-backend`](./workspaces/onboarding/plugins/onboarding-backend) | [![npm](https://img.shields.io/npm/v/@estehsaan/backstage-plugin-onboarding-backend)](https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding-backend) | Backend for the onboarding plugin |
-| [`@estehsaan/backstage-plugin-onboarding-common`](./workspaces/onboarding/plugins/onboarding-common) | [![npm](https://img.shields.io/npm/v/@estehsaan/backstage-plugin-onboarding-common)](https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding-common) | Shared types and permissions |
+| Package                                                                                                | Version                                                                                                                                                             | Description                          |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| [`@estehsaan/backstage-plugin-onboarding`](./workspaces/onboarding/plugins/onboarding)                 | [![npm](https://img.shields.io/npm/v/@estehsaan/backstage-plugin-onboarding)](https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding)                 | Frontend onboarding checklist plugin |
+| [`@estehsaan/backstage-plugin-onboarding-backend`](./workspaces/onboarding/plugins/onboarding-backend) | [![npm](https://img.shields.io/npm/v/@estehsaan/backstage-plugin-onboarding-backend)](https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding-backend) | Backend for the onboarding plugin    |
+| [`@estehsaan/backstage-plugin-onboarding-common`](./workspaces/onboarding/plugins/onboarding-common)   | [![npm](https://img.shields.io/npm/v/@estehsaan/backstage-plugin-onboarding-common)](https://www.npmjs.com/package/@estehsaan/backstage-plugin-onboarding-common)   | Shared types and permissions         |
 
 ## Installation (for consumers)
 
@@ -82,4 +82,3 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for commit conventions, branch naming, 
 ## License
 
 [Apache-2.0](./LICENSE)
-

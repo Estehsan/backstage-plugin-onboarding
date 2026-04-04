@@ -4,11 +4,11 @@ This guide walks you through publishing the onboarding plugin packages to npm un
 
 ## Packages
 
-| Package | Directory |
-|---------|-----------|
-| `@estehsaan/backstage-plugin-onboarding` | `plugins/onboarding` |
+| Package                                          | Directory                    |
+| ------------------------------------------------ | ---------------------------- |
+| `@estehsaan/backstage-plugin-onboarding`         | `plugins/onboarding`         |
 | `@estehsaan/backstage-plugin-onboarding-backend` | `plugins/onboarding-backend` |
-| `@estehsaan/backstage-plugin-onboarding-common` | `plugins/onboarding-common` |
+| `@estehsaan/backstage-plugin-onboarding-common`  | `plugins/onboarding-common`  |
 
 ## Prerequisites
 
@@ -61,14 +61,16 @@ yarn --cwd packages/backend add @estehsaan/backstage-plugin-onboarding-backend
 Then wire them up:
 
 **`packages/app/src/App.tsx`**:
+
 ```tsx
 import { OnboardingPage } from '@estehsaan/backstage-plugin-onboarding';
 
 // In routes:
-<Route path="/onboarding" element={<OnboardingPage />} />
+<Route path="/onboarding" element={<OnboardingPage />} />;
 ```
 
 **`packages/backend/src/index.ts`**:
+
 ```ts
 backend.add(import('@estehsaan/backstage-plugin-onboarding-backend'));
 ```

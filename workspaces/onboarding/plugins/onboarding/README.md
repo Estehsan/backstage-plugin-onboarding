@@ -32,7 +32,7 @@ Add the plugin page to your app routes in `packages/app/src/App.tsx`:
 import { OnboardingPage } from '@estehsaan/backstage-plugin-onboarding';
 
 // In your routes:
-<Route path="/onboarding" element={<OnboardingPage />} />
+<Route path="/onboarding" element={<OnboardingPage />} />;
 ```
 
 Add a sidebar item in `packages/app/src/components/Root/Root.tsx`:
@@ -41,7 +41,7 @@ Add a sidebar item in `packages/app/src/components/Root/Root.tsx`:
 import SchoolIcon from '@material-ui/icons/School';
 
 // In your sidebar:
-<SidebarItem icon={SchoolIcon} to="onboarding" text="Onboarding" />
+<SidebarItem icon={SchoolIcon} to="onboarding" text="Onboarding" />;
 ```
 
 ### Backend

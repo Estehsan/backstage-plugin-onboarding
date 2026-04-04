@@ -20,8 +20,13 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "include": [
-    "workspaces/*/plugins/*/src/**/*"
-  ],
-  "exclude": ["node_modules", "dist", "dist-types", "**/*.test.*", "**/*.spec.*", "**/setupTests.*"]
+  "include": ["workspaces/*/plugins/*/src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-types",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/setupTests.*"
+  ]
 }

@@ -57,7 +57,7 @@ jobs:
         run: yarn build:all
 
       - name: Build API reports
-        run: yarn build:api-reports
+        run: yarn build:api-reports:only
 
       - name: Lint
         run: yarn lint
