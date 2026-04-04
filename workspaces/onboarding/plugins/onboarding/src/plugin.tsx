@@ -130,10 +130,10 @@ export const legacyOnboardingPlugin = createPlugin({
 });
 
 /**
- * Routable extension for the old frontend system.
- * @public
+ * Routable extension for the old frontend system backwards compatibility.
+ * @internal
  */
-export const OnboardingPage = legacyOnboardingPlugin.provide(
+const OnboardingPageExtensionLegacy = legacyOnboardingPlugin.provide(
   createRoutableExtension({
     name: 'OnboardingPage',
     component: () =>
@@ -143,3 +143,17 @@ export const OnboardingPage = legacyOnboardingPlugin.provide(
     mountPoint: rootRouteRef,
   }),
 );
+
+/**
+ * Page component for use with the legacy Backstage frontend system.
+ *
+ * Add it to your app routes in `packages/app/src/App.tsx`:
+ * ```tsx
+ * import { OnboardingPage } from '@estehsaan/backstage-plugin-onboarding';
+ * <Route path="/onboarding" element={<OnboardingPage />} />
+ * ```
+ * @public
+ */
+export function OnboardingPage(): JSX.Element {
+  return <OnboardingPageExtensionLegacy />;
+}
