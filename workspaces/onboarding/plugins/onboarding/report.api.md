@@ -147,6 +147,9 @@ export const OnboardingNavItem: OverridableExtensionDefinition<{
 }>;
 
 // @public
+export function OnboardingPage(): JSX.Element;
+
+// @public
 export const OnboardingPageExtension: OverridableExtensionDefinition<{
   kind: 'page';
   name: undefined;
