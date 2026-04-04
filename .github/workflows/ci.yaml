@@ -47,6 +47,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Prettier check
+        run: yarn prettier:check
+
       - name: Type check
         run: yarn tsc
 
