@@ -26,6 +26,25 @@ It replaces static Confluence/Notion docs with a live, trackable, automated chec
 yarn --cwd packages/app add @estehsaan/backstage-plugin-onboarding
 ```
 
+#### New Frontend System (Backstage ≥ 1.30)
+
+Import the plugin from the `/alpha` subpath and register it in your app's `features` array in `packages/app/src/App.tsx`:
+
+```tsx
+import onboardingPlugin from '@estehsaan/backstage-plugin-onboarding/alpha';
+
+export const app = createApp({
+  features: [
+    // ...other plugins
+    onboardingPlugin,
+  ],
+});
+```
+
+The plugin automatically registers the `/onboarding` route and the sidebar nav item — no additional wiring required.
+
+#### Legacy Frontend System (Backstage < 1.30)
+
 Add the plugin page to your app routes in `packages/app/src/App.tsx`:
 
 ```tsx

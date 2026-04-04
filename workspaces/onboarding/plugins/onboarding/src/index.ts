@@ -26,6 +26,7 @@ export {
   OnboardingNavItem,
   OnboardingApi,
   EntityUserOnboardingCardExtension,
+  OnboardingPage,
 } from './plugin';
 export { onboardingApiRef } from './api/OnboardingApi';
 export type { OnboardingApi as OnboardingApiType } from './api/OnboardingApi';
