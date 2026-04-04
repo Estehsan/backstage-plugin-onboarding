@@ -1,0 +1,73 @@
+name: Publish GitHub Packages
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: publish-github-packages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to GitHub Packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@estehsaan"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Configure Yarn for GitHub Packages
+        run: |
+          yarn config set --home 'npmScopes["estehsaan"].npmRegistryServer' 'https://npm.pkg.github.com'
+          yarn config set --home 'npmScopes["estehsaan"].npmAlwaysAuth' true
+          yarn config set --home 'npmScopes["estehsaan"].npmAuthToken' '${{ secrets.GITHUB_TOKEN }}'
+
+      - name: Get yarn cache directory
+        id: yarn-cache-dir
+        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+
+      - name: Cache yarn dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.yarn-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Type check
+        run: yarn tsc
+
+      - name: Build all packages
+        run: yarn build:all
+
+      - name: Create release PR or publish to GitHub Packages
+        uses: changesets/action@v1
+        with:
+          publish: yarn changeset publish --no-git-checks
+          title: "chore: version packages (GitHub Packages)"
+          commit: "chore: version packages (GitHub Packages)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

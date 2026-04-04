@@ -104,5 +104,6 @@ jobs:
       - name: Check for changeset
         run: |
           if ! yarn changeset status --since=origin/main; then
-            echo "::warning::No changesets found. If this PR changes published packages, add a changeset with 'yarn changeset'."
+            echo "::error::No changeset found. Add one with 'yarn changeset' so release automation can version and publish packages."
+            exit 1
           fi
