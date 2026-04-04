@@ -24,17 +24,17 @@ This repo follows the [Conventional Commits](https://www.conventionalcommits.org
 
 ### Types
 
-| Type       | When to use                                      |
-|------------|--------------------------------------------------|
-| `feat`     | A new feature                                    |
-| `fix`      | A bug fix                                        |
-| `chore`    | Maintenance, dependency updates, tooling         |
-| `docs`     | Documentation only changes                       |
-| `refactor` | Code restructuring without behaviour change      |
-| `test`     | Adding or improving tests                        |
-| `ci`       | GitHub Actions / CI configuration changes        |
-| `perf`     | Performance improvements                         |
-| `build`    | Build system changes                             |
+| Type       | When to use                                 |
+| ---------- | ------------------------------------------- |
+| `feat`     | A new feature                               |
+| `fix`      | A bug fix                                   |
+| `chore`    | Maintenance, dependency updates, tooling    |
+| `docs`     | Documentation only changes                  |
+| `refactor` | Code restructuring without behaviour change |
+| `test`     | Adding or improving tests                   |
+| `ci`       | GitHub Actions / CI configuration changes   |
+| `perf`     | Performance improvements                    |
+| `build`    | Build system changes                        |
 
 ### Scope
 
@@ -77,6 +77,7 @@ yarn changeset
 ```
 
 You will be prompted to:
+
 1. Select which packages changed
 2. Choose a bump type: `patch` (bug fix), `minor` (new feature), `major` (breaking change)
 3. Write a one-line summary of the change (this goes into the CHANGELOG)
@@ -85,11 +86,11 @@ Commit the generated `.changeset/*.md` file alongside your code changes.
 
 ### Bump type guide
 
-| Change | Bump |
-|--------|------|
-| Bug fix, internal refactor | `patch` |
+| Change                                 | Bump    |
+| -------------------------------------- | ------- |
+| Bug fix, internal refactor             | `patch` |
 | New feature, non-breaking API addition | `minor` |
-| Breaking API change | `major` |
+| Breaking API change                    | `major` |
 
 ---
 

@@ -77,12 +77,14 @@ export function useAutomatedTask(options: {
           if (attempts > MAX_POLL_ATTEMPTS) {
             clearInterval(timer);
             pollTimers.current.delete(taskId);
-            await onboardingApi.updateTaskStatus(
-              userId,
-              taskId,
-              'blocked',
-              `Automation timed out after ${Math.round((MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS) / 60000)} minutes`,
-            ).catch(() => {});
+            await onboardingApi
+              .updateTaskStatus(
+                userId,
+                taskId,
+                'blocked',
+                `Automation timed out after ${Math.round((MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS) / 60000)} minutes`,
+              )
+              .catch(() => {});
             setRunningTasks(prev => {
               const next = new Map(prev);
               next.set(taskId, { scaffolderTaskId, status: 'failed' });
@@ -142,7 +144,9 @@ export function useAutomatedTask(options: {
             userId,
             taskId,
             'blocked',
-            error instanceof Error ? error.message : 'Failed to start automation',
+            error instanceof Error
+              ? error.message
+              : 'Failed to start automation',
           )
           .catch(() => {});
 

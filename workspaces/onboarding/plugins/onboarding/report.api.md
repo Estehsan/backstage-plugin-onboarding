@@ -104,12 +104,23 @@ export interface OnboardingApiType {
   getProgress(userId: string): Promise<OnboardingProgress>;
   getTeamStats(teamName: string): Promise<TeamOnboardingStats>;
   getTemplates(): Promise<OnboardingTemplate[]>;
+  searchCatalogUsers(query: string): Promise<OnboardingCatalogUser[]>;
   updateTaskStatus(
     userId: string,
     taskId: string,
     status: TaskStatus,
     blockedReason?: string,
   ): Promise<OnboardingProgress>;
+}
+
+// @public
+export interface OnboardingCatalogUser {
+  // (undocumented)
+  displayName: string;
+  // (undocumented)
+  email?: string;
+  // (undocumented)
+  entityRef: string;
 }
 
 // @public

@@ -92,8 +92,16 @@ const demoProgressRecords: OnboardingProgress[] = [
     tasks: [
       { taskId: 'sre-setup', status: 'done', completedAt: daysAgo(20) },
       { taskId: 'sre-meet-buddy', status: 'done', completedAt: daysAgo(20) },
-      { taskId: 'sre-incident-training', status: 'done', completedAt: daysAgo(17) },
-      { taskId: 'sre-monitoring-tour', status: 'done', completedAt: daysAgo(15) },
+      {
+        taskId: 'sre-incident-training',
+        status: 'done',
+        completedAt: daysAgo(17),
+      },
+      {
+        taskId: 'sre-monitoring-tour',
+        status: 'done',
+        completedAt: daysAgo(15),
+      },
       { taskId: 'sre-oncall-shadow', status: 'done', completedAt: daysAgo(10) },
       { taskId: 'sre-runbook-update', status: 'done', completedAt: daysAgo(6) },
       {

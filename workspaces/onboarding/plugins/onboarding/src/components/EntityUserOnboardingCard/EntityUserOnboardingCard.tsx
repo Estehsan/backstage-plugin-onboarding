@@ -103,11 +103,7 @@ export function EntityUserOnboardingCard() {
 
   const userId = `user:default/${entity.metadata.name}`;
 
-  const {
-    value,
-    loading,
-    error,
-  } = useAsync(async () => {
+  const { value, loading, error } = useAsync(async () => {
     const [prog, templates] = await Promise.all([
       onboardingApi.getProgress(userId),
       onboardingApi.getTemplates(),

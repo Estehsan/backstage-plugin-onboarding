@@ -10,7 +10,8 @@
     "workspaces/*/plugins/*"
   ],
   "scripts": {
-    "build:api-reports": "yarn backstage-repo-tools api-reports",
+    "build:api-reports": "yarn tsc --skipLibCheck && yarn build:api-reports:only",
+    "build:api-reports:only": "backstage-repo-tools api-reports -o ae-wrong-input-file-type,ae-undocumented --validate-release-tags",
     "build:all": "yarn tsc -p workspaces/onboarding/tsconfig.json && yarn workspaces foreach --all --topological-dev --no-private run build",
     "changeset": "changeset",
     "changeset:version": "changeset version",

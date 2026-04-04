@@ -18,10 +18,7 @@ import express from 'express';
 import request from 'supertest';
 import { ConfigReader } from '@backstage/config';
 import { AuthorizeResult } from '@backstage/plugin-permission-common';
-import {
-  mockErrorHandler,
-  mockServices,
-} from '@backstage/backend-test-utils';
+import { mockErrorHandler, mockServices } from '@backstage/backend-test-utils';
 import { createRouter } from './router';
 import { DatabaseOnboardingStore } from './OnboardingStore';
 
@@ -57,7 +54,9 @@ const mockPermissions = {
 async function createApp() {
   const router = await createRouter({
     logger: mockServices.logger.mock(),
-    config: new ConfigReader({ onboarding: { defaults: { activeJoinerWindowDays: 90 } } }),
+    config: new ConfigReader({
+      onboarding: { defaults: { activeJoinerWindowDays: 90 } },
+    }),
     store: mockStore,
     permissions: mockPermissions,
     httpAuth: mockServices.httpAuth.mock(),
@@ -99,7 +98,11 @@ describe('createRouter', () => {
         templateName: 'backend-engineer-platform',
         startDate: '2026-03-01T00:00:00.000Z',
         tasks: [
-          { taskId: 'setup-laptop', status: 'done', completedAt: '2026-03-01T01:00:00.000Z' },
+          {
+            taskId: 'setup-laptop',
+            status: 'done',
+            completedAt: '2026-03-01T01:00:00.000Z',
+          },
           { taskId: 'meet-buddy', status: 'pending' },
         ],
       };
@@ -124,7 +127,10 @@ describe('createRouter', () => {
       mockCatalogApi.getEntities.mockResolvedValue({
         items: [
           {
-            metadata: { name: 'backend-engineer-platform', title: 'BE Onboarding' },
+            metadata: {
+              name: 'backend-engineer-platform',
+              title: 'BE Onboarding',
+            },
             spec: {
               role: 'backend-engineer',
               phases: [
@@ -260,7 +266,9 @@ describe('createRouter', () => {
       mockStore.getProgress.mockResolvedValue({ ...existingProgress });
 
       const res = await request(app)
-        .post(`/progress/${enc('user:default/jane.doe')}/tasks/nonexistent-task`)
+        .post(
+          `/progress/${enc('user:default/jane.doe')}/tasks/nonexistent-task`,
+        )
         .set('Authorization', 'Bearer mock-token')
         .send({ status: 'done' });
 
@@ -343,8 +351,14 @@ describe('createRouter', () => {
 
       mockCatalogApi.getEntities.mockResolvedValue({
         items: [
-          { metadata: { name: 'jane.doe' }, spec: { profile: { displayName: 'Jane Doe' } } },
-          { metadata: { name: 'taylor.kim' }, spec: { profile: { displayName: 'Taylor Kim' } } },
+          {
+            metadata: { name: 'jane.doe' },
+            spec: { profile: { displayName: 'Jane Doe' } },
+          },
+          {
+            metadata: { name: 'taylor.kim' },
+            spec: { profile: { displayName: 'Taylor Kim' } },
+          },
         ],
       });
 
@@ -398,7 +412,11 @@ describe('createRouter', () => {
       mockCatalogApi.getEntities.mockResolvedValue({
         items: [
           {
-            metadata: { name: 'be-template', title: 'Backend Template', description: 'For BE' },
+            metadata: {
+              name: 'be-template',
+              title: 'Backend Template',
+              description: 'For BE',
+            },
             spec: {
               role: 'backend-engineer',
               team: 'platform',
@@ -426,7 +444,9 @@ describe('createRouter', () => {
           {
             kind: 'User',
             metadata: { name: 'jane.doe', namespace: 'default' },
-            spec: { profile: { displayName: 'Jane Doe', email: 'jane@example.com' } },
+            spec: {
+              profile: { displayName: 'Jane Doe', email: 'jane@example.com' },
+            },
           },
         ],
       });
@@ -535,7 +555,9 @@ describe('createRouter', () => {
       mockCatalogApi.getEntityByRef.mockResolvedValue(undefined);
 
       const res = await request(app)
-        .post(`/templates/be-template/assign/${enc('user:default/missing-user')}`)
+        .post(
+          `/templates/be-template/assign/${enc('user:default/missing-user')}`,
+        )
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(400);
