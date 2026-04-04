@@ -1,6 +1,6 @@
 {
   "name": "@estehsaan/backstage-plugin-onboarding",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A structured, interactive onboarding checklist plugin for Backstage",
   "backstage": {
     "role": "frontend-plugin",
