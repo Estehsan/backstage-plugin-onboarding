@@ -60,6 +60,10 @@ const VALID_STATUSES: TaskStatus[] = [
   'blocked',
 ];
 
+const VALID_PHASES = new Set<Phase>(['day1', 'week1', 'week2', 'month1']);
+
+const MAX_USER_SEARCH_RESULTS = 15;
+
 function getActiveJoinerWindowDays(config: RootConfigService): number {
   return (
     config.getOptionalNumber('onboarding.defaults.activeJoinerWindowDays') ?? 90
@@ -71,6 +75,21 @@ export async function createRouter(
   options: RouterOptions,
 ): Promise<express.Router> {
   const { logger, config, store, permissions, httpAuth, catalogApi } = options;
+
+  // Cache catalog template lookups to avoid thundering-herd of catalog queries
+  // on every task update. Each createRouter() call gets its own isolated cache.
+  const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  let cachedTemplates: OnboardingTemplate[] | null = null;
+  let templateCacheExpiresAt = 0;
+  async function getTemplatesCached(): Promise<OnboardingTemplate[]> {
+    if (cachedTemplates !== null && Date.now() < templateCacheExpiresAt) {
+      return cachedTemplates;
+    }
+    const result = await getAllTemplates(catalogApi, config, logger);
+    cachedTemplates = result;
+    templateCacheExpiresAt = Date.now() + TEMPLATE_CACHE_TTL_MS;
+    return result;
+  }
 
   const router = Router();
   router.use(express.json());
@@ -137,6 +156,10 @@ export async function createRouter(
       );
     }
 
+    if (blockedReason !== undefined && blockedReason.length > 500) {
+      throw new InputError('blockedReason must not exceed 500 characters');
+    }
+
     const progress = await store.getProgress(userId);
     if (!progress) {
       throw new NotFoundError(
@@ -150,7 +173,7 @@ export async function createRouter(
     }
 
     if (status === 'done') {
-      const templates = await getAllTemplates(catalogApi, config, logger);
+      const templates = await getTemplatesCached();
       const template = templates.find(
         t => t.metadata.name === progress.templateName,
       );
@@ -281,7 +304,7 @@ export async function createRouter(
       throw new NotAllowedError('Unauthorized');
     }
 
-    const templates = await getAllTemplates(catalogApi, config, logger);
+    const templates = await getTemplatesCached();
     res.status(200).json(templates);
   });
 
@@ -304,10 +327,14 @@ export async function createRouter(
       return;
     }
 
+    if (query.length > 100) {
+      throw new InputError('Search query must not exceed 100 characters');
+    }
+
     const result = await catalogApi.queryEntities({
       filter: { kind: 'User' },
       fullTextFilter: { term: query },
-      limit: 15,
+      limit: MAX_USER_SEARCH_RESULTS,
     });
 
     res.status(200).json(
@@ -333,7 +360,7 @@ export async function createRouter(
       throw new NotAllowedError('Unauthorized');
     }
 
-    const templates = await getAllTemplates(catalogApi, config, logger);
+    const templates = await getTemplatesCached();
     const template = templates.find(t => t.metadata.name === templateName);
 
     if (!template) {
@@ -341,6 +368,8 @@ export async function createRouter(
     }
 
     await assertCatalogUserExists(catalogApi, userId);
+
+    validateTemplateDependencies(template);
 
     const progress = initializeProgress(userId, template);
     await store.upsertProgress(progress);
@@ -372,7 +401,7 @@ async function assertCatalogUserExists(
   userId: string,
 ): Promise<void> {
   const entity = await catalogApi.getEntityByRef(userId);
-  if (!entity || entity.kind.toLocaleLowerCase('en-US') !== 'user') {
+  if (!entity || entity.kind !== 'User') {
     throw new InputError(`User ${userId} was not found in the catalog`);
   }
 }
@@ -394,6 +423,51 @@ function initializeProgress(
     startDate: new Date().toISOString(),
     tasks,
   };
+}
+
+/**
+ * Validates that all dependsOn references point to existing tasks and that
+ * there are no circular dependencies. Throws InputError on violation.
+ */
+function validateTemplateDependencies(template: OnboardingTemplate): void {
+  const allTasks = template.spec.phases.flatMap(p => p.tasks);
+  const allTaskIds = new Set(allTasks.map(t => t.id));
+
+  // Check all dependency IDs exist
+  for (const task of allTasks) {
+    for (const depId of task.dependsOn ?? []) {
+      if (!allTaskIds.has(depId)) {
+        throw new InputError(
+          `Template "${template.metadata.name}": task "${task.id}" depends on unknown task "${depId}"`,
+        );
+      }
+    }
+  }
+
+  // Detect cycles with DFS
+  const visited = new Set<string>();
+  const inStack = new Set<string>();
+
+  function detectCycle(taskId: string): boolean {
+    if (inStack.has(taskId)) return true;
+    if (visited.has(taskId)) return false;
+    visited.add(taskId);
+    inStack.add(taskId);
+    const task = allTasks.find(t => t.id === taskId);
+    for (const depId of task?.dependsOn ?? []) {
+      if (detectCycle(depId)) return true;
+    }
+    inStack.delete(taskId);
+    return false;
+  }
+
+  for (const task of allTasks) {
+    if (detectCycle(task.id)) {
+      throw new InputError(
+        `Template "${template.metadata.name}" has a circular dependency involving task "${task.id}"`,
+      );
+    }
+  }
 }
 
 async function findTemplateForUser(
@@ -481,11 +555,21 @@ function getTemplatesFromConfig(
 
     const phaseMap = new Map<string, OnboardingTask[]>();
     for (const phase of phases) {
+      if (!VALID_PHASES.has(phase as Phase)) {
+        throw new Error(
+          `onboarding.templates.defaults: invalid phase "${phase}" in template "${name}". Must be one of: ${[...VALID_PHASES].join(', ')}`,
+        );
+      }
       phaseMap.set(phase, []);
     }
 
     for (const taskCfg of taskConfigs) {
       const phase = taskCfg.getString('phase');
+      if (!VALID_PHASES.has(phase as Phase)) {
+        throw new Error(
+          `onboarding.templates.defaults: invalid phase "${phase}" for task "${taskCfg.getString('id')}" in template "${name}". Must be one of: ${[...VALID_PHASES].join(', ')}`,
+        );
+      }
 
       const resourceConfigs = taskCfg.getOptionalConfigArray('resources');
       const resources = resourceConfigs?.map(r => ({

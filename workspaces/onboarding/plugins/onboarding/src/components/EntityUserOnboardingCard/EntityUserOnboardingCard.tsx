@@ -29,7 +29,8 @@ import CheckCircleOutlineIcon from '@material-ui/icons/CheckCircleOutline';
 import BlockIcon from '@material-ui/icons/Block';
 import HourglassEmptyIcon from '@material-ui/icons/HourglassEmpty';
 import { onboardingApiRef } from '../../api/OnboardingApi';
-import { OnboardingProgress, OnboardingTemplate } from '../../types';
+import { OnboardingProgress, OnboardingTemplate, Phase } from '../../types';
+import { PHASE_LABELS, PHASE_ORDER } from '../../constants';
 
 const useStyles = makeStyles(theme => ({
   statsRow: {
@@ -69,17 +70,6 @@ const useStyles = makeStyles(theme => ({
     color: theme.palette.text.secondary,
   },
 }));
-
-type PhaseId = 'day1' | 'week1' | 'week2' | 'month1';
-
-const PHASE_LABELS: Record<PhaseId, string> = {
-  day1: 'Day 1',
-  week1: 'Week 1',
-  week2: 'Week 2',
-  month1: 'Month 1',
-};
-
-const PHASE_ORDER: PhaseId[] = ['day1', 'week1', 'week2', 'month1'];
 
 function computeStats(progress: OnboardingProgress) {
   const total = progress.tasks.length;
@@ -145,7 +135,7 @@ export function EntityUserOnboardingCard() {
   const { done, blocked, inProgress, completionPct } = computeStats(progress);
 
   // Group tasks by phase using template data to map taskId -> phase
-  const byPhase: Record<PhaseId, { done: number; total: number }> = {
+  const byPhase: Record<Phase, { done: number; total: number }> = {
     day1: { done: 0, total: 0 },
     week1: { done: 0, total: 0 },
     week2: { done: 0, total: 0 },
@@ -157,10 +147,10 @@ export function EntityUserOnboardingCard() {
   );
 
   if (matchingTemplate) {
-    const taskPhaseMap = new Map<string, PhaseId>();
+    const taskPhaseMap = new Map<string, Phase>();
     for (const phase of matchingTemplate.spec.phases) {
       for (const task of phase.tasks) {
-        taskPhaseMap.set(task.id, phase.id as PhaseId);
+        taskPhaseMap.set(task.id, phase.id as Phase);
       }
     }
 
@@ -216,7 +206,7 @@ export function EntityUserOnboardingCard() {
         )}
       </Box>
 
-      {Object.keys(byPhase).some(p => byPhase[p as PhaseId].total > 0) && (
+      {Object.keys(byPhase).some(p => byPhase[p as Phase].total > 0) && (
         <>
           <Typography className={classes.phaseLabel}>By phase</Typography>
           {PHASE_ORDER.filter(p => byPhase[p].total > 0).map(phase => (

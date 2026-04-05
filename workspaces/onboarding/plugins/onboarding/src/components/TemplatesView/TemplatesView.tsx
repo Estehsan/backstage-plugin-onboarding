@@ -181,13 +181,13 @@ export function TemplatesView(props: TemplatesViewProps) {
                   )}
                   <Box className={classes.chipRow}>
                     <Chip
-                      label={`${taskCount} tasks`}
+                      label={`${taskCount} ${taskCount === 1 ? 'task' : 'tasks'}`}
                       className={classes.chip}
                       size="small"
                       variant="outlined"
                     />
                     <Chip
-                      label={`${phaseCount} phases`}
+                      label={`${phaseCount} ${phaseCount === 1 ? 'phase' : 'phases'}`}
                       className={classes.chip}
                       size="small"
                       variant="outlined"

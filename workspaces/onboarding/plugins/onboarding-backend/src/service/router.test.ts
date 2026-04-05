@@ -71,11 +71,8 @@ async function createApp() {
 describe('createRouter', () => {
   let app: express.Express;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     app = await createApp();
-  });
-
-  beforeEach(() => {
     jest.clearAllMocks();
     mockPermissions.authorize.mockResolvedValue([
       { result: AuthorizeResult.ALLOW },
