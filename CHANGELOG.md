@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.0.1...v1.0.2) (2026-04-07)
+
+
+### Bug Fixes
+
+* pre-merge review — validation, caching, timeouts, docs ([0cdbabf](https://github.com/Estehsan/backstage-plugin-onboarding/commit/0cdbabfddfc35bef828351826d1a2311af9496ff))
+
 ## [1.0.1](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.0.0...v1.0.1) (2026-04-04)
 
 
