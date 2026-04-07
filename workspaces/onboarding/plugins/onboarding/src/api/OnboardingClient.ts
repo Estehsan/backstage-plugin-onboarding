@@ -87,7 +87,24 @@ export class OnboardingClient implements OnboardingApi {
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const baseUrl = await this.discoveryApi.getBaseUrl('onboarding');
-    const res = await this.fetchApi.fetch(`${baseUrl}${path}`, init);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+
+    let res: Response;
+    try {
+      res = await this.fetchApi.fetch(`${baseUrl}${path}`, {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        throw new Error(`Request to ${path} timed out after 15s`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!res.ok) {
       const text = await res.text();

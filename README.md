@@ -56,28 +56,28 @@ yarn test
 
 ## Releasing
 
-This repo uses [Changesets](https://github.com/changesets/changesets) for versioning and publishing.
+This repo uses [semantic-release](https://semantic-release.gitbook.io/) for automated versioning and publishing.
 
-### Creating a changeset
+### Commit conventions drive releases
 
-```bash
-# From the repo root
-yarn changeset
-# Select the packages you've changed, pick a bump type, write a summary
-# Commit the generated .changeset/*.md file
-```
+Release type is inferred from Conventional Commit messages:
+
+- `feat:` triggers a minor release
+- `fix:` triggers a patch release
+- `feat!:` or a `BREAKING CHANGE:` footer triggers a major release
+- `docs:`, `chore:`, `ci:`, `test:` do not trigger a release
 
 ### Automated publishing via GitHub Actions
 
-1. Open a PR with your change + a changeset
-2. Merge the PR → the **Release** workflow creates a **"chore: version packages"** PR automatically
-3. Merge that PR → packages are built and published to npm
+1. Open a PR with Conventional Commit-style commits
+2. Merge to `main`
+3. The **Release** workflow analyzes commits since the last release, bumps versions, publishes to npm, and updates release notes/changelog automatically
 
 > **First-time setup:** add an `NPM_TOKEN` secret to GitHub Actions — see [CONTRIBUTING.md#github-actions--npm_token](./CONTRIBUTING.md#github-actions--npm_token).
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for commit conventions, branch naming, changeset workflow, and more.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for commit conventions, branch naming, semantic-release workflow, and more.
 
 ## License
 

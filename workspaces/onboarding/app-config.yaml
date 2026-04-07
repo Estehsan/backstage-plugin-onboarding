@@ -33,9 +33,9 @@ onboarding:
   seedDemoData: true
   templates:
     - type: catalog
-  azureAd:
-    enabled: true # Set to true when Azure AD users are synced via catalog-backend-module-msgraph.
-  #                  # Replaces the manual entity ref text input with a searchable user picker.
+  # azureAd:
+  #   enabled: false  # Set to true when Azure AD users are synced via catalog-backend-module-msgraph.
+  #                   # Replaces the manual entity ref text input with a searchable user picker.
   defaults:
     activeJoinerWindowDays: 90
     buddy:

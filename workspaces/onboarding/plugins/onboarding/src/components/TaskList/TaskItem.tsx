@@ -29,6 +29,7 @@ import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import ExpandLessIcon from '@material-ui/icons/ExpandLess';
 import MenuBookIcon from '@material-ui/icons/MenuBook';
 import { OnboardingTask, TaskStatus } from '../../types';
+import { PHASE_LABELS } from '../../constants';
 import { TaskDetailPanel } from './TaskDetailPanel';
 
 const useStyles = makeStyles((theme: Theme) => ({
@@ -128,13 +129,6 @@ const useStyles = makeStyles((theme: Theme) => ({
     cursor: 'pointer',
   },
 }));
-
-const PHASE_LABELS: Record<string, string> = {
-  day1: 'Day 1',
-  week1: 'Week 1',
-  week2: 'Week 2',
-  month1: 'Month 1',
-};
 
 const AUTOMATED_STATUS_COLORS: Record<
   string,

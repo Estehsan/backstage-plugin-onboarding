@@ -53,7 +53,10 @@ export const onboardingPlugin = createBackendPlugin({
         auth,
         discovery,
       }) {
-        const store = await DatabaseOnboardingStore.create({ database });
+        const store = await DatabaseOnboardingStore.create({
+          database,
+          logger,
+        });
         const catalogApi = new CatalogClient({
           discoveryApi: discovery,
           fetchApi: {

@@ -60,7 +60,7 @@
     "@backstage/plugin-catalog-react": "^2.0.0",
     "@backstage/plugin-scaffolder-react": "^1.19.7",
     "@backstage/theme": "^0.7.2",
-    "@estehsaan/backstage-plugin-onboarding-common": "^0.1.1",
+    "@estehsaan/backstage-plugin-onboarding-common": "^1.0.0",
     "@material-ui/core": "^4.12.2",
     "@material-ui/icons": "^4.9.1",
     "@material-ui/lab": "^4.0.0-alpha.61",

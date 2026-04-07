@@ -13,7 +13,7 @@
 
 ## Checklist
 
-- [ ] A changeset describing the change and affected packages ([`yarn changeset`](../CONTRIBUTING.md#creating-a-changeset))
+- [ ] Commit messages and PR title follow Conventional Commits (used by semantic-release)
 - [ ] Added or updated documentation
 - [ ] Tests for new functionality and regression tests for bug fixes
 - [ ] Screenshots attached (for UI changes)

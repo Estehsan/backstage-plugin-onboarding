@@ -130,8 +130,13 @@ export function useAutomatedTask(options: {
               });
               onProgressUpdate();
             }
-          } catch {
-            // Polling error — keep polling, it may recover
+          } catch (err) {
+            // Transient polling error — keep polling, backend may recover.
+            // eslint-disable-next-line no-console
+            console.warn(
+              `[useAutomatedTask] Polling scaffolder task ${scaffolderTaskId} failed (attempt ${attempts}/${MAX_POLL_ATTEMPTS}):`,
+              err,
+            );
           }
         }, POLL_INTERVAL_MS);
 

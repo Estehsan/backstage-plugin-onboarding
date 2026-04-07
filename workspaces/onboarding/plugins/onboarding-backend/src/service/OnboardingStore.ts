@@ -18,6 +18,7 @@ import { Knex } from 'knex';
 import { v4 as uuid } from 'uuid';
 import {
   DatabaseService,
+  LoggerService,
   resolvePackagePath,
 } from '@backstage/backend-plugin-api';
 import { OnboardingProgress, OnboardingProgressRow } from '../types';
@@ -29,13 +30,17 @@ const migrationsDir = resolvePackagePath(
 
 /** @public */
 export class DatabaseOnboardingStore {
-  private constructor(private readonly db: Knex) {}
+  private constructor(
+    private readonly db: Knex,
+    private readonly logger?: LoggerService,
+  ) {}
 
   static async create(options: {
     database: DatabaseService;
     skipMigrations?: boolean;
+    logger?: LoggerService;
   }): Promise<DatabaseOnboardingStore> {
-    const { database, skipMigrations } = options;
+    const { database, skipMigrations, logger } = options;
     const client = await database.getClient();
 
     if (!database.migrations?.skip && !skipMigrations) {
@@ -44,7 +49,7 @@ export class DatabaseOnboardingStore {
       });
     }
 
-    return new DatabaseOnboardingStore(client);
+    return new DatabaseOnboardingStore(client, logger);
   }
 
   async getProgress(userId: string): Promise<OnboardingProgress | undefined> {
@@ -98,8 +103,19 @@ export class DatabaseOnboardingStore {
     let tasks: OnboardingProgress['tasks'];
     try {
       const parsed = JSON.parse(row.tasks);
-      tasks = Array.isArray(parsed) ? parsed : [];
-    } catch {
+      if (!Array.isArray(parsed)) {
+        this.logger?.warn(
+          `Corrupt task data for user "${row.user_id}" in onboarding_progress: tasks column is not an array — returning empty`,
+        );
+        tasks = [];
+      } else {
+        tasks = parsed;
+      }
+    } catch (err) {
+      this.logger?.warn(
+        `Corrupt task data for user "${row.user_id}" in onboarding_progress: JSON parse failed — returning empty`,
+        { error: String(err) },
+      );
       tasks = [];
     }
     return {

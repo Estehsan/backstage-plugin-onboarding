@@ -36,8 +36,7 @@ export class OnboardingTemplateProcessor implements CatalogProcessor {
   /** Returns true for entities with kind OnboardingTemplate. */
   async validateEntityKind(entity: Entity): Promise<boolean> {
     return (
-      (entity.apiVersion === 'backstage.io/v1alpha1' ||
-        entity.apiVersion === 'onboarding.backstage.io/v1') &&
+      entity.apiVersion === 'onboarding.backstage.io/v1' &&
       entity.kind === 'OnboardingTemplate'
     );
   }

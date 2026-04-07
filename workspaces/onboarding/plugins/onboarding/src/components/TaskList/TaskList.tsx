@@ -21,6 +21,7 @@ import Paper from '@material-ui/core/Paper';
 import { makeStyles, Theme } from '@material-ui/core/styles';
 import { TaskItem } from './TaskItem';
 import { OnboardingTask, OnboardingProgress, Phase } from '../../types';
+import { PHASE_LABELS, PHASE_ORDER } from '../../constants';
 
 const useStyles = makeStyles((theme: Theme) => ({
   phaseSection: {
@@ -47,15 +48,6 @@ const useStyles = makeStyles((theme: Theme) => ({
     color: theme.palette.text.secondary,
   },
 }));
-
-const PHASE_ORDER: Phase[] = ['day1', 'week1', 'week2', 'month1'];
-
-const PHASE_LABELS: Record<Phase, string> = {
-  day1: 'Day 1',
-  week1: 'Week 1',
-  week2: 'Week 2',
-  month1: 'Month 1',
-};
 
 /** @public */
 export interface TaskListProps {
