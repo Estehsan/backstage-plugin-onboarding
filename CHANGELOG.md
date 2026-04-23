@@ -1,3 +1,11 @@
+## [1.0.3](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.0.2...v1.0.3) (2026-04-23)
+
+
+### Bug Fixes
+
+* **lockfile:** sync yarn.lock with updated common package version ([14af40b](https://github.com/Estehsan/backstage-plugin-onboarding/commit/14af40bb62a4611db10e6459b170addf6d68d4c1))
+* **onboarding:** correct alpha exports paths in publishConfig ([7147763](https://github.com/Estehsan/backstage-plugin-onboarding/commit/7147763600f175539140a6bf3369744ff7b709e4))
+
 ## [1.0.2](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.0.1...v1.0.2) (2026-04-07)
 
 
