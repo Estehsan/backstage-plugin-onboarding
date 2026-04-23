@@ -29,8 +29,8 @@
         "default": "./dist/index.esm.js"
       },
       "./alpha": {
-        "types": "./dist/alpha/index.d.ts",
-        "default": "./dist/alpha/index.esm.js"
+        "types": "./dist/alpha.d.ts",
+        "default": "./dist/alpha.esm.js"
       },
       "./package.json": "./package.json"
     }
