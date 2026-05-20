@@ -20,9 +20,9 @@
  * @packageDocumentation
  */
 
+// The catalog processor module moved to
+// @estehsaan/backstage-plugin-catalog-backend-module-onboarding.
 export { onboardingPlugin as default } from './plugin';
-export { catalogModuleOnboardingEntityModel } from './module';
-export { OnboardingTemplateProcessor } from './processor';
 export {
   onboardingProgressReadPermission,
   onboardingProgressUpdatePermission,
