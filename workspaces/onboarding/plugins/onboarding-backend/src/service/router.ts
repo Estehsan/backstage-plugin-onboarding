@@ -333,7 +333,15 @@ export async function createRouter(
 
     const result = await catalogApi.queryEntities({
       filter: { kind: 'User' },
-      fullTextFilter: { term: query, fields: ['metadata.name', 'metadata.title', 'spec.profile.displayName', 'spec.profile.email'] },
+      fullTextFilter: {
+        term: query,
+        fields: [
+          'metadata.name',
+          'metadata.title',
+          'spec.profile.displayName',
+          'spec.profile.email',
+        ],
+      },
       limit: MAX_USER_SEARCH_RESULTS,
     });
 
@@ -350,7 +358,9 @@ export async function createRouter(
         const title = (entity.metadata.title ?? '').toLowerCase();
         const spec = entity.spec as Record<string, unknown> | undefined;
         const profile = spec?.profile as Record<string, unknown> | undefined;
-        const displayName = ((profile?.displayName as string) ?? '').toLowerCase();
+        const displayName = (
+          (profile?.displayName as string) ?? ''
+        ).toLowerCase();
         const email = ((profile?.email as string) ?? '').toLowerCase();
         return (
           name.includes(lowerQuery) ||

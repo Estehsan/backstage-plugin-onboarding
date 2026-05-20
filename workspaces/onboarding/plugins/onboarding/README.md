@@ -4,7 +4,17 @@ A structured, interactive onboarding checklist plugin for [Backstage](https://ba
 
 It replaces static Confluence/Notion docs with a live, trackable, automated checklist that both the new joiner and their manager/team lead can see.
 
-<!-- TODO: Add a screenshot of the onboarding dashboard and replace this comment -->
+## Screenshots
+
+| Onboarding Dashboard                                                 | Task Detail Panel                                              | Team Overview                                          |
+| -------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
+| ![Onboarding Dashboard](./docs/screenshots/onboarding-dashboard.png) | ![Task Detail Panel](./docs/screenshots/task-detail-panel.png) | ![Team Overview](./docs/screenshots/team-overview.png) |
+
+> **Dashboard** — The main onboarding page showing phase-based task lists with progress tracking.
+>
+> **Task Detail** — Expanded task view with description, resources, and status controls.
+>
+> **Team View** — Manager dashboard showing onboarding progress for all team members.
 
 ## Features
 
@@ -86,7 +96,9 @@ Add the backend plugin and catalog module to `packages/backend/src/index.ts`:
 backend.add(import('@estehsaan/backstage-plugin-onboarding-backend'));
 
 // Catalog module — registers the OnboardingTemplate entity kind
-backend.add(import('@estehsaan/backstage-plugin-catalog-backend-module-onboarding'));
+backend.add(
+  import('@estehsaan/backstage-plugin-catalog-backend-module-onboarding'),
+);
 ```
 
 ## Configuration
@@ -197,34 +209,34 @@ Use this section as a quick reference when authoring onboarding templates.
 
 ### Template-level fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `apiVersion` | string | Yes | Must be `onboarding.backstage.io/v1` |
-| `kind` | string | Yes | Must be `OnboardingTemplate` |
-| `metadata.name` | string | Yes | Unique identifier |
-| `metadata.title` | string | Yes | Display name |
-| `metadata.description` | string | No | Short description |
-| `spec.role` | string | Yes | Role filter for auto-assignment |
-| `spec.team` | string | No | Team filter for scoping |
-| `spec.phases` | array | Yes | Ordered list of phase objects |
+| Field                  | Type   | Required | Description                          |
+| ---------------------- | ------ | -------- | ------------------------------------ |
+| `apiVersion`           | string | Yes      | Must be `onboarding.backstage.io/v1` |
+| `kind`                 | string | Yes      | Must be `OnboardingTemplate`         |
+| `metadata.name`        | string | Yes      | Unique identifier                    |
+| `metadata.title`       | string | Yes      | Display name                         |
+| `metadata.description` | string | No       | Short description                    |
+| `spec.role`            | string | Yes      | Role filter for auto-assignment      |
+| `spec.team`            | string | No       | Team filter for scoping              |
+| `spec.phases`          | array  | Yes      | Ordered list of phase objects        |
 
 ### Task-level fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | Yes | Unique task identifier within template |
-| `title` | string | Yes | Short display title |
-| `description` | string | Yes | Detail shown in task panel |
-| `type` | `manual` \| `automated` | Yes | How the task is completed |
-| `assignee` | string | Yes | Who owns the task (`self`, `buddy`, `manager`, or entity ref) |
-| `duePhase` | Phase | Yes | Deadline phase (may differ from parent phase) |
-| `dependsOn` | string[] | No | Task IDs that must complete first |
-| `automationRef` | string | No | Scaffolder template ref (required if type=automated) |
-| `link` | object | No | External link (`{label, url}`) |
-| `estimatedMinutes` | number | No | Estimated time to complete |
-| `documentation` | string | No | Long-form docs for detail panel |
-| `resources` | TaskResource[] | No | Supplementary learning materials |
-| `recommendations` | string[] | No | Tips shown in detail panel |
+| Field              | Type                    | Required | Description                                                   |
+| ------------------ | ----------------------- | -------- | ------------------------------------------------------------- |
+| `id`               | string                  | Yes      | Unique task identifier within template                        |
+| `title`            | string                  | Yes      | Short display title                                           |
+| `description`      | string                  | Yes      | Detail shown in task panel                                    |
+| `type`             | `manual` \| `automated` | Yes      | How the task is completed                                     |
+| `assignee`         | string                  | Yes      | Who owns the task (`self`, `buddy`, `manager`, or entity ref) |
+| `duePhase`         | Phase                   | Yes      | Deadline phase (may differ from parent phase)                 |
+| `dependsOn`        | string[]                | No       | Task IDs that must complete first                             |
+| `automationRef`    | string                  | No       | Scaffolder template ref (required if type=automated)          |
+| `link`             | object                  | No       | External link (`{label, url}`)                                |
+| `estimatedMinutes` | number                  | No       | Estimated time to complete                                    |
+| `documentation`    | string                  | No       | Long-form docs for detail panel                               |
+| `resources`        | TaskResource[]          | No       | Supplementary learning materials                              |
+| `recommendations`  | string[]                | No       | Tips shown in detail panel                                    |
 
 ## Task Types
 

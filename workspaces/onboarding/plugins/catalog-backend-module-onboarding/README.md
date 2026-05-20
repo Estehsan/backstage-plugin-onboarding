@@ -27,10 +27,13 @@ yarn --cwd packages/backend add @estehsaan/backstage-plugin-catalog-backend-modu
 Add to `packages/backend/src/index.ts`:
 
 ```ts
-backend.add(import('@estehsaan/backstage-plugin-catalog-backend-module-onboarding'));
+backend.add(
+  import('@estehsaan/backstage-plugin-catalog-backend-module-onboarding'),
+);
 ```
 
 This registers the `OnboardingTemplateProcessor` which:
+
 - Validates entities with `apiVersion: onboarding.backstage.io/v1` and `kind: OnboardingTemplate`
 - Ensures `spec.phases` is present and is an array
 

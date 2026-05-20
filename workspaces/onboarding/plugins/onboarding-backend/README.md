@@ -21,7 +21,9 @@ yarn --cwd packages/backend add @estehsaan/backstage-plugin-catalog-backend-modu
 ```
 
 ```ts
-backend.add(import('@estehsaan/backstage-plugin-catalog-backend-module-onboarding'));
+backend.add(
+  import('@estehsaan/backstage-plugin-catalog-backend-module-onboarding'),
+);
 ```
 
 > **Note**: The catalog processor now lives in `@estehsaan/backstage-plugin-catalog-backend-module-onboarding`. It registers `OnboardingTemplateProcessor` with the catalog's processing extension point, enabling the `kind: OnboardingTemplate` entity kind. Without it, catalog YAML files with `kind: OnboardingTemplate` will be rejected.
@@ -49,7 +51,6 @@ onboarding:
             type: manual
             assignee: self
 ```
-
 
 ## API Endpoints
 
