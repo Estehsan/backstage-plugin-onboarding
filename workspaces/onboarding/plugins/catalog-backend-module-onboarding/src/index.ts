@@ -15,8 +15,10 @@
  */
 
 /**
- * The catalog module that registers the OnboardingTemplate entity kind.
+ * Catalog backend module that registers the OnboardingTemplate entity kind.
  *
- * @alpha
+ * @packageDocumentation
  */
 export { catalogModuleOnboardingEntityModel as default } from './module';
+export { catalogModuleOnboardingEntityModel } from './module';
+export { OnboardingTemplateProcessor } from './processor';
