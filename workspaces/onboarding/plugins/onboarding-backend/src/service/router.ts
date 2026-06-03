@@ -347,7 +347,7 @@ export async function createRouter(
 
     // If full-text search returns few results, supplement with a broader
     // name-prefix filter to catch users that the FTS index may have missed.
-    let items = result.items;
+    const items = result.items;
     if (items.length < 5) {
       const fallback = await catalogApi.getEntities({
         filter: { kind: 'User' },
