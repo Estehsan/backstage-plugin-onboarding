@@ -462,8 +462,16 @@ describe('createRouter', () => {
       ]);
       expect(mockCatalogApi.queryEntities).toHaveBeenCalledWith({
         filter: { kind: 'User' },
-        fullTextFilter: { term: 'jane' },
-        limit: 15,
+        fullTextFilter: {
+          term: 'jane',
+          fields: [
+            'metadata.name',
+            'metadata.title',
+            'spec.profile.displayName',
+            'spec.profile.email',
+          ],
+        },
+        limit: 50,
       });
     });
 
