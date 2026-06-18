@@ -17,35 +17,25 @@
 import LinearProgress from '@material-ui/core/LinearProgress';
 import Typography from '@material-ui/core/Typography';
 import Box from '@material-ui/core/Box';
-import { makeStyles, withStyles } from '@material-ui/core/styles';
 
 const PROGRESS_COLOR = '#1D9E75';
 
-const StyledLinearProgress = withStyles({
-  root: {
-    height: 10,
-    borderRadius: 5,
-  },
-  colorPrimary: {
-    backgroundColor: '#e0e0e0',
-  },
-  bar: {
-    borderRadius: 5,
-    backgroundColor: PROGRESS_COLOR,
-  },
-})(LinearProgress);
+const rootStyles = {
+  width: '100%',
+  marginBottom: 16,
+};
 
-const useStyles = makeStyles({
-  root: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  labelRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-});
+const labelRowStyles = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  marginBottom: 4,
+};
+
+const progressStyles = {
+  height: 10,
+  borderRadius: 5,
+  backgroundColor: '#e0e0e0',
+};
 
 /** @public */
 export interface ProgressBarProps {
@@ -56,12 +46,11 @@ export interface ProgressBarProps {
 /** @public */
 export function ProgressBar(props: ProgressBarProps) {
   const { completed, total } = props;
-  const classes = useStyles();
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return (
-    <div className={classes.root}>
-      <Box className={classes.labelRow}>
+    <div style={rootStyles}>
+      <Box style={labelRowStyles}>
         <Typography variant="body2" color="textSecondary">
           {completed} of {total} tasks complete
         </Typography>
@@ -69,7 +58,17 @@ export function ProgressBar(props: ProgressBarProps) {
           {percent}%
         </Typography>
       </Box>
-      <StyledLinearProgress variant="determinate" value={percent} />
+      <div style={progressStyles}>
+        <LinearProgress
+          variant="determinate"
+          value={percent}
+          style={{
+            height: '100%',
+            borderRadius: 5,
+            backgroundColor: PROGRESS_COLOR,
+          }}
+        />
+      </div>
     </div>
   );
 }

@@ -15,6 +15,7 @@
  */
 
 import { useAsync } from 'react-use';
+import type { CSSProperties } from 'react';
 import {
   InfoCard,
   Progress,
@@ -24,7 +25,7 @@ import {
 } from '@backstage/core-components';
 import { useApi } from '@backstage/core-plugin-api';
 import { useEntity } from '@backstage/plugin-catalog-react';
-import { Box, Chip, makeStyles, Typography } from '@material-ui/core';
+import { Box, Chip, Typography } from '@material-ui/core';
 import CheckCircleOutlineIcon from '@material-ui/icons/CheckCircleOutline';
 import BlockIcon from '@material-ui/icons/Block';
 import HourglassEmptyIcon from '@material-ui/icons/HourglassEmpty';
@@ -32,25 +33,27 @@ import { onboardingApiRef } from '../../api/OnboardingApi';
 import { OnboardingProgress, OnboardingTemplate, Phase } from '../../types';
 import { PHASE_LABELS, PHASE_ORDER } from '../../constants';
 
-const useStyles = makeStyles(theme => ({
+const spacing = 8;
+
+const styles: Record<string, CSSProperties> = {
   statsRow: {
     display: 'flex',
-    gap: theme.spacing(1.5),
+    gap: spacing * 1.5,
     flexWrap: 'wrap',
-    marginTop: theme.spacing(1.5),
+    marginTop: spacing * 1.5,
   },
   chip: {
     fontWeight: 600,
     fontSize: '0.7rem',
   },
   gaugeWrapper: {
-    marginTop: theme.spacing(1.5),
+    marginTop: spacing * 1.5,
   },
   phaseLabel: {
     fontSize: '0.75rem',
-    color: theme.palette.text.secondary,
-    marginTop: theme.spacing(2),
-    marginBottom: theme.spacing(0.5),
+    color: '#666',
+    marginTop: spacing * 2,
+    marginBottom: spacing * 0.5,
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
     fontWeight: 700,
@@ -59,17 +62,17 @@ const useStyles = makeStyles(theme => ({
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing(0.75),
+    marginBottom: spacing * 0.75,
   },
   phaseName: {
     fontSize: '0.85rem',
-    color: theme.palette.text.primary,
+    color: '#000',
   },
   phaseCount: {
     fontSize: '0.8rem',
-    color: theme.palette.text.secondary,
+    color: '#666',
   },
-}));
+};
 
 function computeStats(progress: OnboardingProgress) {
   const total = progress.tasks.length;
@@ -87,7 +90,6 @@ function computeStats(progress: OnboardingProgress) {
  * @public
  */
 export function EntityUserOnboardingCard() {
-  const classes = useStyles();
   const { entity } = useEntity();
   const onboardingApi = useApi(onboardingApiRef);
 
@@ -170,16 +172,16 @@ export function EntityUserOnboardingCard() {
       title="Onboarding Progress"
       subheader={`Template: ${progress.templateName}`}
     >
-      <Box className={classes.gaugeWrapper}>
+      <Box style={styles.gaugeWrapper}>
         <LinearGauge value={completionPct / 100} />
         <Typography variant="caption" color="textSecondary">
           {completionPct}% complete
         </Typography>
       </Box>
 
-      <Box className={classes.statsRow}>
+      <Box style={styles.statsRow}>
         <Chip
-          className={classes.chip}
+          style={styles.chip}
           icon={<CheckCircleOutlineIcon style={{ fontSize: 14 }} />}
           label={`${done} done`}
           size="small"
@@ -188,7 +190,7 @@ export function EntityUserOnboardingCard() {
         />
         {inProgress > 0 && (
           <Chip
-            className={classes.chip}
+            style={styles.chip}
             icon={<HourglassEmptyIcon style={{ fontSize: 14 }} />}
             label={`${inProgress} in progress`}
             size="small"
@@ -197,7 +199,7 @@ export function EntityUserOnboardingCard() {
         )}
         {blocked > 0 && (
           <Chip
-            className={classes.chip}
+            style={styles.chip}
             icon={<BlockIcon style={{ fontSize: 14 }} />}
             label={`${blocked} blocked`}
             size="small"
@@ -208,13 +210,13 @@ export function EntityUserOnboardingCard() {
 
       {Object.keys(byPhase).some(p => byPhase[p as Phase].total > 0) && (
         <>
-          <Typography className={classes.phaseLabel}>By phase</Typography>
+          <Typography style={styles.phaseLabel}>By phase</Typography>
           {PHASE_ORDER.filter(p => byPhase[p].total > 0).map(phase => (
-            <Box key={phase} className={classes.phaseRow}>
-              <Typography className={classes.phaseName}>
+            <Box key={phase} style={styles.phaseRow}>
+              <Typography style={styles.phaseName}>
                 {PHASE_LABELS[phase]}
               </Typography>
-              <Typography className={classes.phaseCount}>
+              <Typography style={styles.phaseCount}>
                 {byPhase[phase].done}/{byPhase[phase].total}
               </Typography>
             </Box>

@@ -18,20 +18,21 @@ import Box from '@material-ui/core/Box';
 import Chip from '@material-ui/core/Chip';
 import Typography from '@material-ui/core/Typography';
 import Paper from '@material-ui/core/Paper';
-import { makeStyles, Theme } from '@material-ui/core/styles';
 import { TaskItem } from './TaskItem';
 import { OnboardingTask, OnboardingProgress, Phase } from '../../types';
 import { PHASE_LABELS, PHASE_ORDER } from '../../constants';
 
-const useStyles = makeStyles((theme: Theme) => ({
+const spacing = 8;
+
+const styles = {
   phaseSection: {
-    marginBottom: theme.spacing(3),
+    marginBottom: spacing * 3,
   },
   phaseHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: theme.spacing(1),
-    marginBottom: theme.spacing(1),
+    gap: spacing,
+    marginBottom: spacing,
   },
   phaseTitle: {
     fontWeight: 600,
@@ -44,10 +45,10 @@ const useStyles = makeStyles((theme: Theme) => ({
     overflow: 'hidden',
   },
   emptyText: {
-    padding: theme.spacing(2),
-    color: theme.palette.text.secondary,
+    padding: spacing * 2,
+    color: '#666',
   },
-}));
+};
 
 /** @public */
 export interface TaskListProps {
@@ -62,7 +63,6 @@ export interface TaskListProps {
 /** @public */
 export function TaskList(props: TaskListProps) {
   const { phases, progress, onToggle } = props;
-  const classes = useStyles();
 
   const allTasks = phases.flatMap(p => p.tasks);
 
@@ -80,23 +80,23 @@ export function TaskList(props: TaskListProps) {
         }).length;
 
         return (
-          <Box key={phase.id} className={classes.phaseSection}>
-            <Box className={classes.phaseHeader}>
-              <Typography variant="h6" className={classes.phaseTitle}>
+          <Box key={phase.id} style={styles.phaseSection}>
+            <Box style={styles.phaseHeader}>
+              <Typography variant="h6" style={styles.phaseTitle}>
                 {PHASE_LABELS[phase.id]}
               </Typography>
               <Chip
                 label={`${doneCount} / ${phaseTasks.length} done`}
-                className={classes.countBadge}
+                style={styles.countBadge}
                 size="small"
                 color={doneCount === phaseTasks.length ? 'primary' : 'default'}
                 variant="outlined"
               />
             </Box>
 
-            <Paper className={classes.taskPaper} variant="outlined">
+            <Paper style={styles.taskPaper} variant="outlined">
               {phaseTasks.length === 0 ? (
-                <Typography className={classes.emptyText}>
+                <Typography style={styles.emptyText}>
                   No tasks in this phase
                 </Typography>
               ) : (

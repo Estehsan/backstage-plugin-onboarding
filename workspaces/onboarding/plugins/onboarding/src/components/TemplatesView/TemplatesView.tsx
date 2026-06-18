@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import Box from '@material-ui/core/Box';
 import Button from '@material-ui/core/Button';
 import Card from '@material-ui/core/Card';
@@ -29,12 +29,13 @@ import DialogTitle from '@material-ui/core/DialogTitle';
 import Grid from '@material-ui/core/Grid';
 import TextField from '@material-ui/core/TextField';
 import Typography from '@material-ui/core/Typography';
-import { makeStyles, Theme } from '@material-ui/core/styles';
 import Autocomplete from '@material-ui/lab/Autocomplete';
 import { OnboardingApi } from '../../api/OnboardingApi';
 import { OnboardingCatalogUser, OnboardingTemplate } from '../../types';
 
-const useStyles = makeStyles((theme: Theme) => ({
+const spacing = 8;
+
+const styles: Record<string, CSSProperties> = {
   card: {
     height: '100%',
     display: 'flex',
@@ -44,12 +45,12 @@ const useStyles = makeStyles((theme: Theme) => ({
     flex: 1,
   },
   taskCount: {
-    marginTop: theme.spacing(1),
+    marginTop: spacing,
   },
   chipRow: {
     display: 'flex',
-    gap: theme.spacing(0.5),
-    marginTop: theme.spacing(1),
+    gap: spacing * 0.5,
+    marginTop: spacing,
     flexWrap: 'wrap',
   },
   chip: {
@@ -58,10 +59,10 @@ const useStyles = makeStyles((theme: Theme) => ({
   },
   emptyState: {
     textAlign: 'center',
-    padding: theme.spacing(4),
-    color: theme.palette.text.secondary,
+    padding: spacing * 4,
+    color: '#666',
   },
-}));
+};
 
 /** @public */
 export interface TemplatesViewProps {
@@ -72,7 +73,6 @@ export interface TemplatesViewProps {
 /** @public */
 export function TemplatesView(props: TemplatesViewProps) {
   const { templates, onboardingApi } = props;
-  const classes = useStyles();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
@@ -144,7 +144,7 @@ export function TemplatesView(props: TemplatesViewProps) {
 
   if (templates.length === 0) {
     return (
-      <Box className={classes.emptyState}>
+      <Box style={styles.emptyState}>
         <Typography variant="h6">No templates available</Typography>
         <Typography variant="body2">
           Register OnboardingTemplate entities in your catalog to get started.
@@ -165,8 +165,8 @@ export function TemplatesView(props: TemplatesViewProps) {
 
           return (
             <Grid item xs={12} sm={6} md={4} key={template.metadata.name}>
-              <Card className={classes.card} variant="outlined">
-                <CardContent className={classes.cardContent}>
+              <Card style={styles.card} variant="outlined">
+                <CardContent style={styles.cardContent}>
                   <Typography variant="h6">
                     {template.metadata.title}
                   </Typography>
@@ -179,22 +179,22 @@ export function TemplatesView(props: TemplatesViewProps) {
                       {template.metadata.description}
                     </Typography>
                   )}
-                  <Box className={classes.chipRow}>
+                  <Box style={styles.chipRow}>
                     <Chip
                       label={`${taskCount} ${taskCount === 1 ? 'task' : 'tasks'}`}
-                      className={classes.chip}
+                      style={styles.chip}
                       size="small"
                       variant="outlined"
                     />
                     <Chip
                       label={`${phaseCount} ${phaseCount === 1 ? 'phase' : 'phases'}`}
-                      className={classes.chip}
+                      style={styles.chip}
                       size="small"
                       variant="outlined"
                     />
                     <Chip
                       label={template.spec.role}
-                      className={classes.chip}
+                      style={styles.chip}
                       size="small"
                       color="primary"
                       variant="outlined"
@@ -202,7 +202,7 @@ export function TemplatesView(props: TemplatesViewProps) {
                     {template.spec.team && (
                       <Chip
                         label={template.spec.team}
-                        className={classes.chip}
+                        style={styles.chip}
                         size="small"
                         variant="outlined"
                       />

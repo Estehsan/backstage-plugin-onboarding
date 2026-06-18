@@ -24,7 +24,6 @@ import {
 } from '@backstage/core-components';
 import { identityApiRef, useApi } from '@backstage/core-plugin-api';
 import Tab from '@material-ui/core/Tab';
-import { makeStyles } from '@material-ui/core/styles';
 import TabContext from '@material-ui/lab/TabContext';
 import TabList from '@material-ui/lab/TabList';
 import TabPanel from '@material-ui/lab/TabPanel';
@@ -40,16 +39,13 @@ import { TeamView } from '../TeamView/TeamView';
 import { TemplatesView } from '../TemplatesView/TemplatesView';
 import { useAutomatedTask } from '../../hooks/useAutomatedTask';
 
-const useStyles = makeStyles({
-  tabPanel: {
-    paddingLeft: 0,
-    paddingRight: 0,
-  },
-});
+const tabPanelStyles = {
+  paddingLeft: 0,
+  paddingRight: 0,
+};
 
 /** @public */
 export function OnboardingPage() {
-  const classes = useStyles();
   const [tab, setTab] = useState('tasks');
   const onboardingApi = useApi(onboardingApiRef);
   const identityApi = useApi(identityApiRef);
@@ -206,7 +202,7 @@ export function OnboardingPage() {
             <Tab label="Templates" value="templates" />
           </TabList>
 
-          <TabPanel value="tasks" className={classes.tabPanel}>
+          <TabPanel value="tasks" style={tabPanelStyles}>
             {progress && currentTemplate ? (
               <>
                 <ProgressBar completed={completedCount} total={totalCount} />
@@ -224,11 +220,11 @@ export function OnboardingPage() {
             )}
           </TabPanel>
 
-          <TabPanel value="team" className={classes.tabPanel}>
+          <TabPanel value="team" style={tabPanelStyles}>
             <TeamView onboardingApi={onboardingApi} />
           </TabPanel>
 
-          <TabPanel value="templates" className={classes.tabPanel}>
+          <TabPanel value="templates" style={tabPanelStyles}>
             <TemplatesView
               templates={templates}
               onboardingApi={onboardingApi}

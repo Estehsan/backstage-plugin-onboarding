@@ -16,6 +16,8 @@ It replaces static Confluence/Notion docs with a live, trackable, automated chec
 >
 > **Team View** — Manager dashboard showing onboarding progress for all team members.
 
+> If images do not render in your checkout, add the screenshot files listed in [docs/screenshots/README.md](./docs/screenshots/README.md). You can also add an optional animated walkthrough as `docs/screenshots/onboarding-walkthrough.gif`.
+
 ## Features
 
 - **Phase-based task lists** — Tasks organized into Day 1, Week 1, Week 2, and Month 1 phases
@@ -30,11 +32,19 @@ It replaces static Confluence/Notion docs with a live, trackable, automated chec
 ## How It Works
 
 1. **Define onboarding templates** — Admins can create `OnboardingTemplate` entities as YAML in the Backstage catalog, or define fallback templates in `app-config.yaml`.
-2. **Templates are matched to new joiners** — When a user entity appears in the catalog with a `spec.profile.role` that matches a template's `spec.role`, the backend auto-assigns that template the first time onboarding progress is requested for that user.
+2. **Templates are matched to new joiners** — When a user entity appears in the catalog with a `spec.profile.role` that matches a template's `spec.role`, the backend auto-assigns that template the first time onboarding progress is requested for that user (for example when the user opens `/onboarding`, an entity card requests progress, or an admin loads team stats).
 3. **Admins can also assign manually** — If you want to bypass automatic matching, call `POST /api/onboarding/templates/:name/assign/:userId` to assign a template directly.
 4. **Team visibility is time-boxed** — `activeJoinerWindowDays` (default: `90`) controls which joiners are considered active and shown in the team view.
 5. **Task progress is dependency-aware** — Progress is tracked per task, and any task with `dependsOn` stays locked until its prerequisite tasks are complete.
 6. **Managers get aggregate team progress** — The team view rolls up onboarding progress for each manager's direct reports so leads can monitor completion across the team.
+
+### When Is Someone "New"?
+
+`onboarding.defaults.activeJoinerWindowDays` controls the window used for the team view and "active joiner" reporting.
+
+- Default is `90` days from onboarding start.
+- After that window, users are no longer counted as active joiners in team dashboards.
+- Historical per-user progress still exists; only the active window filter changes team visibility.
 
 ## Installation
 
@@ -103,6 +113,8 @@ backend.add(
 
 ## Configuration
 
+This section belongs to backend setup even though it is shown here for convenience: the `onboarding` block in `app-config.yaml` is read by `@estehsaan/backstage-plugin-onboarding-backend`.
+
 Add the following to your `app-config.yaml`:
 
 ```yaml
@@ -114,6 +126,11 @@ onboarding:
     buddy:
       autoAssign: true # Auto-assign buddy from team members
 ```
+
+Template source options:
+
+- `type: catalog` — load templates from `kind: OnboardingTemplate` catalog entities (recommended).
+- `templates.defaults` fallback in `app-config.yaml` — used when no catalog templates are available.
 
 ## Onboarding Templates
 
@@ -237,6 +254,15 @@ Use this section as a quick reference when authoring onboarding templates.
 | `documentation`    | string                  | No       | Long-form docs for detail panel                               |
 | `resources`        | TaskResource[]          | No       | Supplementary learning materials                              |
 | `recommendations`  | string[]                | No       | Tips shown in detail panel                                    |
+
+### Why `duePhase` Exists
+
+`duePhase` is the deadline phase for a task, and it can differ from the parent phase where the task is listed.
+
+- Parent phase: when the task is introduced in the onboarding journey.
+- `duePhase`: latest phase by which it should be completed.
+
+Example: a task listed under `day1` can still have `duePhase: week1` if it should be started on Day 1 but completed by the end of Week 1.
 
 ## Task Types
 

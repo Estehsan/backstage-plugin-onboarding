@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import Box from '@material-ui/core/Box';
 import Checkbox from '@material-ui/core/Checkbox';
 import Chip from '@material-ui/core/Chip';
@@ -22,7 +22,6 @@ import IconButton from '@material-ui/core/IconButton';
 import Tooltip from '@material-ui/core/Tooltip';
 import Typography from '@material-ui/core/Typography';
 import Avatar from '@material-ui/core/Avatar';
-import { makeStyles, Theme } from '@material-ui/core/styles';
 import LockIcon from '@material-ui/icons/Lock';
 import OpenInNewIcon from '@material-ui/icons/OpenInNew';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
@@ -32,21 +31,23 @@ import { OnboardingTask, TaskStatus } from '../../types';
 import { PHASE_LABELS } from '../../constants';
 import { TaskDetailPanel } from './TaskDetailPanel';
 
-const useStyles = makeStyles((theme: Theme) => ({
+const spacing = 8;
+
+const styles: Record<string, CSSProperties> = {
   root: {
     display: 'flex',
     alignItems: 'flex-start',
-    padding: theme.spacing(1.5, 2),
+    padding: `${spacing * 1.5}px ${spacing * 2}px`,
     borderLeft: '4px solid transparent',
   },
   blocked: {
-    borderLeftColor: theme.palette.error.main,
+    borderLeftColor: '#d32f2f',
   },
   locked: {
     opacity: 0.5,
   },
   checkbox: {
-    padding: theme.spacing(0, 1, 0, 0),
+    padding: `0 ${spacing}px 0 0`,
     marginTop: 2,
   },
   content: {
@@ -56,7 +57,7 @@ const useStyles = makeStyles((theme: Theme) => ({
   titleRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: theme.spacing(1),
+    gap: spacing,
     flexWrap: 'wrap',
   },
   title: {
@@ -65,17 +66,17 @@ const useStyles = makeStyles((theme: Theme) => ({
   titleDone: {
     fontWeight: 500,
     textDecoration: 'line-through',
-    color: theme.palette.text.secondary,
+    color: '#666',
   },
   description: {
-    marginTop: theme.spacing(0.5),
-    color: theme.palette.text.secondary,
+    marginTop: spacing * 0.5,
+    color: '#666',
   },
   badges: {
     display: 'flex',
     alignItems: 'center',
-    gap: theme.spacing(0.5),
-    marginTop: theme.spacing(0.5),
+    gap: spacing * 0.5,
+    marginTop: spacing * 0.5,
   },
   phaseBadge: {
     height: 20,
@@ -88,8 +89,8 @@ const useStyles = makeStyles((theme: Theme) => ({
   blockedBadge: {
     height: 20,
     fontSize: '0.7rem',
-    backgroundColor: theme.palette.error.main,
-    color: theme.palette.error.contrastText,
+    backgroundColor: '#d32f2f',
+    color: '#fff',
   },
   automatedChip: {
     height: 20,
@@ -99,26 +100,25 @@ const useStyles = makeStyles((theme: Theme) => ({
     width: 28,
     height: 28,
     fontSize: '0.75rem',
-    marginLeft: theme.spacing(1),
+    marginLeft: spacing,
   },
   actions: {
     display: 'flex',
     alignItems: 'center',
-    marginLeft: theme.spacing(1),
+    marginLeft: spacing,
   },
   lockIcon: {
     fontSize: 18,
-    color: theme.palette.text.disabled,
-    marginRight: theme.spacing(0.5),
+    color: '#bdbdbd',
+    marginRight: spacing * 0.5,
     marginTop: 4,
   },
   wrapper: {
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    '&:last-child': { borderBottom: 'none' },
+    borderBottom: '1px solid #e0e0e0',
   },
   expandButton: {
-    padding: theme.spacing(0.5),
-    marginLeft: theme.spacing(0.5),
+    padding: spacing * 0.5,
+    marginLeft: spacing * 0.5,
   },
   hasDocsBadge: {
     height: 20,
@@ -128,7 +128,7 @@ const useStyles = makeStyles((theme: Theme) => ({
   clickableContent: {
     cursor: 'pointer',
   },
-}));
+};
 
 const AUTOMATED_STATUS_COLORS: Record<
   string,
@@ -164,7 +164,6 @@ export interface TaskItemProps {
 /** @public */
 export function TaskItem(props: TaskItemProps) {
   const { task, status, locked, lockedByNames, onToggle } = props;
-  const classes = useStyles();
   const [expanded, setExpanded] = useState(false);
 
   const isDone = status === 'done';
@@ -176,9 +175,11 @@ export function TaskItem(props: TaskItemProps) {
     (task.resources && task.resources.length > 0) ||
     (task.recommendations && task.recommendations.length > 0);
 
-  const rootClasses = [classes.root];
-  if (isBlocked) rootClasses.push(classes.blocked);
-  if (locked) rootClasses.push(classes.locked);
+  const rootStyle = {
+    ...styles.root,
+    ...(isBlocked && styles.blocked),
+    ...(locked && styles.locked),
+  };
 
   const handleToggle = () => {
     if (!locked) {
@@ -188,7 +189,7 @@ export function TaskItem(props: TaskItemProps) {
 
   const checkbox = (
     <Checkbox
-      className={classes.checkbox}
+      style={styles.checkbox}
       checked={isDone}
       disabled={locked}
       onChange={handleToggle}
@@ -203,8 +204,8 @@ export function TaskItem(props: TaskItemProps) {
   };
 
   return (
-    <Box className={classes.wrapper} data-testid={`task-item-${task.id}`}>
-      <Box className={rootClasses.join(' ')} style={{ borderBottom: 'none' }}>
+    <Box style={styles.wrapper} data-testid={`task-item-${task.id}`}>
+      <Box style={rootStyle}>
         {locked ? (
           <Tooltip
             title={
@@ -214,7 +215,7 @@ export function TaskItem(props: TaskItemProps) {
             }
           >
             <span style={{ display: 'flex', alignItems: 'flex-start' }}>
-              <LockIcon className={classes.lockIcon} />
+              <LockIcon style={styles.lockIcon} />
               {checkbox}
             </span>
           </Tooltip>
@@ -223,7 +224,10 @@ export function TaskItem(props: TaskItemProps) {
         )}
 
         <Box
-          className={`${classes.content} ${hasDetail ? classes.clickableContent : ''}`}
+          style={{
+            ...styles.content,
+            ...(hasDetail && styles.clickableContent),
+          }}
           onClick={handleExpandToggle}
           role={hasDetail ? 'button' : undefined}
           tabIndex={hasDetail ? 0 : undefined}
@@ -238,10 +242,10 @@ export function TaskItem(props: TaskItemProps) {
               : undefined
           }
         >
-          <Box className={classes.titleRow}>
+          <Box style={styles.titleRow}>
             <Typography
               variant="body1"
-              className={isDone ? classes.titleDone : classes.title}
+              style={isDone ? styles.titleDone : styles.title}
             >
               {task.title}
             </Typography>
@@ -249,7 +253,7 @@ export function TaskItem(props: TaskItemProps) {
               <Chip
                 icon={<MenuBookIcon style={{ fontSize: 14 }} />}
                 label="Guide"
-                className={classes.hasDocsBadge}
+                style={styles.hasDocsBadge}
                 size="small"
                 variant="outlined"
                 color="primary"
@@ -258,35 +262,31 @@ export function TaskItem(props: TaskItemProps) {
             )}
           </Box>
 
-          <Typography variant="body2" className={classes.description}>
+          <Typography variant="body2" style={styles.description}>
             {task.description}
           </Typography>
 
-          <Box className={classes.badges}>
+          <Box style={styles.badges}>
             <Chip
               label={PHASE_LABELS[task.duePhase] ?? task.duePhase}
-              className={classes.phaseBadge}
+              style={styles.phaseBadge}
               size="small"
               variant="outlined"
             />
             <Chip
               label={isAutomated ? 'Automated' : 'Manual'}
-              className={classes.typeBadge}
+              style={styles.typeBadge}
               size="small"
               variant="outlined"
               color={isAutomated ? 'primary' : 'default'}
             />
             {isBlocked && (
-              <Chip
-                label="Blocked"
-                className={classes.blockedBadge}
-                size="small"
-              />
+              <Chip label="Blocked" style={styles.blockedBadge} size="small" />
             )}
             {isAutomated && (
               <Chip
                 label={status === 'in-progress' ? 'Running' : status}
-                className={classes.automatedChip}
+                style={styles.automatedChip}
                 size="small"
                 color={AUTOMATED_STATUS_COLORS[status] ?? 'default'}
               />
@@ -294,9 +294,9 @@ export function TaskItem(props: TaskItemProps) {
           </Box>
         </Box>
 
-        <Box className={classes.actions}>
+        <Box style={styles.actions}>
           <Tooltip title={task.assignee}>
-            <Avatar className={classes.avatar}>
+            <Avatar style={styles.avatar}>
               {getAssigneeInitials(task.assignee)}
             </Avatar>
           </Tooltip>
@@ -317,7 +317,7 @@ export function TaskItem(props: TaskItemProps) {
             <Tooltip title={expanded ? 'Hide guide' : 'View guide'}>
               <IconButton
                 size="small"
-                className={classes.expandButton}
+                style={styles.expandButton}
                 onClick={handleExpandToggle}
                 aria-label={expanded ? 'Collapse details' : 'Expand details'}
               >

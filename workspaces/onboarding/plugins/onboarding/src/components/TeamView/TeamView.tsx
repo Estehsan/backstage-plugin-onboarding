@@ -30,7 +30,6 @@ import TableRow from '@material-ui/core/TableRow';
 import TextField from '@material-ui/core/TextField';
 import Typography from '@material-ui/core/Typography';
 import Paper from '@material-ui/core/Paper';
-import { makeStyles, Theme, withStyles } from '@material-ui/core/styles';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import ExpandLessIcon from '@material-ui/icons/ExpandLess';
 import { InfoCard } from '@backstage/core-components';
@@ -39,41 +38,42 @@ import { TeamOnboardingStats } from '../../types';
 
 const PROGRESS_COLOR = '#1D9E75';
 
-const MiniProgress = withStyles({
-  root: { height: 6, borderRadius: 3 },
-  colorPrimary: { backgroundColor: '#e0e0e0' },
-  bar: { borderRadius: 3, backgroundColor: PROGRESS_COLOR },
-})(LinearProgress);
+const miniProgressStyles = {
+  height: 6,
+  borderRadius: 3,
+  backgroundColor: '#e0e0e0',
+};
 
-const useStyles = makeStyles((theme: Theme) => ({
+const spacing = 8;
+
+const styles = {
   statsGrid: {
-    marginBottom: theme.spacing(3),
+    marginBottom: spacing * 3,
   },
   statValue: {
     fontSize: '2rem',
     fontWeight: 700,
   },
   statLabel: {
-    color: theme.palette.text.secondary,
+    color: '#666',
   },
   searchField: {
-    marginBottom: theme.spacing(2),
+    marginBottom: spacing * 2,
   },
   progressCell: {
     minWidth: 120,
   },
   blockedChip: {
-    backgroundColor: theme.palette.error.main,
-    color: theme.palette.error.contrastText,
+    backgroundColor: '#d32f2f',
+    color: '#fff',
     height: 20,
     fontSize: '0.7rem',
   },
   blockedTaskItem: {
-    padding: theme.spacing(1, 2),
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    '&:last-child': { borderBottom: 'none' },
+    padding: `${spacing}px ${spacing * 2}px`,
+    borderBottom: '1px solid #e0e0e0',
   },
-}));
+};
 
 function daysSince(dateStr: string): number {
   const start = new Date(dateStr);
@@ -89,7 +89,6 @@ export interface TeamViewProps {
 /** @public */
 export function TeamView(props: TeamViewProps) {
   const { onboardingApi } = props;
-  const classes = useStyles();
 
   const [teamName, setTeamName] = useState('');
   const [stats, setStats] = useState<TeamOnboardingStats | undefined>();
@@ -128,7 +127,7 @@ export function TeamView(props: TeamViewProps) {
   return (
     <Box>
       <TextField
-        className={classes.searchField}
+        style={styles.searchField}
         label="Team name"
         variant="outlined"
         size="small"
@@ -148,35 +147,33 @@ export function TeamView(props: TeamViewProps) {
 
       {stats && (
         <>
-          <Grid container spacing={3} className={classes.statsGrid}>
+          <Grid container spacing={3} style={styles.statsGrid}>
             <Grid item xs={12} sm={4}>
               <InfoCard title="Active Joiners" variant="gridItem">
-                <Typography className={classes.statValue}>
+                <Typography style={styles.statValue}>
                   {stats.activeJoiners.length}
                 </Typography>
-                <Typography className={classes.statLabel}>
+                <Typography style={styles.statLabel}>
                   currently onboarding
                 </Typography>
               </InfoCard>
             </Grid>
             <Grid item xs={12} sm={4}>
               <InfoCard title="Avg. Completion" variant="gridItem">
-                <Typography className={classes.statValue}>
+                <Typography style={styles.statValue}>
                   {stats.avgCompletionPercent}%
                 </Typography>
-                <Typography className={classes.statLabel}>
+                <Typography style={styles.statLabel}>
                   across all joiners
                 </Typography>
               </InfoCard>
             </Grid>
             <Grid item xs={12} sm={4}>
               <InfoCard title="Blocked Tasks" variant="gridItem">
-                <Typography className={classes.statValue}>
+                <Typography style={styles.statValue}>
                   {stats.totalBlockedTasks}
                 </Typography>
-                <Typography className={classes.statLabel}>
-                  need attention
-                </Typography>
+                <Typography style={styles.statLabel}>need attention</Typography>
               </InfoCard>
             </Grid>
           </Grid>
@@ -190,9 +187,7 @@ export function TeamView(props: TeamViewProps) {
                     <TableCell>Name</TableCell>
                     <TableCell>Role</TableCell>
                     <TableCell>Days Since Start</TableCell>
-                    <TableCell className={classes.progressCell}>
-                      Progress
-                    </TableCell>
+                    <TableCell style={styles.progressCell}>Progress</TableCell>
                     <TableCell>Blocked</TableCell>
                   </TableRow>
                 </TableHead>
@@ -218,15 +213,20 @@ export function TeamView(props: TeamViewProps) {
                         <TableCell>
                           {daysSince(joiner.startDate)} days
                         </TableCell>
-                        <TableCell className={classes.progressCell}>
+                        <TableCell style={styles.progressCell}>
                           <Box
                             sx={{ display: 'flex', alignItems: 'center' }}
                             style={{ gap: '8px' }}
                           >
-                            <Box flex={1}>
-                              <MiniProgress
+                            <Box flex={1} style={miniProgressStyles}>
+                              <LinearProgress
                                 variant="determinate"
                                 value={joiner.completionPercent}
+                                style={{
+                                  height: '100%',
+                                  borderRadius: 3,
+                                  backgroundColor: PROGRESS_COLOR,
+                                }}
                               />
                             </Box>
                             <Typography variant="caption">
@@ -238,7 +238,7 @@ export function TeamView(props: TeamViewProps) {
                           {joiner.blockedTaskCount > 0 ? (
                             <Chip
                               label={joiner.blockedTaskCount}
-                              className={classes.blockedChip}
+                              style={styles.blockedChip}
                               size="small"
                             />
                           ) : (

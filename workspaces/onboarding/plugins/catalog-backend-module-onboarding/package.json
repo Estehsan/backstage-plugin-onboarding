@@ -5,12 +5,7 @@
   "backstage": {
     "role": "backend-plugin-module",
     "pluginId": "catalog",
-    "pluginPackages": [
-      "@estehsaan/backstage-plugin-onboarding",
-      "@estehsaan/backstage-plugin-onboarding-backend",
-      "@estehsaan/backstage-plugin-onboarding-common",
-      "@estehsaan/backstage-plugin-catalog-backend-module-onboarding"
-    ]
+    "pluginPackage": "@backstage/plugin-catalog-backend"
   },
   "keywords": [
     "backstage",
