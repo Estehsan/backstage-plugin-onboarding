@@ -1,0 +1,125 @@
+apiVersion: backstage.io/v1alpha1
+kind: OnboardingTemplate
+metadata:
+  name: new-joiner-starter
+  title: New Joiner — Starter Template
+  description: >
+    A minimal, easy-to-read template showing one or two tasks per phase.
+    Use this as a starting point and expand it for your team.
+spec:
+  role: engineer
+  team: platform
+
+  phases:
+    # ─────────────────────────────────────────────
+    # DAY 1 — First things first
+    # ─────────────────────────────────────────────
+    - id: day1
+      tasks:
+        - id: setup-laptop
+          phase: day1
+          title: Set up your laptop & dev environment
+          description: >
+            Run the team bootstrap script so your machine is ready
+            to build and run the project locally.
+          type: automated # triggers a Backstage scaffolder action
+          automationRef: setup-dev-environment
+          assignee: self
+          duePhase: day1
+          estimatedMinutes: 60
+          link:
+            label: Setup guide
+            url: https://docs.example.com/setup
+
+        - id: meet-buddy
+          phase: day1
+          title: Meet your onboarding buddy
+          description: >
+            30-minute intro call with your assigned buddy.
+            Cover team rituals, how to ask for help, and your first-week plan.
+          type: manual
+          assignee: buddy
+          duePhase: day1
+          estimatedMinutes: 30
+
+    # ─────────────────────────────────────────────
+    # WEEK 1 — Get oriented
+    # ─────────────────────────────────────────────
+    - id: week1
+      tasks:
+        - id: security-training
+          phase: week1
+          title: Complete security & compliance training
+          description: >
+            Mandatory before production access. Takes about 45 minutes.
+            You must score 85 % or higher on the final quiz.
+          type: manual
+          assignee: self
+          duePhase: week1
+          estimatedMinutes: 45
+          link:
+            label: Start training
+            url: https://training.example.com/security
+
+        - id: oncall-shadow
+          phase: week1
+          title: Shadow an on-call shift
+          description: >
+            Pair with the current on-call engineer for one shift.
+            Observe how pages are triaged, communicated, and resolved.
+          type: manual
+          assignee: buddy
+          duePhase: week1
+          estimatedMinutes: 240
+          dependsOn:
+            - security-training # locked until security training is done
+
+    # ─────────────────────────────────────────────
+    # WEEK 2 — Start contributing
+    # ─────────────────────────────────────────────
+    - id: week2
+      tasks:
+        - id: first-pr
+          phase: week2
+          title: Ship your first pull request
+          description: >
+            Pick a "good first issue" from the team backlog,
+            implement it, and get it merged.
+          type: manual
+          assignee: self
+          duePhase: week2
+          estimatedMinutes: 180
+          link:
+            label: Good first issues
+            url: https://github.com/example/platform/issues?label=good-first-issue
+
+    # ─────────────────────────────────────────────
+    # MONTH 1 — Reflect & plan ahead
+    # ─────────────────────────────────────────────
+    - id: month1
+      tasks:
+        - id: 30-day-checkin
+          phase: month1
+          title: 30-day check-in with manager
+          description: >
+            Structured 1:1 covering your first-month experience,
+            any blockers, and goals for the next 60 days.
+          type: manual
+          assignee: manager
+          duePhase: month1
+          estimatedMinutes: 45
+
+        - id: production-access
+          phase: month1
+          title: Request production access
+          description: >
+            Automated request — completes the RBAC config PR that
+            grants you read access to production systems.
+          type: automated # triggers scaffolder; NOT a local script
+          automationRef: request-prod-access
+          assignee: self
+          duePhase: month1
+          estimatedMinutes: 15
+          dependsOn:
+            - security-training # must finish security training first
+            - oncall-shadow # must shadow on-call before prod access

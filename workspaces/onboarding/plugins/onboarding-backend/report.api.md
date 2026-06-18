@@ -4,18 +4,11 @@
 
 ```ts
 import { BackendFeature } from '@backstage/backend-plugin-api';
-import { CatalogProcessor } from '@backstage/plugin-catalog-node';
-import { CatalogProcessorEmit } from '@backstage/plugin-catalog-node';
-import { Entity } from '@backstage/catalog-model';
-import { LocationSpec } from '@backstage/plugin-catalog-common';
 import { onboardingPermissions } from '@estehsaan/backstage-plugin-onboarding-common';
 import { onboardingProgressReadPermission } from '@estehsaan/backstage-plugin-onboarding-common';
 import { onboardingProgressUpdatePermission } from '@estehsaan/backstage-plugin-onboarding-common';
 import { onboardingTeamReadPermission } from '@estehsaan/backstage-plugin-onboarding-common';
 import { onboardingTemplateAssignPermission } from '@estehsaan/backstage-plugin-onboarding-common';
-
-// @public
-export const catalogModuleOnboardingEntityModel: BackendFeature;
 
 export { onboardingPermissions };
 
@@ -30,15 +23,4 @@ export { onboardingProgressUpdatePermission };
 export { onboardingTeamReadPermission };
 
 export { onboardingTemplateAssignPermission };
-
-// @public
-export class OnboardingTemplateProcessor implements CatalogProcessor {
-  getProcessorName(): string;
-  preProcessEntity(
-    entity: Entity,
-    _location: LocationSpec,
-    _emit: CatalogProcessorEmit,
-  ): Promise<Entity>;
-  validateEntityKind(entity: Entity): Promise<boolean>;
-}
 ```

@@ -62,7 +62,7 @@ const VALID_STATUSES: TaskStatus[] = [
 
 const VALID_PHASES = new Set<Phase>(['day1', 'week1', 'week2', 'month1']);
 
-const MAX_USER_SEARCH_RESULTS = 15;
+const MAX_USER_SEARCH_RESULTS = 50;
 
 function getActiveJoinerWindowDays(config: RootConfigService): number {
   return (
@@ -333,12 +333,54 @@ export async function createRouter(
 
     const result = await catalogApi.queryEntities({
       filter: { kind: 'User' },
-      fullTextFilter: { term: query },
+      fullTextFilter: {
+        term: query,
+        fields: [
+          'metadata.name',
+          'metadata.title',
+          'spec.profile.displayName',
+          'spec.profile.email',
+        ],
+      },
       limit: MAX_USER_SEARCH_RESULTS,
     });
 
+    // If full-text search returns few results, supplement with a broader
+    // name-prefix filter to catch users that the FTS index may have missed.
+    const items = result.items;
+    if (items.length < 5) {
+      const fallback = await catalogApi.getEntities({
+        filter: { kind: 'User' },
+      });
+      const lowerQuery = query.toLowerCase();
+      const additional = fallback.items.filter(entity => {
+        const name = entity.metadata.name?.toLowerCase() ?? '';
+        const title = (entity.metadata.title ?? '').toLowerCase();
+        const spec = entity.spec as Record<string, unknown> | undefined;
+        const profile = spec?.profile as Record<string, unknown> | undefined;
+        const displayName = (
+          (profile?.displayName as string) ?? ''
+        ).toLowerCase();
+        const email = ((profile?.email as string) ?? '').toLowerCase();
+        return (
+          name.includes(lowerQuery) ||
+          title.includes(lowerQuery) ||
+          displayName.includes(lowerQuery) ||
+          email.includes(lowerQuery)
+        );
+      });
+      // Merge without duplicates
+      const existingRefs = new Set(items.map(e => stringifyEntityRef(e)));
+      for (const entity of additional) {
+        if (!existingRefs.has(stringifyEntityRef(entity))) {
+          items.push(entity);
+        }
+        if (items.length >= MAX_USER_SEARCH_RESULTS) break;
+      }
+    }
+
     res.status(200).json(
-      result.items.map(entity => ({
+      items.map(entity => ({
         entityRef: stringifyEntityRef(entity),
         displayName: getEntityDisplayName(entity, entity.metadata.name),
         email: getEntityEmail(entity),

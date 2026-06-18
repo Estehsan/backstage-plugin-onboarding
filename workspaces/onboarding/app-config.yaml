@@ -12,6 +12,14 @@ backend:
 
 catalog:
   locations:
+    # ── Starter template ──────────────────────────────────────────────────────
+    # Minimal one-task-per-phase example. Good first template to read or copy.
+    - type: file
+      target: ./examples/new-joiner-starter-template.yaml
+      rules:
+        - allow: [OnboardingTemplate]
+
+    # ── Role-specific templates ───────────────────────────────────────────────
     - type: file
       target: ./examples/backend-engineer-template.yaml
       rules:
@@ -24,6 +32,8 @@ catalog:
       target: ./examples/sre-template.yaml
       rules:
         - allow: [OnboardingTemplate]
+
+    # ── Sample users & groups (required for buddy/manager resolution) ─────────
     - type: file
       target: ./examples/org.yaml
       rules:

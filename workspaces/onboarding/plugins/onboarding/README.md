@@ -4,7 +4,17 @@ A structured, interactive onboarding checklist plugin for [Backstage](https://ba
 
 It replaces static Confluence/Notion docs with a live, trackable, automated checklist that both the new joiner and their manager/team lead can see.
 
-<!-- TODO: Add a screenshot of the onboarding dashboard and replace this comment -->
+## Screenshots
+
+| Onboarding Dashboard                                                 | Task Detail Panel                                              | Team Overview                                          |
+| -------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
+| ![Onboarding Dashboard](./docs/screenshots/onboarding-dashboard.png) | ![Task Detail Panel](./docs/screenshots/task-detail-panel.png) | ![Team Overview](./docs/screenshots/team-overview.png) |
+
+> **Dashboard** — The main onboarding page showing phase-based task lists with progress tracking.
+>
+> **Task Detail** — Expanded task view with description, resources, and status controls.
+>
+> **Team View** — Manager dashboard showing onboarding progress for all team members.
 
 ## Features
 
@@ -16,6 +26,15 @@ It replaces static Confluence/Notion docs with a live, trackable, automated chec
 - **Template system** — Configurable onboarding templates per role and team
 - **Catalog user assignment** — Search catalog users by name/email when assigning templates, with optional manual entity-ref fallback
 - **Blocked task tracking** — Tasks can be marked as blocked with a reason
+
+## How It Works
+
+1. **Define onboarding templates** — Admins can create `OnboardingTemplate` entities as YAML in the Backstage catalog, or define fallback templates in `app-config.yaml`.
+2. **Templates are matched to new joiners** — When a user entity appears in the catalog with a `spec.profile.role` that matches a template's `spec.role`, the backend auto-assigns that template the first time onboarding progress is requested for that user.
+3. **Admins can also assign manually** — If you want to bypass automatic matching, call `POST /api/onboarding/templates/:name/assign/:userId` to assign a template directly.
+4. **Team visibility is time-boxed** — `activeJoinerWindowDays` (default: `90`) controls which joiners are considered active and shown in the team view.
+5. **Task progress is dependency-aware** — Progress is tracked per task, and any task with `dependsOn` stays locked until its prerequisite tasks are complete.
+6. **Managers get aggregate team progress** — The team view rolls up onboarding progress for each manager's direct reports so leads can monitor completion across the team.
 
 ## Installation
 
@@ -70,10 +89,16 @@ import SchoolIcon from '@material-ui/icons/School';
 yarn --cwd packages/backend add @estehsaan/backstage-plugin-onboarding-backend
 ```
 
-Add the backend plugin to `packages/backend/src/index.ts`:
+Add the backend plugin and catalog module to `packages/backend/src/index.ts`:
 
 ```ts
+// Core backend plugin (REST API + database)
 backend.add(import('@estehsaan/backstage-plugin-onboarding-backend'));
+
+// Catalog module — registers the OnboardingTemplate entity kind
+backend.add(
+  import('@estehsaan/backstage-plugin-catalog-backend-module-onboarding'),
+);
 ```
 
 ## Configuration
@@ -93,6 +118,11 @@ onboarding:
 ## Onboarding Templates
 
 Templates are defined as YAML files and registered in the Backstage catalog as `OnboardingTemplate` kind entities.
+
+### Template Sources
+
+1. **Catalog entities** (recommended) — Create YAML files with `kind: OnboardingTemplate` and register them in the catalog. This requires the catalog backend module so the custom entity kind is recognized.
+2. **Config-based fallback** — Define templates under `onboarding.templates.defaults` in `app-config.yaml`. This is useful for simpler deployments that do not manage onboarding templates as catalog entities.
 
 Example template:
 
@@ -119,6 +149,13 @@ spec:
           link:
             label: Open setup guide
             url: https://docs.internal/setup
+
+        - id: schedule-security-training
+          title: Schedule security & compliance training
+          description: Book your Week 1 security training slot during Day 1 onboarding.
+          type: manual
+          assignee: self
+          duePhase: week1 # Deadline phase — can differ from parent phase if task is introduced early but due later
 
         - id: meet-buddy
           title: Meet your onboarding buddy
@@ -166,12 +203,63 @@ spec:
           duePhase: month1
 ```
 
+## Template Authoring Guide
+
+Use this section as a quick reference when authoring onboarding templates.
+
+### Template-level fields
+
+| Field                  | Type   | Required | Description                          |
+| ---------------------- | ------ | -------- | ------------------------------------ |
+| `apiVersion`           | string | Yes      | Must be `onboarding.backstage.io/v1` |
+| `kind`                 | string | Yes      | Must be `OnboardingTemplate`         |
+| `metadata.name`        | string | Yes      | Unique identifier                    |
+| `metadata.title`       | string | Yes      | Display name                         |
+| `metadata.description` | string | No       | Short description                    |
+| `spec.role`            | string | Yes      | Role filter for auto-assignment      |
+| `spec.team`            | string | No       | Team filter for scoping              |
+| `spec.phases`          | array  | Yes      | Ordered list of phase objects        |
+
+### Task-level fields
+
+| Field              | Type                    | Required | Description                                                   |
+| ------------------ | ----------------------- | -------- | ------------------------------------------------------------- |
+| `id`               | string                  | Yes      | Unique task identifier within template                        |
+| `title`            | string                  | Yes      | Short display title                                           |
+| `description`      | string                  | Yes      | Detail shown in task panel                                    |
+| `type`             | `manual` \| `automated` | Yes      | How the task is completed                                     |
+| `assignee`         | string                  | Yes      | Who owns the task (`self`, `buddy`, `manager`, or entity ref) |
+| `duePhase`         | Phase                   | Yes      | Deadline phase (may differ from parent phase)                 |
+| `dependsOn`        | string[]                | No       | Task IDs that must complete first                             |
+| `automationRef`    | string                  | No       | Scaffolder template ref (required if type=automated)          |
+| `link`             | object                  | No       | External link (`{label, url}`)                                |
+| `estimatedMinutes` | number                  | No       | Estimated time to complete                                    |
+| `documentation`    | string                  | No       | Long-form docs for detail panel                               |
+| `resources`        | TaskResource[]          | No       | Supplementary learning materials                              |
+| `recommendations`  | string[]                | No       | Tips shown in detail panel                                    |
+
 ## Task Types
 
 | Type        | Description                                                |
 | ----------- | ---------------------------------------------------------- |
 | `manual`    | Requires human action — click the checkbox when complete   |
 | `automated` | Triggers a Backstage scaffolder action via `automationRef` |
+
+### Automated Tasks
+
+`automated` tasks trigger a **Backstage Scaffolder template** referenced by `automationRef`.
+
+- The work runs remotely through the scaffolder backend.
+- It can be used to provision repositories, cloud accounts, permissions, and other onboarding resources.
+- It does **not** run anything locally on the new joiner's machine.
+- Example: `automationRef: setup-dev-environment` triggers the scaffolder template with that ID.
+
+### Assignee Types
+
+- `self` — the new joiner themselves; they see this task in their personal checklist.
+- `buddy` — another team member auto-assigned from the team group entity's members. Configure this with `onboarding.defaults.buddy.autoAssign: true`; if disabled, assign a buddy manually.
+- `manager` — resolved from the `owner` relation on the team group entity in the catalog.
+- Custom string (for example `user:default/jane`) — a fixed catalog user entity ref for explicit assignment.
 
 ## Task Statuses
 
