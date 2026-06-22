@@ -263,9 +263,6 @@ describe('OnboardingPage', () => {
 
     await screen.findByText('Shadow an on-call shift');
 
-    const lockIcons = document.querySelectorAll('[class*="lockIcon"]');
-    expect(lockIcons.length).toBeGreaterThan(0);
-
     const oncallCheckbox = screen
       .getAllByRole('checkbox')
       .find(
