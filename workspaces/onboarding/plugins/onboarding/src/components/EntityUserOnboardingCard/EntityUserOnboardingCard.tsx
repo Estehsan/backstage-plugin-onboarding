@@ -15,7 +15,6 @@
  */
 
 import { useAsync } from 'react-use';
-import type { CSSProperties } from 'react';
 import {
   InfoCard,
   Progress,
@@ -25,54 +24,16 @@ import {
 } from '@backstage/core-components';
 import { useApi } from '@backstage/core-plugin-api';
 import { useEntity } from '@backstage/plugin-catalog-react';
-import { Box, Chip, Typography } from '@material-ui/core';
-import CheckCircleOutlineIcon from '@material-ui/icons/CheckCircleOutline';
-import BlockIcon from '@material-ui/icons/Block';
-import HourglassEmptyIcon from '@material-ui/icons/HourglassEmpty';
+import { Box, Tag, TagGroup, Text } from '@backstage/ui';
+import {
+  RiCheckboxCircleLine,
+  RiTimeLine,
+  RiForbidLine,
+} from '@remixicon/react';
 import { onboardingApiRef } from '../../api/OnboardingApi';
 import { OnboardingProgress, OnboardingTemplate, Phase } from '../../types';
 import { PHASE_LABELS, PHASE_ORDER } from '../../constants';
-
-const spacing = 8;
-
-const styles: Record<string, CSSProperties> = {
-  statsRow: {
-    display: 'flex',
-    gap: spacing * 1.5,
-    flexWrap: 'wrap',
-    marginTop: spacing * 1.5,
-  },
-  chip: {
-    fontWeight: 600,
-    fontSize: '0.7rem',
-  },
-  gaugeWrapper: {
-    marginTop: spacing * 1.5,
-  },
-  phaseLabel: {
-    fontSize: '0.75rem',
-    color: '#666',
-    marginTop: spacing * 2,
-    marginBottom: spacing * 0.5,
-    textTransform: 'uppercase',
-    letterSpacing: '0.08em',
-    fontWeight: 700,
-  },
-  phaseRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing * 0.75,
-  },
-  phaseName: {
-    fontSize: '0.85rem',
-    color: '#000',
-  },
-  phaseCount: {
-    fontSize: '0.8rem',
-    color: '#666',
-  },
-};
+import styles from './EntityUserOnboardingCard.module.css';
 
 function computeStats(progress: OnboardingProgress) {
   const total = progress.tasks.length;
@@ -172,53 +133,54 @@ export function EntityUserOnboardingCard() {
       title="Onboarding Progress"
       subheader={`Template: ${progress.templateName}`}
     >
-      <Box style={styles.gaugeWrapper}>
+      <Box className={styles.gaugeWrapper}>
         <LinearGauge value={completionPct / 100} />
-        <Typography variant="caption" color="textSecondary">
+        <Text variant="body-x-small" color="secondary">
           {completionPct}% complete
-        </Typography>
+        </Text>
       </Box>
 
-      <Box style={styles.statsRow}>
-        <Chip
-          style={styles.chip}
-          icon={<CheckCircleOutlineIcon style={{ fontSize: 14 }} />}
-          label={`${done} done`}
+      <TagGroup className={styles.statsRow} aria-label="Progress stats">
+        <Tag
+          className={styles.chip}
+          icon={<RiCheckboxCircleLine size={14} />}
           size="small"
-          color="primary"
-          variant={done > 0 ? 'default' : 'outlined'}
-        />
+        >
+          {done} done
+        </Tag>
         {inProgress > 0 && (
-          <Chip
-            style={styles.chip}
-            icon={<HourglassEmptyIcon style={{ fontSize: 14 }} />}
-            label={`${inProgress} in progress`}
+          <Tag
+            className={styles.chip}
+            icon={<RiTimeLine size={14} />}
             size="small"
-            variant="outlined"
-          />
+          >
+            {inProgress} in progress
+          </Tag>
         )}
         {blocked > 0 && (
-          <Chip
-            style={styles.chip}
-            icon={<BlockIcon style={{ fontSize: 14 }} />}
-            label={`${blocked} blocked`}
+          <Tag
+            className={styles.chip}
+            icon={<RiForbidLine size={14} />}
             size="small"
-            color="secondary"
-          />
+          >
+            {blocked} blocked
+          </Tag>
         )}
-      </Box>
+      </TagGroup>
 
       {Object.keys(byPhase).some(p => byPhase[p as Phase].total > 0) && (
         <>
-          <Typography style={styles.phaseLabel}>By phase</Typography>
+          <Text as="p" className={styles.phaseLabel}>
+            By phase
+          </Text>
           {PHASE_ORDER.filter(p => byPhase[p].total > 0).map(phase => (
-            <Box key={phase} style={styles.phaseRow}>
-              <Typography style={styles.phaseName}>
+            <Box key={phase} className={styles.phaseRow}>
+              <Text as="span" className={styles.phaseName}>
                 {PHASE_LABELS[phase]}
-              </Typography>
-              <Typography style={styles.phaseCount}>
+              </Text>
+              <Text as="span" className={styles.phaseCount}>
                 {byPhase[phase].done}/{byPhase[phase].total}
-              </Typography>
+              </Text>
             </Box>
           ))}
         </>
