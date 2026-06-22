@@ -1,0 +1,52 @@
+@layer components {
+  .statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--bui-space-4);
+    margin-bottom: var(--bui-space-6);
+  }
+
+  .statValue {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: var(--bui-space-1);
+  }
+
+  .statLabel {
+    color: var(--bui-fg-secondary);
+  }
+
+  .searchField {
+    margin-bottom: var(--bui-space-4);
+  }
+
+  .progressCell {
+    display: flex;
+    align-items: center;
+    gap: var(--bui-space-2);
+    min-width: 120px;
+  }
+
+  .progressBar {
+    flex: 1;
+  }
+
+  .blockedTag {
+    background-color: var(--bui-fg-danger) !important;
+    color: #fff !important;
+  }
+
+  .expandedDetail {
+    padding: var(--bui-space-3) var(--bui-space-2);
+  }
+
+  .errorText {
+    color: var(--bui-fg-danger);
+    margin-bottom: var(--bui-space-3);
+  }
+
+  .helpText {
+    color: var(--bui-fg-secondary);
+  }
+}

@@ -15,11 +15,8 @@
  */
 
 import { useEffect, useState, Fragment } from 'react';
-import Box from '@material-ui/core/Box';
-import Chip from '@material-ui/core/Chip';
+import { Box, Text, Tag, TagGroup, ButtonIcon } from '@backstage/ui';
 import Collapse from '@material-ui/core/Collapse';
-import Grid from '@material-ui/core/Grid';
-import IconButton from '@material-ui/core/IconButton';
 import LinearProgress from '@material-ui/core/LinearProgress';
 import Table from '@material-ui/core/Table';
 import TableBody from '@material-ui/core/TableBody';
@@ -28,52 +25,12 @@ import TableContainer from '@material-ui/core/TableContainer';
 import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
 import TextField from '@material-ui/core/TextField';
-import Typography from '@material-ui/core/Typography';
 import Paper from '@material-ui/core/Paper';
-import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
-import ExpandLessIcon from '@material-ui/icons/ExpandLess';
+import { RiArrowDownSLine, RiArrowUpSLine } from '@remixicon/react';
 import { InfoCard } from '@backstage/core-components';
 import { OnboardingApi } from '../../api/OnboardingApi';
 import { TeamOnboardingStats } from '../../types';
-
-const PROGRESS_COLOR = '#1D9E75';
-
-const miniProgressStyles = {
-  height: 6,
-  borderRadius: 3,
-  backgroundColor: '#e0e0e0',
-};
-
-const spacing = 8;
-
-const styles = {
-  statsGrid: {
-    marginBottom: spacing * 3,
-  },
-  statValue: {
-    fontSize: '2rem',
-    fontWeight: 700,
-  },
-  statLabel: {
-    color: '#666',
-  },
-  searchField: {
-    marginBottom: spacing * 2,
-  },
-  progressCell: {
-    minWidth: 120,
-  },
-  blockedChip: {
-    backgroundColor: '#d32f2f',
-    color: '#fff',
-    height: 20,
-    fontSize: '0.7rem',
-  },
-  blockedTaskItem: {
-    padding: `${spacing}px ${spacing * 2}px`,
-    borderBottom: '1px solid #e0e0e0',
-  },
-};
+import styles from './TeamView.module.css';
 
 function daysSince(dateStr: string): number {
   const start = new Date(dateStr);
@@ -127,7 +84,7 @@ export function TeamView(props: TeamViewProps) {
   return (
     <Box>
       <TextField
-        style={styles.searchField}
+        className={styles.searchField}
         label="Team name"
         variant="outlined"
         size="small"
@@ -140,43 +97,39 @@ export function TeamView(props: TeamViewProps) {
       {loading && <LinearProgress />}
 
       {error && (
-        <Typography color="error" variant="body2">
+        <Text variant="body-small" className={styles.errorText}>
           {error}
-        </Typography>
+        </Text>
       )}
 
       {stats && (
         <>
-          <Grid container spacing={3} style={styles.statsGrid}>
-            <Grid item xs={12} sm={4}>
-              <InfoCard title="Active Joiners" variant="gridItem">
-                <Typography style={styles.statValue}>
-                  {stats.activeJoiners.length}
-                </Typography>
-                <Typography style={styles.statLabel}>
-                  currently onboarding
-                </Typography>
-              </InfoCard>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <InfoCard title="Avg. Completion" variant="gridItem">
-                <Typography style={styles.statValue}>
-                  {stats.avgCompletionPercent}%
-                </Typography>
-                <Typography style={styles.statLabel}>
-                  across all joiners
-                </Typography>
-              </InfoCard>
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <InfoCard title="Blocked Tasks" variant="gridItem">
-                <Typography style={styles.statValue}>
-                  {stats.totalBlockedTasks}
-                </Typography>
-                <Typography style={styles.statLabel}>need attention</Typography>
-              </InfoCard>
-            </Grid>
-          </Grid>
+          <div className={styles.statsGrid}>
+            <InfoCard title="Active Joiners" variant="gridItem">
+              <Text variant="title-medium" className={styles.statValue}>
+                {stats.activeJoiners.length}
+              </Text>
+              <Text variant="body-small" className={styles.statLabel}>
+                currently onboarding
+              </Text>
+            </InfoCard>
+            <InfoCard title="Avg. Completion" variant="gridItem">
+              <Text variant="title-medium" className={styles.statValue}>
+                {stats.avgCompletionPercent}%
+              </Text>
+              <Text variant="body-small" className={styles.statLabel}>
+                across all joiners
+              </Text>
+            </InfoCard>
+            <InfoCard title="Blocked Tasks" variant="gridItem">
+              <Text variant="title-medium" className={styles.statValue}>
+                {stats.totalBlockedTasks}
+              </Text>
+              <Text variant="body-small" className={styles.statLabel}>
+                need attention
+              </Text>
+            </InfoCard>
+          </div>
 
           {stats.activeJoiners.length > 0 ? (
             <TableContainer component={Paper} variant="outlined">
@@ -187,7 +140,9 @@ export function TeamView(props: TeamViewProps) {
                     <TableCell>Name</TableCell>
                     <TableCell>Role</TableCell>
                     <TableCell>Days Since Start</TableCell>
-                    <TableCell style={styles.progressCell}>Progress</TableCell>
+                    <TableCell className={styles.progressCell}>
+                      Progress
+                    </TableCell>
                     <TableCell>Blocked</TableCell>
                   </TableRow>
                 </TableHead>
@@ -200,51 +155,43 @@ export function TeamView(props: TeamViewProps) {
                         style={{ cursor: 'pointer' }}
                       >
                         <TableCell padding="checkbox">
-                          <IconButton size="small">
+                          <ButtonIcon size="small" variant="tertiary">
                             {expandedRow === joiner.userId ? (
-                              <ExpandLessIcon />
+                              <RiArrowUpSLine size={18} />
                             ) : (
-                              <ExpandMoreIcon />
+                              <RiArrowDownSLine size={18} />
                             )}
-                          </IconButton>
+                          </ButtonIcon>
                         </TableCell>
                         <TableCell>{joiner.displayName}</TableCell>
                         <TableCell>{joiner.role}</TableCell>
                         <TableCell>
                           {daysSince(joiner.startDate)} days
                         </TableCell>
-                        <TableCell style={styles.progressCell}>
-                          <Box
-                            sx={{ display: 'flex', alignItems: 'center' }}
-                            style={{ gap: '8px' }}
-                          >
-                            <Box flex={1} style={miniProgressStyles}>
-                              <LinearProgress
-                                variant="determinate"
-                                value={joiner.completionPercent}
-                                style={{
-                                  height: '100%',
-                                  borderRadius: 3,
-                                  backgroundColor: PROGRESS_COLOR,
-                                }}
-                              />
-                            </Box>
-                            <Typography variant="caption">
+                        <TableCell>
+                          <div className={styles.progressCell}>
+                            <LinearProgress
+                              className={styles.progressBar}
+                              variant="determinate"
+                              value={joiner.completionPercent}
+                            />
+                            <Text variant="body-small">
                               {joiner.completionPercent}%
-                            </Typography>
-                          </Box>
+                            </Text>
+                          </div>
                         </TableCell>
                         <TableCell>
                           {joiner.blockedTaskCount > 0 ? (
-                            <Chip
-                              label={joiner.blockedTaskCount}
-                              style={styles.blockedChip}
-                              size="small"
-                            />
+                            <TagGroup aria-label="Blocked task count">
+                              <Tag
+                                size="small"
+                                className={styles.blockedTag}
+                              >
+                                {joiner.blockedTaskCount}
+                              </Tag>
+                            </TagGroup>
                           ) : (
-                            <Typography variant="caption" color="textSecondary">
-                              0
-                            </Typography>
+                            <Text variant="body-small">0</Text>
                           )}
                         </TableCell>
                       </TableRow>
@@ -258,28 +205,28 @@ export function TeamView(props: TeamViewProps) {
                             timeout="auto"
                             unmountOnExit
                           >
-                            <Box margin={1}>
-                              <Typography variant="subtitle2" gutterBottom>
+                            <div className={styles.expandedDetail}>
+                              <Text variant="title-small">
                                 Blocked tasks for {joiner.displayName}
-                              </Typography>
+                              </Text>
                               {joiner.blockedTaskCount > 0 ? (
-                                <Typography
-                                  variant="body2"
-                                  color="textSecondary"
+                                <Text
+                                  variant="body-small"
+                                  className={styles.helpText}
                                 >
                                   {joiner.blockedTaskCount} task(s) are
                                   currently blocked. View their individual
                                   checklist for details.
-                                </Typography>
+                                </Text>
                               ) : (
-                                <Typography
-                                  variant="body2"
-                                  color="textSecondary"
+                                <Text
+                                  variant="body-small"
+                                  className={styles.helpText}
                                 >
                                   No blocked tasks.
-                                </Typography>
+                                </Text>
                               )}
-                            </Box>
+                            </div>
                           </Collapse>
                         </TableCell>
                       </TableRow>
@@ -289,17 +236,17 @@ export function TeamView(props: TeamViewProps) {
               </Table>
             </TableContainer>
           ) : (
-            <Typography variant="body2" color="textSecondary">
+            <Text variant="body-small" className={styles.helpText}>
               No active joiners found for team &quot;{stats.teamName}&quot;.
-            </Typography>
+            </Text>
           )}
         </>
       )}
 
       {!stats && !loading && !error && (
-        <Typography variant="body2" color="textSecondary">
+        <Text variant="body-small" className={styles.helpText}>
           Enter a team name to view onboarding stats.
-        </Typography>
+        </Text>
       )}
     </Box>
   );
