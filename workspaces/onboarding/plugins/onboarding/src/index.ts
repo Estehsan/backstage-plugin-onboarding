@@ -19,7 +19,6 @@
  * @packageDocumentation
  */
 
-import '@backstage/ui/css/styles.css';
 
 export {
   onboardingPlugin,
