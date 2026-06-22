@@ -133,9 +133,7 @@ export function TemplatesView(props: TemplatesViewProps) {
             <div key={template.metadata.name}>
               <Card className={styles.card}>
                 <CardBody className={styles.cardBody}>
-                  <Text variant="title-medium">
-                    {template.metadata.title}
-                  </Text>
+                  <Text variant="title-medium">{template.metadata.title}</Text>
                   {template.metadata.description && (
                     <Text variant="body-small" className={styles.description}>
                       {template.metadata.description}
@@ -226,7 +224,7 @@ export function TemplatesView(props: TemplatesViewProps) {
             )}
           />
 
-          <Box mt={1}>
+          <Box mt="2">
             <Button
               size="small"
               onClick={() => {

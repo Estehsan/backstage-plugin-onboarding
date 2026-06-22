@@ -183,10 +183,7 @@ export function TeamView(props: TeamViewProps) {
                         <TableCell>
                           {joiner.blockedTaskCount > 0 ? (
                             <TagGroup aria-label="Blocked task count">
-                              <Tag
-                                size="small"
-                                className={styles.blockedTag}
-                              >
+                              <Tag size="small" className={styles.blockedTag}>
                                 {joiner.blockedTaskCount}
                               </Tag>
                             </TagGroup>

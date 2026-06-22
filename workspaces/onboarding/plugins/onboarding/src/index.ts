@@ -19,7 +19,6 @@
  * @packageDocumentation
  */
 
-
 export {
   onboardingPlugin,
   onboardingPlugin as default,
