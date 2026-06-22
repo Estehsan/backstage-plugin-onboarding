@@ -1,0 +1,24 @@
+@layer components {
+  .root {
+    width: 100%;
+    margin-bottom: var(--bui-space-4);
+  }
+
+  .labelRow {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--bui-space-1);
+  }
+
+  .progressContainer {
+    height: 10px;
+    border-radius: 5px;
+    background-color: var(--bui-bg-neutral-2);
+  }
+
+  .progressBar {
+    height: 100%;
+    border-radius: 5px;
+    background-color: #1d9e75;
+  }
+}

@@ -14,28 +14,9 @@
  * limitations under the License.
  */
 
+import { Box, Text } from '@backstage/ui';
 import LinearProgress from '@material-ui/core/LinearProgress';
-import Typography from '@material-ui/core/Typography';
-import Box from '@material-ui/core/Box';
-
-const PROGRESS_COLOR = '#1D9E75';
-
-const rootStyles = {
-  width: '100%',
-  marginBottom: 16,
-};
-
-const labelRowStyles = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  marginBottom: 4,
-};
-
-const progressStyles = {
-  height: 10,
-  borderRadius: 5,
-  backgroundColor: '#e0e0e0',
-};
+import styles from './ProgressBar.module.css';
 
 /** @public */
 export interface ProgressBarProps {
@@ -49,26 +30,26 @@ export function ProgressBar(props: ProgressBarProps) {
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return (
-    <div style={rootStyles}>
-      <Box style={labelRowStyles}>
-        <Typography variant="body2" color="textSecondary">
+    <Box className={styles.root}>
+      <div className={styles.labelRow}>
+        <Text variant="body-small" color="secondary">
           {completed} of {total} tasks complete
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
+        </Text>
+        <Text variant="body-small" color="secondary">
           {percent}%
-        </Typography>
-      </Box>
-      <div style={progressStyles}>
+        </Text>
+      </div>
+      <div className={styles.progressContainer}>
         <LinearProgress
           variant="determinate"
           value={percent}
           style={{
             height: '100%',
             borderRadius: 5,
-            backgroundColor: PROGRESS_COLOR,
+            backgroundColor: '#1D9E75',
           }}
         />
       </div>
-    </div>
+    </Box>
   );
 }
