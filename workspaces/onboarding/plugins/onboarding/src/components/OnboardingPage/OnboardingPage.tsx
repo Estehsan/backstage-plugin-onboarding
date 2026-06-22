@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useCallback, useEffect, useMemo, useState, ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Page,
   Header,
@@ -23,10 +23,7 @@ import {
   Progress,
 } from '@backstage/core-components';
 import { identityApiRef, useApi } from '@backstage/core-plugin-api';
-import Tab from '@material-ui/core/Tab';
-import TabContext from '@material-ui/lab/TabContext';
-import TabList from '@material-ui/lab/TabList';
-import TabPanel from '@material-ui/lab/TabPanel';
+import { Tabs, TabList, TabPanel, Tab } from '@backstage/ui';
 import { onboardingApiRef } from '../../api/OnboardingApi';
 import {
   OnboardingProgress,
@@ -38,11 +35,6 @@ import { TaskList } from '../TaskList';
 import { TeamView } from '../TeamView/TeamView';
 import { TemplatesView } from '../TemplatesView/TemplatesView';
 import { useAutomatedTask } from '../../hooks/useAutomatedTask';
-
-const tabPanelStyles = {
-  paddingLeft: 0,
-  paddingRight: 0,
-};
 
 /** @public */
 export function OnboardingPage() {
@@ -149,12 +141,9 @@ export function OnboardingPage() {
     [onboardingApi, progress, userId, currentTemplate, triggerAutomatedTask],
   );
 
-  const handleTabChange = useCallback(
-    (_event: ChangeEvent<{}>, newValue: string) => {
-      setTab(newValue);
-    },
-    [],
-  );
+  const handleTabChange = useCallback((key: string | number) => {
+    setTab(String(key));
+  }, []);
 
   if (loading) {
     return (
@@ -195,14 +184,14 @@ export function OnboardingPage() {
         subtitle="Your onboarding checklist"
       />
       <Content>
-        <TabContext value={tab}>
-          <TabList onChange={handleTabChange} indicatorColor="primary">
-            <Tab label="My Tasks" value="tasks" />
-            <Tab label="Team View" value="team" />
-            <Tab label="Templates" value="templates" />
+        <Tabs selectedKey={tab} onSelectionChange={handleTabChange}>
+          <TabList>
+            <Tab id="tasks">My Tasks</Tab>
+            <Tab id="team">Team View</Tab>
+            <Tab id="templates">Templates</Tab>
           </TabList>
 
-          <TabPanel value="tasks" style={tabPanelStyles}>
+          <TabPanel id="tasks">
             {progress && currentTemplate ? (
               <>
                 <ProgressBar completed={completedCount} total={totalCount} />
@@ -220,17 +209,17 @@ export function OnboardingPage() {
             )}
           </TabPanel>
 
-          <TabPanel value="team" style={tabPanelStyles}>
+          <TabPanel id="team">
             <TeamView onboardingApi={onboardingApi} />
           </TabPanel>
 
-          <TabPanel value="templates" style={tabPanelStyles}>
+          <TabPanel id="templates">
             <TemplatesView
               templates={templates}
               onboardingApi={onboardingApi}
             />
           </TabPanel>
-        </TabContext>
+        </Tabs>
       </Content>
     </Page>
   );
