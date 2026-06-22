@@ -14,131 +14,28 @@
  * limitations under the License.
  */
 
-import { useState, type CSSProperties } from 'react';
-import Box from '@material-ui/core/Box';
-import Checkbox from '@material-ui/core/Checkbox';
-import Chip from '@material-ui/core/Chip';
-import IconButton from '@material-ui/core/IconButton';
-import Tooltip from '@material-ui/core/Tooltip';
-import Typography from '@material-ui/core/Typography';
+import { useState } from 'react';
+import {
+  Checkbox,
+  TagGroup,
+  Tag,
+  Text,
+  TooltipTrigger,
+  Tooltip,
+  ButtonIcon,
+} from '@backstage/ui';
 import Avatar from '@material-ui/core/Avatar';
-import LockIcon from '@material-ui/icons/Lock';
-import OpenInNewIcon from '@material-ui/icons/OpenInNew';
-import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
-import ExpandLessIcon from '@material-ui/icons/ExpandLess';
-import MenuBookIcon from '@material-ui/icons/MenuBook';
+import {
+  RiLock2Line,
+  RiExternalLinkLine,
+  RiArrowDownSLine,
+  RiArrowUpSLine,
+  RiBookLine,
+} from '@remixicon/react';
 import { OnboardingTask, TaskStatus } from '../../types';
 import { PHASE_LABELS } from '../../constants';
 import { TaskDetailPanel } from './TaskDetailPanel';
-
-const spacing = 8;
-
-const styles: Record<string, CSSProperties> = {
-  root: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    padding: `${spacing * 1.5}px ${spacing * 2}px`,
-    borderLeft: '4px solid transparent',
-  },
-  blocked: {
-    borderLeftColor: '#d32f2f',
-  },
-  locked: {
-    opacity: 0.5,
-  },
-  checkbox: {
-    padding: `0 ${spacing}px 0 0`,
-    marginTop: 2,
-  },
-  content: {
-    flex: 1,
-    minWidth: 0,
-  },
-  titleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: spacing,
-    flexWrap: 'wrap',
-  },
-  title: {
-    fontWeight: 500,
-  },
-  titleDone: {
-    fontWeight: 500,
-    textDecoration: 'line-through',
-    color: '#666',
-  },
-  description: {
-    marginTop: spacing * 0.5,
-    color: '#666',
-  },
-  badges: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: spacing * 0.5,
-    marginTop: spacing * 0.5,
-  },
-  phaseBadge: {
-    height: 20,
-    fontSize: '0.7rem',
-  },
-  typeBadge: {
-    height: 20,
-    fontSize: '0.7rem',
-  },
-  blockedBadge: {
-    height: 20,
-    fontSize: '0.7rem',
-    backgroundColor: '#d32f2f',
-    color: '#fff',
-  },
-  automatedChip: {
-    height: 20,
-    fontSize: '0.7rem',
-  },
-  avatar: {
-    width: 28,
-    height: 28,
-    fontSize: '0.75rem',
-    marginLeft: spacing,
-  },
-  actions: {
-    display: 'flex',
-    alignItems: 'center',
-    marginLeft: spacing,
-  },
-  lockIcon: {
-    fontSize: 18,
-    color: '#bdbdbd',
-    marginRight: spacing * 0.5,
-    marginTop: 4,
-  },
-  wrapper: {
-    borderBottom: '1px solid #e0e0e0',
-  },
-  expandButton: {
-    padding: spacing * 0.5,
-    marginLeft: spacing * 0.5,
-  },
-  hasDocsBadge: {
-    height: 20,
-    fontSize: '0.7rem',
-    cursor: 'pointer',
-  },
-  clickableContent: {
-    cursor: 'pointer',
-  },
-};
-
-const AUTOMATED_STATUS_COLORS: Record<
-  string,
-  'default' | 'primary' | 'secondary'
-> = {
-  pending: 'default',
-  'in-progress': 'primary',
-  done: 'default',
-  blocked: 'secondary',
-};
+import styles from './TaskItem.module.css';
 
 function getAssigneeInitials(assignee: string): string {
   if (assignee === 'self') return 'ME';
@@ -175,11 +72,13 @@ export function TaskItem(props: TaskItemProps) {
     (task.resources && task.resources.length > 0) ||
     (task.recommendations && task.recommendations.length > 0);
 
-  const rootStyle = {
-    ...styles.root,
-    ...(isBlocked && styles.blocked),
-    ...(locked && styles.locked),
-  };
+  const rootClassName = [
+    styles.root,
+    isBlocked && styles.blocked,
+    locked && styles.locked,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const handleToggle = () => {
     if (!locked) {
@@ -188,15 +87,14 @@ export function TaskItem(props: TaskItemProps) {
   };
 
   const checkbox = (
-    <Checkbox
-      style={styles.checkbox}
-      checked={isDone}
-      disabled={locked}
-      onChange={handleToggle}
-      color="primary"
-      size="small"
-      inputProps={{ 'aria-label': `Mark "${task.title}" as complete` }}
-    />
+    <div className={styles.checkbox}>
+      <Checkbox
+        isSelected={isDone}
+        isDisabled={locked}
+        onChange={handleToggle}
+        aria-label={`Mark "${task.title}" as complete`}
+      />
+    </div>
   );
 
   const handleExpandToggle = () => {
@@ -204,30 +102,26 @@ export function TaskItem(props: TaskItemProps) {
   };
 
   return (
-    <Box style={styles.wrapper} data-testid={`task-item-${task.id}`}>
-      <Box style={rootStyle}>
+    <div className={styles.wrapper} data-testid={`task-item-${task.id}`}>
+      <div className={rootClassName}>
         {locked ? (
-          <Tooltip
-            title={
-              lockedByNames && lockedByNames.length > 0
-                ? `Requires: ${lockedByNames.join(', ')}`
-                : 'Dependencies not yet complete'
-            }
-          >
+          <TooltipTrigger>
             <span style={{ display: 'flex', alignItems: 'flex-start' }}>
-              <LockIcon style={styles.lockIcon} />
+              <RiLock2Line className={styles.lockIcon} size={18} />
               {checkbox}
             </span>
-          </Tooltip>
+            <Tooltip>
+              {lockedByNames && lockedByNames.length > 0
+                ? `Requires: ${lockedByNames.join(', ')}`
+                : 'Dependencies not yet complete'}
+            </Tooltip>
+          </TooltipTrigger>
         ) : (
           checkbox
         )}
 
-        <Box
-          style={{
-            ...styles.content,
-            ...(hasDetail && styles.clickableContent),
-          }}
+        <div
+          className={`${styles.content}${hasDetail ? ` ${styles.clickableContent}` : ''}`}
           onClick={handleExpandToggle}
           role={hasDetail ? 'button' : undefined}
           tabIndex={hasDetail ? 0 : undefined}
@@ -242,96 +136,96 @@ export function TaskItem(props: TaskItemProps) {
               : undefined
           }
         >
-          <Box style={styles.titleRow}>
-            <Typography
-              variant="body1"
-              style={isDone ? styles.titleDone : styles.title}
+          <div className={styles.titleRow}>
+            <Text
+              variant="body-medium"
+              className={isDone ? styles.titleDone : styles.title}
             >
               {task.title}
-            </Typography>
+            </Text>
             {hasDetail && (
-              <Chip
-                icon={<MenuBookIcon style={{ fontSize: 14 }} />}
-                label="Guide"
-                style={styles.hasDocsBadge}
-                size="small"
-                variant="outlined"
-                color="primary"
-                onClick={handleExpandToggle}
-              />
+              <TagGroup aria-label="Task documentation">
+                <Tag
+                  className={styles.hasDocsBadge}
+                  size="small"
+                  icon={<RiBookLine size={14} />}
+                >
+                  Guide
+                </Tag>
+              </TagGroup>
             )}
-          </Box>
+          </div>
 
-          <Typography variant="body2" style={styles.description}>
+          <Text variant="body-small" className={styles.description}>
             {task.description}
-          </Typography>
+          </Text>
 
-          <Box style={styles.badges}>
-            <Chip
-              label={PHASE_LABELS[task.duePhase] ?? task.duePhase}
-              style={styles.phaseBadge}
-              size="small"
-              variant="outlined"
-            />
-            <Chip
-              label={isAutomated ? 'Automated' : 'Manual'}
-              style={styles.typeBadge}
-              size="small"
-              variant="outlined"
-              color={isAutomated ? 'primary' : 'default'}
-            />
+          <TagGroup aria-label="Task badges" className={styles.badges}>
+            <Tag className={styles.phaseBadge} size="small">
+              {PHASE_LABELS[task.duePhase] ?? task.duePhase}
+            </Tag>
+            <Tag className={styles.typeBadge} size="small">
+              {isAutomated ? 'Automated' : 'Manual'}
+            </Tag>
             {isBlocked && (
-              <Chip label="Blocked" style={styles.blockedBadge} size="small" />
+              <Tag className={styles.blockedBadge} size="small">
+                Blocked
+              </Tag>
             )}
             {isAutomated && (
-              <Chip
-                label={status === 'in-progress' ? 'Running' : status}
-                style={styles.automatedChip}
-                size="small"
-                color={AUTOMATED_STATUS_COLORS[status] ?? 'default'}
-              />
+              <Tag className={styles.automatedChip} size="small">
+                {status === 'in-progress' ? 'Running' : status}
+              </Tag>
             )}
-          </Box>
-        </Box>
+          </TagGroup>
+        </div>
 
-        <Box style={styles.actions}>
-          <Tooltip title={task.assignee}>
-            <Avatar style={styles.avatar}>
+        <div className={styles.actions}>
+          <TooltipTrigger>
+            <Avatar className={styles.avatar}>
               {getAssigneeInitials(task.assignee)}
             </Avatar>
-          </Tooltip>
+            <Tooltip>{task.assignee}</Tooltip>
+          </TooltipTrigger>
           {task.link && (
-            <Tooltip title={task.link.label}>
-              <IconButton
-                size="small"
+            <TooltipTrigger>
+              <a
                 href={task.link.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={task.link.label}
               >
-                <OpenInNewIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+                <ButtonIcon
+                  size="small"
+                  variant="tertiary"
+                  icon={<RiExternalLinkLine size={18} />}
+                />
+              </a>
+              <Tooltip>{task.link.label}</Tooltip>
+            </TooltipTrigger>
           )}
           {hasDetail && (
-            <Tooltip title={expanded ? 'Hide guide' : 'View guide'}>
-              <IconButton
+            <TooltipTrigger>
+              <ButtonIcon
                 size="small"
-                style={styles.expandButton}
-                onClick={handleExpandToggle}
+                variant="tertiary"
+                className={styles.expandButton}
+                onPress={handleExpandToggle}
                 aria-label={expanded ? 'Collapse details' : 'Expand details'}
-              >
-                {expanded ? (
-                  <ExpandLessIcon fontSize="small" />
-                ) : (
-                  <ExpandMoreIcon fontSize="small" />
-                )}
-              </IconButton>
-            </Tooltip>
+                icon={
+                  expanded ? (
+                    <RiArrowUpSLine size={18} />
+                  ) : (
+                    <RiArrowDownSLine size={18} />
+                  )
+                }
+              />
+              <Tooltip>{expanded ? 'Hide guide' : 'View guide'}</Tooltip>
+            </TooltipTrigger>
           )}
-        </Box>
-      </Box>
+        </div>
+      </div>
       <TaskDetailPanel task={task} open={expanded} />
-    </Box>
+    </div>
   );
 }

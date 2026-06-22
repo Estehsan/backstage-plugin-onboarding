@@ -83,7 +83,7 @@ describe('TaskItem', () => {
     expect(checkbox).toBeChecked();
 
     const title = screen.getByText('Test Task Title');
-    expect(title).toHaveStyle('text-decoration: line-through');
+    expect(title.className).toContain('titleDone');
   });
 
   it('renders blocked state with blocked badge', () => {

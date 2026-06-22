@@ -1,0 +1,116 @@
+@layer components {
+  .root {
+    display: flex;
+    align-items: flex-start;
+    padding: var(--bui-space-3) var(--bui-space-4);
+    border-left: 4px solid transparent;
+  }
+
+  .blocked {
+    border-left-color: var(--bui-fg-danger);
+  }
+
+  .locked {
+    opacity: 0.5;
+  }
+
+  .checkbox {
+    padding: 0 var(--bui-space-2) 0 0;
+    margin-top: 2px;
+  }
+
+  .content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .titleRow {
+    display: flex;
+    align-items: center;
+    gap: var(--bui-space-2);
+    flex-wrap: wrap;
+  }
+
+  .title {
+    font-weight: 500;
+  }
+
+  .titleDone {
+    font-weight: 500;
+    text-decoration: line-through;
+    color: #666;
+  }
+
+  .description {
+    margin-top: var(--bui-space-1);
+    color: #666;
+  }
+
+  .badges {
+    display: flex;
+    align-items: center;
+    gap: var(--bui-space-1);
+    margin-top: var(--bui-space-1);
+  }
+
+  .phaseBadge {
+    height: 20px;
+    font-size: var(--bui-font-size-1);
+  }
+
+  .typeBadge {
+    height: 20px;
+    font-size: var(--bui-font-size-1);
+  }
+
+  .blockedBadge {
+    height: 20px;
+    font-size: var(--bui-font-size-1);
+    background-color: var(--bui-fg-danger);
+    color: #fff;
+  }
+
+  .automatedChip {
+    height: 20px;
+    font-size: var(--bui-font-size-1);
+  }
+
+  .avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+    margin-left: var(--bui-space-2);
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    margin-left: var(--bui-space-2);
+  }
+
+  .lockIcon {
+    font-size: 18px;
+    color: #bdbdbd;
+    margin-right: var(--bui-space-1);
+    margin-top: 4px;
+  }
+
+  .wrapper {
+    border-bottom: 1px solid var(--bui-border-1);
+  }
+
+  .expandButton {
+    padding: var(--bui-space-1);
+    margin-left: var(--bui-space-1);
+  }
+
+  .hasDocsBadge {
+    height: 20px;
+    font-size: var(--bui-font-size-1);
+    cursor: pointer;
+  }
+
+  .clickableContent {
+    cursor: pointer;
+  }
+}
