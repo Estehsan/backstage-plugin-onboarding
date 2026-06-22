@@ -14,55 +14,19 @@
  * limitations under the License.
  */
 
-import { useEffect, useState, type CSSProperties } from 'react';
-import Box from '@material-ui/core/Box';
+import { useEffect, useState } from 'react';
+import { Box, Text, Tag, TagGroup, Card, CardBody } from '@backstage/ui';
 import Button from '@material-ui/core/Button';
-import Card from '@material-ui/core/Card';
-import CardActions from '@material-ui/core/CardActions';
-import CardContent from '@material-ui/core/CardContent';
-import Chip from '@material-ui/core/Chip';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import Dialog from '@material-ui/core/Dialog';
 import DialogActions from '@material-ui/core/DialogActions';
 import DialogContent from '@material-ui/core/DialogContent';
 import DialogTitle from '@material-ui/core/DialogTitle';
-import Grid from '@material-ui/core/Grid';
 import TextField from '@material-ui/core/TextField';
-import Typography from '@material-ui/core/Typography';
 import Autocomplete from '@material-ui/lab/Autocomplete';
 import { OnboardingApi } from '../../api/OnboardingApi';
 import { OnboardingCatalogUser, OnboardingTemplate } from '../../types';
-
-const spacing = 8;
-
-const styles: Record<string, CSSProperties> = {
-  card: {
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  cardContent: {
-    flex: 1,
-  },
-  taskCount: {
-    marginTop: spacing,
-  },
-  chipRow: {
-    display: 'flex',
-    gap: spacing * 0.5,
-    marginTop: spacing,
-    flexWrap: 'wrap',
-  },
-  chip: {
-    height: 22,
-    fontSize: '0.75rem',
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: spacing * 4,
-    color: '#666',
-  },
-};
+import styles from './TemplatesView.module.css';
 
 /** @public */
 export interface TemplatesViewProps {
@@ -144,18 +108,20 @@ export function TemplatesView(props: TemplatesViewProps) {
 
   if (templates.length === 0) {
     return (
-      <Box style={styles.emptyState}>
-        <Typography variant="h6">No templates available</Typography>
-        <Typography variant="body2">
+      <Box className={styles.emptyState}>
+        <Text variant="title-medium" className={styles.emptyTitle}>
+          No templates available
+        </Text>
+        <Text variant="body-small">
           Register OnboardingTemplate entities in your catalog to get started.
-        </Typography>
+        </Text>
       </Box>
     );
   }
 
   return (
     <>
-      <Grid container spacing={3}>
+      <div className={styles.grid}>
         {templates.map(template => {
           const taskCount = template.spec.phases.reduce(
             (sum, phase) => sum + phase.tasks.length,
@@ -164,52 +130,34 @@ export function TemplatesView(props: TemplatesViewProps) {
           const phaseCount = template.spec.phases.length;
 
           return (
-            <Grid item xs={12} sm={6} md={4} key={template.metadata.name}>
-              <Card style={styles.card} variant="outlined">
-                <CardContent style={styles.cardContent}>
-                  <Typography variant="h6">
+            <div key={template.metadata.name}>
+              <Card className={styles.card}>
+                <CardBody className={styles.cardBody}>
+                  <Text variant="title-medium">
                     {template.metadata.title}
-                  </Typography>
+                  </Text>
                   {template.metadata.description && (
-                    <Typography
-                      variant="body2"
-                      color="textSecondary"
-                      gutterBottom
-                    >
+                    <Text variant="body-small" className={styles.description}>
                       {template.metadata.description}
-                    </Typography>
+                    </Text>
                   )}
-                  <Box style={styles.chipRow}>
-                    <Chip
-                      label={`${taskCount} ${taskCount === 1 ? 'task' : 'tasks'}`}
-                      style={styles.chip}
-                      size="small"
-                      variant="outlined"
-                    />
-                    <Chip
-                      label={`${phaseCount} ${phaseCount === 1 ? 'phase' : 'phases'}`}
-                      style={styles.chip}
-                      size="small"
-                      variant="outlined"
-                    />
-                    <Chip
-                      label={template.spec.role}
-                      style={styles.chip}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                    />
+                  <TagGroup
+                    aria-label="Template metadata"
+                    className={styles.tagRow}
+                  >
+                    <Tag size="small">
+                      {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
+                    </Tag>
+                    <Tag size="small">
+                      {phaseCount} {phaseCount === 1 ? 'phase' : 'phases'}
+                    </Tag>
+                    <Tag size="small">{template.spec.role}</Tag>
                     {template.spec.team && (
-                      <Chip
-                        label={template.spec.team}
-                        style={styles.chip}
-                        size="small"
-                        variant="outlined"
-                      />
+                      <Tag size="small">{template.spec.team}</Tag>
                     )}
-                  </Box>
-                </CardContent>
-                <CardActions>
+                  </TagGroup>
+                </CardBody>
+                <div className={styles.cardFooter}>
                   <Button
                     size="small"
                     color="primary"
@@ -217,20 +165,20 @@ export function TemplatesView(props: TemplatesViewProps) {
                   >
                     Use Template
                   </Button>
-                </CardActions>
+                </div>
               </Card>
-            </Grid>
+            </div>
           );
         })}
-      </Grid>
+      </div>
 
       <Dialog open={dialogOpen} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>Assign Template</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" gutterBottom>
+          <Text variant="body-small">
             Assign template <strong>{selectedTemplate}</strong> to a user.
             {' Search by name or email, or enter an entity reference manually.'}
-          </Typography>
+          </Text>
 
           <Autocomplete
             options={userOptions}
@@ -315,14 +263,14 @@ export function TemplatesView(props: TemplatesViewProps) {
           )}
 
           {assignError && (
-            <Typography color="error" variant="body2">
+            <Text variant="body-small" className={styles.errorText}>
               {assignError}
-            </Typography>
+            </Text>
           )}
           {assignSuccess && (
-            <Typography color="primary" variant="body2">
+            <Text variant="body-small" className={styles.successText}>
               Template assigned successfully!
-            </Typography>
+            </Text>
           )}
         </DialogContent>
         <DialogActions>
