@@ -1,0 +1,107 @@
+@layer components {
+  .root {
+    background-color: var(--bui-bg-neutral-1);
+    border-top: 1px solid var(--bui-border-neutral-1);
+  }
+
+  .inner {
+    padding: var(--bui-space-4) var(--bui-space-6);
+  }
+
+  .section {
+    margin-bottom: var(--bui-space-4);
+  }
+
+  .sectionTitle {
+    display: flex;
+    align-items: center;
+    gap: var(--bui-space-2);
+    margin-bottom: var(--bui-space-2);
+  }
+
+  .timeEstimate {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--bui-space-2);
+    margin-bottom: var(--bui-space-4);
+    color: var(--bui-fg-secondary);
+  }
+
+  .stepRow {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: var(--bui-space-3);
+    gap: var(--bui-space-2);
+  }
+
+  .stepNumber {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: var(--bui-bg-accent-solid);
+    color: var(--bui-fg-on-accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .resourceList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--bui-border-neutral-1);
+    border-radius: var(--bui-radius-2);
+    overflow: hidden;
+  }
+
+  .resourceItem {
+    display: flex;
+    align-items: center;
+    gap: var(--bui-space-3);
+    padding: var(--bui-space-2) var(--bui-space-3);
+    border-bottom: 1px solid var(--bui-border-neutral-1);
+  }
+
+  .resourceItem:last-child {
+    border-bottom: none;
+  }
+
+  .resourceIcon {
+    flex-shrink: 0;
+    color: var(--bui-fg-secondary);
+  }
+
+  .resourceContent {
+    display: flex;
+    align-items: center;
+    gap: var(--bui-space-2);
+    flex-wrap: wrap;
+    flex: 1;
+  }
+
+  .resourceLink {
+    color: var(--bui-fg-accent);
+    text-decoration: none;
+    font-size: var(--bui-text-body-small-size, 0.875rem);
+  }
+
+  .resourceLink:hover {
+    text-decoration: underline;
+  }
+
+  .recommendationItem {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--bui-space-2);
+    margin-bottom: var(--bui-space-2);
+  }
+
+  .recommendationIcon {
+    color: var(--bui-fg-warning);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+}
