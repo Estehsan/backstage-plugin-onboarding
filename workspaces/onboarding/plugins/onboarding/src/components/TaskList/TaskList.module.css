@@ -1,0 +1,25 @@
+@layer components {
+  .phaseSection {
+    margin-bottom: var(--bui-space-6);
+  }
+
+  .phaseHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--bui-space-2);
+    margin-bottom: var(--bui-space-2);
+  }
+
+  .phaseTitle {
+    font-weight: var(--bui-font-weight-bold);
+  }
+
+  .taskPaper {
+    overflow: hidden;
+  }
+
+  .emptyText {
+    padding: var(--bui-space-4);
+    color: var(--bui-fg-secondary);
+  }
+}
