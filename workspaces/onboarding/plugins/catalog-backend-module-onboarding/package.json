@@ -1,6 +1,6 @@
 {
   "name": "@estehsaan/backstage-plugin-catalog-backend-module-onboarding",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Catalog backend module that adds the OnboardingTemplate entity kind",
   "backstage": {
     "role": "backend-plugin-module",

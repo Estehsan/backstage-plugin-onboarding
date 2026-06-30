@@ -1,6 +1,6 @@
 {
   "name": "@estehsaan/backstage-plugin-onboarding-backend",
-  "version": "2.0.0",
+  "version": "1.0.3",
   "description": "Backend for the Backstage onboarding checklist plugin",
   "backstage": {
     "role": "backend-plugin",
@@ -55,7 +55,7 @@
     "@backstage/catalog-model": "^1.7.6",
     "@backstage/errors": "^1.2.7",
     "@backstage/plugin-permission-common": "^0.9.6",
-    "@estehsaan/backstage-plugin-onboarding-common": "^2.0.0",
+    "@estehsaan/backstage-plugin-onboarding-common": "^1.0.3",
     "express": "^4.17.1",
     "express-promise-router": "^4.1.0",
     "knex": "^3.0.0",
