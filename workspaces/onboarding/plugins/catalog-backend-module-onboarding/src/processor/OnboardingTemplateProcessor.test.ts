@@ -129,11 +129,7 @@ describe('OnboardingTemplateProcessor', () => {
 
     it('throws when phases is missing or not an array', async () => {
       await expect(
-        processor.preProcessEntity(
-          template({ role: 'r' }),
-          location,
-          emit,
-        ),
+        processor.preProcessEntity(template({ role: 'r' }), location, emit),
       ).rejects.toThrow(/spec.phases array/);
     });
 

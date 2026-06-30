@@ -37,7 +37,7 @@ describe('OnboardingClient', () => {
       ok: true,
       status: 200,
       json: async () => body,
-    } as unknown as Response);
+    }) as unknown as Response;
 
   beforeEach(() => {
     jest.clearAllMocks();

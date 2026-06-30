@@ -146,7 +146,10 @@ export class OnboardingTemplateProcessor implements CatalogProcessor {
           );
         }
 
-        if (taskType === 'automated' && !isNonEmptyString(taskRecord.automationRef)) {
+        if (
+          taskType === 'automated' &&
+          !isNonEmptyString(taskRecord.automationRef)
+        ) {
           throw new InputError(
             `OnboardingTemplate "${name}" automated task "${taskId}" must define an automationRef`,
           );

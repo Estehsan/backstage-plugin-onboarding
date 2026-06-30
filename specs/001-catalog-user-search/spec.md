@@ -35,12 +35,12 @@ field could not reliably find all users in the catalog. Two defects:
 
 `GET /users/search?query=<q>`
 
-| Input | Result |
-| ----- | ------ |
-| empty / missing `query` | up to `MAX_USER_SEARCH_RESULTS` users, ordered by displayName |
-| non-empty `query` | users whose name/title/displayName/email contain `q` (case-insensitive), capped at `MAX_USER_SEARCH_RESULTS` |
-| `query` length > 100 | `400 InputError` |
-| caller lacks `onboarding.template.assign` | `403 NotAllowedError` |
+| Input                                     | Result                                                                                                       |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| empty / missing `query`                   | up to `MAX_USER_SEARCH_RESULTS` users, ordered by displayName                                                |
+| non-empty `query`                         | users whose name/title/displayName/email contain `q` (case-insensitive), capped at `MAX_USER_SEARCH_RESULTS` |
+| `query` length > 100                      | `400 InputError`                                                                                             |
+| caller lacks `onboarding.template.assign` | `403 NotAllowedError`                                                                                        |
 
 Implementation reads `User` entities via `catalogApi.getEntities` (capped at
 `MAX_CATALOG_USERS`, with a `fields` projection) and filters in memory. The FTS

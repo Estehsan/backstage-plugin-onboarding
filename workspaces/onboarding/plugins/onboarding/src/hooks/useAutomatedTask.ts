@@ -119,9 +119,8 @@ export function useAutomatedTask(options: {
             return;
           }
           try {
-            const scaffolderTask = await scaffolderApi.getTask(
-              scaffolderTaskId,
-            );
+            const scaffolderTask =
+              await scaffolderApi.getTask(scaffolderTaskId);
 
             if (!mountedRef.current) {
               clearTaskTimer(taskId);
