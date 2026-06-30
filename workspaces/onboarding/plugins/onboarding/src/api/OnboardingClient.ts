@@ -15,7 +15,7 @@
  */
 
 import { DiscoveryApi, FetchApi } from '@backstage/core-plugin-api';
-import { ResponseError } from '@backstage/errors';
+import { ResponseError, type ConsumedResponse } from '@backstage/errors';
 import { OnboardingApi } from './OnboardingApi';
 import {
   OnboardingCatalogUser,
@@ -112,7 +112,11 @@ export class OnboardingClient implements OnboardingApi {
     }
 
     if (!res.ok) {
-      throw await ResponseError.fromResponse(res);
+      // The DOM `Response` type satisfies `ConsumedResponse` at runtime; the
+      // cast bridges the narrower `Headers` lib type used by this workspace.
+      throw await ResponseError.fromResponse(
+        res as unknown as ConsumedResponse & { text(): Promise<string> },
+      );
     }
 
     return res.json() as Promise<T>;
