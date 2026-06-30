@@ -1,26 +1,3 @@
-# [2.0.0](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.0.3...v2.0.0) (2026-06-18)
-
-
-### Bug Fixes
-
-* **ci:** resolve onboarding lint parse and prefer-const errors ([06b69ca](https://github.com/Estehsan/backstage-plugin-onboarding/commit/06b69ca2bea8d47c7ad5cbf63471a644cc458e47))
-* **onboarding:** improve user search and update lockfile ([e053d21](https://github.com/Estehsan/backstage-plugin-onboarding/commit/e053d218de68a35566cad7ac5506a6b8040b9e7b))
-* **onboarding:** resolve dual React hoisting by pinning react resolutions ([7286f39](https://github.com/Estehsan/backstage-plugin-onboarding/commit/7286f395fa5febc86ad1cca9661e69fcd76727b4))
-
-
-### Features
-
-* **onboarding:** extract catalog module + improve documentation ([cc5e7db](https://github.com/Estehsan/backstage-plugin-onboarding/commit/cc5e7dbfa1e4a685af3a36e9c57285542945fba6))
-
-
-### BREAKING CHANGES
-
-* **onboarding:** The catalog module is no longer exported from
-@estehsaan/backstage-plugin-onboarding-backend/alpha. Install
-@estehsaan/backstage-plugin-catalog-backend-module-onboarding instead.
-
-Signed-off-by: Estehsan <estehsaan@gmail.com>
-
 ## [1.0.3](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.0.2...v1.0.3) (2026-04-23)
 
 
