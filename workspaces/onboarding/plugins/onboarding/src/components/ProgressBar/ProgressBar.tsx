@@ -14,38 +14,10 @@
  * limitations under the License.
  */
 
+import { Box, Text } from '@backstage/ui';
 import LinearProgress from '@material-ui/core/LinearProgress';
-import Typography from '@material-ui/core/Typography';
-import Box from '@material-ui/core/Box';
-import { makeStyles, withStyles } from '@material-ui/core/styles';
-
-const PROGRESS_COLOR = '#1D9E75';
-
-const StyledLinearProgress = withStyles({
-  root: {
-    height: 10,
-    borderRadius: 5,
-  },
-  colorPrimary: {
-    backgroundColor: '#e0e0e0',
-  },
-  bar: {
-    borderRadius: 5,
-    backgroundColor: PROGRESS_COLOR,
-  },
-})(LinearProgress);
-
-const useStyles = makeStyles({
-  root: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  labelRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-});
+import { useTheme } from '@material-ui/core/styles';
+import styles from './ProgressBar.module.css';
 
 /** @public */
 export interface ProgressBarProps {
@@ -56,20 +28,30 @@ export interface ProgressBarProps {
 /** @public */
 export function ProgressBar(props: ProgressBarProps) {
   const { completed, total } = props;
-  const classes = useStyles();
+  const theme = useTheme();
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return (
-    <div className={classes.root}>
-      <Box className={classes.labelRow}>
-        <Typography variant="body2" color="textSecondary">
+    <Box className={styles.root}>
+      <div className={styles.labelRow}>
+        <Text variant="body-small" color="secondary">
           {completed} of {total} tasks complete
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
+        </Text>
+        <Text variant="body-small" color="secondary">
           {percent}%
-        </Typography>
-      </Box>
-      <StyledLinearProgress variant="determinate" value={percent} />
-    </div>
+        </Text>
+      </div>
+      <div className={styles.progressContainer}>
+        <LinearProgress
+          variant="determinate"
+          value={percent}
+          style={{
+            height: '100%',
+            borderRadius: 5,
+            backgroundColor: theme.palette.success.main,
+          }}
+        />
+      </div>
+    </Box>
   );
 }

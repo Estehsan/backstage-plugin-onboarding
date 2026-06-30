@@ -14,40 +14,11 @@
  * limitations under the License.
  */
 
-import Box from '@material-ui/core/Box';
-import Chip from '@material-ui/core/Chip';
-import Typography from '@material-ui/core/Typography';
-import Paper from '@material-ui/core/Paper';
-import { makeStyles, Theme } from '@material-ui/core/styles';
+import { Box, Text, Card, CardBody, Flex, TagGroup, Tag } from '@backstage/ui';
 import { TaskItem } from './TaskItem';
 import { OnboardingTask, OnboardingProgress, Phase } from '../../types';
 import { PHASE_LABELS, PHASE_ORDER } from '../../constants';
-
-const useStyles = makeStyles((theme: Theme) => ({
-  phaseSection: {
-    marginBottom: theme.spacing(3),
-  },
-  phaseHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(1),
-    marginBottom: theme.spacing(1),
-  },
-  phaseTitle: {
-    fontWeight: 600,
-  },
-  countBadge: {
-    height: 22,
-    fontSize: '0.75rem',
-  },
-  taskPaper: {
-    overflow: 'hidden',
-  },
-  emptyText: {
-    padding: theme.spacing(2),
-    color: theme.palette.text.secondary,
-  },
-}));
+import styles from './TaskList.module.css';
 
 /** @public */
 export interface TaskListProps {
@@ -62,7 +33,6 @@ export interface TaskListProps {
 /** @public */
 export function TaskList(props: TaskListProps) {
   const { phases, progress, onToggle } = props;
-  const classes = useStyles();
 
   const allTasks = phases.flatMap(p => p.tasks);
 
@@ -80,51 +50,51 @@ export function TaskList(props: TaskListProps) {
         }).length;
 
         return (
-          <Box key={phase.id} className={classes.phaseSection}>
-            <Box className={classes.phaseHeader}>
-              <Typography variant="h6" className={classes.phaseTitle}>
+          <div key={phase.id} className={styles.phaseSection}>
+            <Flex align="center" gap="2" className={styles.phaseHeader}>
+              <Text variant="title-small" className={styles.phaseTitle}>
                 {PHASE_LABELS[phase.id]}
-              </Typography>
-              <Chip
-                label={`${doneCount} / ${phaseTasks.length} done`}
-                className={classes.countBadge}
-                size="small"
-                color={doneCount === phaseTasks.length ? 'primary' : 'default'}
-                variant="outlined"
-              />
-            </Box>
+              </Text>
+              <TagGroup>
+                <Tag size="small">
+                  {`${doneCount} / ${phaseTasks.length} done`}
+                </Tag>
+              </TagGroup>
+            </Flex>
 
-            <Paper className={classes.taskPaper} variant="outlined">
-              {phaseTasks.length === 0 ? (
-                <Typography className={classes.emptyText}>
-                  No tasks in this phase
-                </Typography>
-              ) : (
-                phaseTasks.map(task => {
-                  const taskProgress = progress.tasks.find(
-                    tp => tp.taskId === task.id,
-                  );
-                  const status = taskProgress?.status ?? 'pending';
+            <Card className={styles.taskPaper}>
+              <CardBody>
+                {phaseTasks.length === 0 ? (
+                  <Text variant="body-medium" className={styles.emptyText}>
+                    No tasks in this phase
+                  </Text>
+                ) : (
+                  phaseTasks.map(task => {
+                    const taskProgress = progress.tasks.find(
+                      tp => tp.taskId === task.id,
+                    );
+                    const status = taskProgress?.status ?? 'pending';
 
-                  const locked = isTaskLocked(task, progress);
-                  const lockedByNames = locked
-                    ? getLockedByNames(task, progress, allTasks)
-                    : undefined;
+                    const locked = isTaskLocked(task, progress);
+                    const lockedByNames = locked
+                      ? getLockedByNames(task, progress, allTasks)
+                      : undefined;
 
-                  return (
-                    <TaskItem
-                      key={task.id}
-                      task={task}
-                      status={status}
-                      locked={locked}
-                      lockedByNames={lockedByNames}
-                      onToggle={onToggle}
-                    />
-                  );
-                })
-              )}
-            </Paper>
-          </Box>
+                    return (
+                      <TaskItem
+                        key={task.id}
+                        task={task}
+                        status={status}
+                        locked={locked}
+                        lockedByNames={lockedByNames}
+                        onToggle={onToggle}
+                      />
+                    );
+                  })
+                )}
+              </CardBody>
+            </Card>
+          </div>
         );
       })}
     </Box>

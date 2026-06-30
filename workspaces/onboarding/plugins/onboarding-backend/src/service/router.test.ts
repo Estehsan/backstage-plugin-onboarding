@@ -18,7 +18,11 @@ import express from 'express';
 import request from 'supertest';
 import { ConfigReader } from '@backstage/config';
 import { AuthorizeResult } from '@backstage/plugin-permission-common';
-import { mockErrorHandler, mockServices } from '@backstage/backend-test-utils';
+import {
+  mockCredentials,
+  mockErrorHandler,
+  mockServices,
+} from '@backstage/backend-test-utils';
 import { createRouter } from './router';
 import { DatabaseOnboardingStore } from './OnboardingStore';
 
@@ -51,7 +55,7 @@ const mockPermissions = {
   authorizeConditional: jest.fn(),
 };
 
-async function createApp() {
+async function createApp(callerRef = 'user:default/jane.doe') {
   const router = await createRouter({
     logger: mockServices.logger.mock(),
     config: new ConfigReader({
@@ -59,7 +63,9 @@ async function createApp() {
     }),
     store: mockStore,
     permissions: mockPermissions,
-    httpAuth: mockServices.httpAuth.mock(),
+    httpAuth: mockServices.httpAuth.mock({
+      credentials: async () => mockCredentials.user(callerRef),
+    }),
     catalogApi: mockCatalogApi as any,
   });
 
@@ -435,18 +441,32 @@ describe('createRouter', () => {
   });
 
   describe('GET /users/search', () => {
-    it('returns matching catalog users', async () => {
-      mockCatalogApi.queryEntities.mockResolvedValue({
-        items: [
-          {
-            kind: 'User',
-            metadata: { name: 'jane.doe', namespace: 'default' },
-            spec: {
-              profile: { displayName: 'Jane Doe', email: 'jane@example.com' },
-            },
-          },
-        ],
-      });
+    const catalogUsers = [
+      {
+        kind: 'User',
+        metadata: { name: 'jane.doe', namespace: 'default' },
+        spec: {
+          profile: { displayName: 'Jane Doe', email: 'jane@example.com' },
+        },
+      },
+      {
+        kind: 'User',
+        metadata: { name: 'john.smith', namespace: 'default' },
+        spec: {
+          profile: { displayName: 'John Smith', email: 'john@example.com' },
+        },
+      },
+      {
+        kind: 'User',
+        metadata: { name: 'alice', namespace: 'default' },
+        spec: {
+          profile: { displayName: 'Alice Cooper', email: 'alice@acme.io' },
+        },
+      },
+    ];
+
+    it('filters all catalog users in memory across name/displayName/email', async () => {
+      mockCatalogApi.getEntities.mockResolvedValue({ items: catalogUsers });
 
       const res = await request(app)
         .get('/users/search?query=jane')
@@ -460,29 +480,48 @@ describe('createRouter', () => {
           email: 'jane@example.com',
         },
       ]);
-      expect(mockCatalogApi.queryEntities).toHaveBeenCalledWith({
-        filter: { kind: 'User' },
-        fullTextFilter: {
-          term: 'jane',
-          fields: [
-            'metadata.name',
-            'metadata.title',
-            'spec.profile.displayName',
-            'spec.profile.email',
-          ],
+      // Reads real User entities (not the FTS index) so results are reliable.
+      expect(mockCatalogApi.getEntities).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filter: { kind: 'User' },
+          limit: 1000,
+        }),
+      );
+      expect(mockCatalogApi.queryEntities).not.toHaveBeenCalled();
+
+      // Email match across a different field.
+      const byEmail = await request(app)
+        .get('/users/search?query=acme.io')
+        .set('Authorization', 'Bearer mock-token');
+      expect(byEmail.body).toEqual([
+        {
+          entityRef: 'user:default/alice',
+          displayName: 'Alice Cooper',
+          email: 'alice@acme.io',
         },
-        limit: 50,
-      });
+      ]);
     });
 
-    it('returns empty results for blank query', async () => {
+    it('lists users sorted by display name when the query is blank', async () => {
+      mockCatalogApi.getEntities.mockResolvedValue({ items: catalogUsers });
+
       const res = await request(app)
         .get('/users/search?query=   ')
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(200);
-      expect(res.body).toEqual([]);
-      expect(mockCatalogApi.queryEntities).not.toHaveBeenCalled();
+      expect(
+        res.body.map((u: { displayName: string }) => u.displayName),
+      ).toEqual(['Alice Cooper', 'Jane Doe', 'John Smith']);
+    });
+
+    it('rejects a query that exceeds 100 characters', async () => {
+      const res = await request(app)
+        .get(`/users/search?query=${'a'.repeat(101)}`)
+        .set('Authorization', 'Bearer mock-token');
+
+      expect(res.status).toBe(400);
+      expect(mockCatalogApi.getEntities).not.toHaveBeenCalled();
     });
   });
 
@@ -591,6 +630,98 @@ describe('createRouter', () => {
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(403);
+    });
+  });
+
+  describe('user-scoped access control (IDOR protection)', () => {
+    const janeProgress = {
+      userId: 'user:default/jane.doe',
+      templateName: 'backend-engineer-platform',
+      startDate: '2026-03-01T00:00:00.000Z',
+      tasks: [
+        { taskId: 'setup-laptop', status: 'pending' },
+        { taskId: 'meet-buddy', status: 'pending' },
+      ],
+    };
+
+    // Permissions impl that denies the elevated (team-read) permission but
+    // allows the owner's own progress read/update permissions.
+    function denyElevated() {
+      mockPermissions.authorize.mockImplementation(async (requests: any[]) =>
+        requests.map(r => ({
+          result:
+            r.permission.name === 'onboarding.team.read'
+              ? AuthorizeResult.DENY
+              : AuthorizeResult.ALLOW,
+        })),
+      );
+    }
+
+    it('allows an owner to read their own progress', async () => {
+      const ownerApp = await createApp('user:default/jane.doe');
+      mockStore.getProgress.mockResolvedValue({ ...janeProgress });
+
+      const res = await request(ownerApp)
+        .get(`/progress/${enc('user:default/jane.doe')}`)
+        .set('Authorization', 'Bearer mock-token');
+
+      expect(res.status).toBe(200);
+      expect(res.body.userId).toBe('user:default/jane.doe');
+    });
+
+    it('allows an owner to update their own progress (short-name owner ref)', async () => {
+      const ownerApp = await createApp('user:default/jane.doe');
+      mockStore.getProgress.mockResolvedValue({ ...janeProgress });
+      mockStore.upsertProgress.mockResolvedValue(undefined);
+
+      // Owner identified by full ref, target supplied as short name.
+      const res = await request(ownerApp)
+        .post(`/progress/jane.doe/tasks/meet-buddy`)
+        .set('Authorization', 'Bearer mock-token')
+        .send({ status: 'in-progress' });
+
+      expect(res.status).toBe(200);
+    });
+
+    it('denies a different user without team-read from reading progress', async () => {
+      denyElevated();
+      const otherApp = await createApp('user:default/mallory');
+      mockStore.getProgress.mockResolvedValue({ ...janeProgress });
+
+      const res = await request(otherApp)
+        .get(`/progress/${enc('user:default/jane.doe')}`)
+        .set('Authorization', 'Bearer mock-token');
+
+      expect(res.status).toBe(403);
+      expect(mockStore.getProgress).not.toHaveBeenCalled();
+    });
+
+    it('denies a different user without team-read from updating progress', async () => {
+      denyElevated();
+      const otherApp = await createApp('user:default/mallory');
+      mockStore.getProgress.mockResolvedValue({ ...janeProgress });
+
+      const res = await request(otherApp)
+        .post(`/progress/${enc('user:default/jane.doe')}/tasks/setup-laptop`)
+        .set('Authorization', 'Bearer mock-token')
+        .send({ status: 'done' });
+
+      expect(res.status).toBe(403);
+      expect(mockStore.upsertProgress).not.toHaveBeenCalled();
+    });
+
+    it('allows a different user WITH team-read to read another user progress', async () => {
+      // Default authorize mock ALLOWs all permissions, simulating a
+      // manager/buddy/admin who holds the elevated team-read permission.
+      const managerApp = await createApp('user:default/manager');
+      mockStore.getProgress.mockResolvedValue({ ...janeProgress });
+
+      const res = await request(managerApp)
+        .get(`/progress/${enc('user:default/jane.doe')}`)
+        .set('Authorization', 'Bearer mock-token');
+
+      expect(res.status).toBe(200);
+      expect(res.body.userId).toBe('user:default/jane.doe');
     });
   });
 });

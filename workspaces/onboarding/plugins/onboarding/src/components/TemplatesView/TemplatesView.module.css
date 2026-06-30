@@ -1,0 +1,50 @@
+@layer components {
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--bui-space-4);
+  }
+
+  .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cardBody {
+    flex: 1;
+  }
+
+  .cardFooter {
+    padding: var(--bui-space-2) var(--bui-space-4) var(--bui-space-4);
+  }
+
+  .tagRow {
+    margin-top: var(--bui-space-3);
+  }
+
+  .description {
+    margin-top: var(--bui-space-1);
+    color: var(--bui-fg-secondary);
+  }
+
+  .emptyState {
+    text-align: center;
+    padding: var(--bui-space-8) var(--bui-space-4);
+    color: var(--bui-fg-secondary);
+  }
+
+  .emptyTitle {
+    margin-bottom: var(--bui-space-2);
+  }
+
+  .errorText {
+    color: var(--bui-fg-danger);
+    margin-top: var(--bui-space-2);
+  }
+
+  .successText {
+    color: var(--bui-fg-success);
+    margin-top: var(--bui-space-2);
+  }
+}

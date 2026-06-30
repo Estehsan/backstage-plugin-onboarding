@@ -1,16 +1,11 @@
 {
   "name": "@estehsaan/backstage-plugin-catalog-backend-module-onboarding",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Catalog backend module that adds the OnboardingTemplate entity kind",
   "backstage": {
     "role": "backend-plugin-module",
     "pluginId": "catalog",
-    "pluginPackages": [
-      "@estehsaan/backstage-plugin-onboarding",
-      "@estehsaan/backstage-plugin-onboarding-backend",
-      "@estehsaan/backstage-plugin-onboarding-common",
-      "@estehsaan/backstage-plugin-catalog-backend-module-onboarding"
-    ]
+    "pluginPackage": "@backstage/plugin-catalog-backend"
   },
   "keywords": [
     "backstage",
@@ -52,6 +47,7 @@
   "dependencies": {
     "@backstage/backend-plugin-api": "^1.7.0",
     "@backstage/catalog-model": "^1.7.6",
+    "@backstage/errors": "^1.2.7",
     "@backstage/plugin-catalog-common": "^1.1.0",
     "@backstage/plugin-catalog-node": "^2.2.0"
   },

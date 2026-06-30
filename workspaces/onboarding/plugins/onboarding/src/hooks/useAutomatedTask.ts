@@ -38,17 +38,33 @@ export function useAutomatedTask(options: {
     Map<string, { scaffolderTaskId: string; status: 'running' | 'failed' }>
   >(new Map());
 
+  // Tracks whether the component is still mounted so we never update state or
+  // re-run callbacks after unmount.
+  const mountedRef = useRef(true);
+
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(
     new Map(),
   );
 
-  // Clean up poll timers on unmount
+  // Clears (and forgets) any existing poll timer for a given task.
+  const clearTaskTimer = useCallback((taskId: string) => {
+    const timer = pollTimers.current.get(taskId);
+    if (timer !== undefined) {
+      clearInterval(timer);
+      pollTimers.current.delete(taskId);
+    }
+  }, []);
+
+  // Track mounted state and clean up all poll timers on unmount.
   useEffect(() => {
+    mountedRef.current = true;
     const timers = pollTimers.current;
     return () => {
+      mountedRef.current = false;
       for (const timer of timers.values()) {
         clearInterval(timer);
       }
+      timers.clear();
     };
   }, []);
 
@@ -64,27 +80,36 @@ export function useAutomatedTask(options: {
           values: { userId },
         });
 
+        if (!mountedRef.current) return;
+
         setRunningTasks(prev => {
           const next = new Map(prev);
           next.set(taskId, { scaffolderTaskId, status: 'running' });
           return next;
         });
 
-        // Start polling for task completion
+        // Clear any existing poll for this task so repeated triggers don't
+        // accumulate overlapping intervals.
+        clearTaskTimer(taskId);
+
+        // Start polling for task completion. `attempts` lives in this closure
+        // (one per poll), so it never goes stale across renders.
         let attempts = 0;
         const timer = setInterval(async () => {
           attempts += 1;
           if (attempts > MAX_POLL_ATTEMPTS) {
-            clearInterval(timer);
-            pollTimers.current.delete(taskId);
+            clearTaskTimer(taskId);
             await onboardingApi
               .updateTaskStatus(
                 userId,
                 taskId,
                 'blocked',
-                `Automation timed out after ${Math.round((MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS) / 60000)} minutes`,
+                `Automation timed out after ${Math.round(
+                  (MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS) / 60000,
+                )} minutes`,
               )
               .catch(() => {});
+            if (!mountedRef.current) return;
             setRunningTasks(prev => {
               const next = new Map(prev);
               next.set(taskId, { scaffolderTaskId, status: 'failed' });
@@ -97,12 +122,17 @@ export function useAutomatedTask(options: {
             const scaffolderTask =
               await scaffolderApi.getTask(scaffolderTaskId);
 
+            if (!mountedRef.current) {
+              clearTaskTimer(taskId);
+              return;
+            }
+
             if (scaffolderTask.status === 'completed') {
-              clearInterval(timer);
-              pollTimers.current.delete(taskId);
+              clearTaskTimer(taskId);
 
               await onboardingApi.updateTaskStatus(userId, taskId, 'done');
 
+              if (!mountedRef.current) return;
               setRunningTasks(prev => {
                 const next = new Map(prev);
                 next.delete(taskId);
@@ -113,8 +143,7 @@ export function useAutomatedTask(options: {
               scaffolderTask.status === 'failed' ||
               scaffolderTask.status === 'cancelled'
             ) {
-              clearInterval(timer);
-              pollTimers.current.delete(taskId);
+              clearTaskTimer(taskId);
 
               await onboardingApi.updateTaskStatus(
                 userId,
@@ -123,6 +152,7 @@ export function useAutomatedTask(options: {
                 `Scaffolder task ${scaffolderTask.status}: ${scaffolderTaskId}`,
               );
 
+              if (!mountedRef.current) return;
               setRunningTasks(prev => {
                 const next = new Map(prev);
                 next.set(taskId, { scaffolderTaskId, status: 'failed' });
@@ -141,7 +171,9 @@ export function useAutomatedTask(options: {
         }, POLL_INTERVAL_MS);
 
         pollTimers.current.set(taskId, timer);
-        onProgressUpdate();
+        if (mountedRef.current) {
+          onProgressUpdate();
+        }
       } catch (error) {
         // Failed to even start: mark blocked
         await onboardingApi
@@ -155,10 +187,12 @@ export function useAutomatedTask(options: {
           )
           .catch(() => {});
 
-        onProgressUpdate();
+        if (mountedRef.current) {
+          onProgressUpdate();
+        }
       }
     },
-    [scaffolderApi, onboardingApi, userId, onProgressUpdate],
+    [scaffolderApi, onboardingApi, userId, onProgressUpdate, clearTaskTimer],
   );
 
   const getAutomatedTaskStatus = useCallback(

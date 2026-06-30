@@ -18,6 +18,8 @@ import express from 'express';
 import Router from 'express-promise-router';
 import { stringifyEntityRef } from '@backstage/catalog-model';
 import {
+  BackstageCredentials,
+  BackstageUserPrincipal,
   HttpAuthService,
   LoggerService,
   PermissionsService,
@@ -25,7 +27,10 @@ import {
 } from '@backstage/backend-plugin-api';
 import { CatalogApi } from '@backstage/catalog-client';
 import { InputError, NotAllowedError, NotFoundError } from '@backstage/errors';
-import { AuthorizeResult } from '@backstage/plugin-permission-common';
+import {
+  AuthorizeResult,
+  BasicPermission,
+} from '@backstage/plugin-permission-common';
 import { DatabaseOnboardingStore } from './OnboardingStore';
 import {
   OnboardingProgress,
@@ -70,6 +75,81 @@ function getActiveJoinerWindowDays(config: RootConfigService): number {
   );
 }
 
+/**
+ * Maximum number of catalog rows to request for queries that could otherwise
+ * return an unbounded result set, to protect the backend from memory/DoS
+ * pressure when the catalog is large.
+ */
+const MAX_CATALOG_USERS = 1000;
+const MAX_CATALOG_TEMPLATES = 1000;
+
+/**
+ * Returns true when the authenticated caller is the same user as the `userId`
+ * route parameter. Backstage user refs may be supplied either as a full entity
+ * ref (e.g. `user:default/alice`) or as a short name (e.g. `alice`); both forms
+ * are compared case-insensitively, and as a fallback the trailing name portion
+ * of each ref is compared so that the two forms resolve to the same user.
+ */
+function isSameUser(callerRef: string, userId: string): boolean {
+  const normalize = (value: string) => value.trim().toLowerCase();
+  const namePart = (value: string) => {
+    const normalized = normalize(value);
+    const slashIndex = normalized.lastIndexOf('/');
+    return slashIndex >= 0 ? normalized.slice(slashIndex + 1) : normalized;
+  };
+
+  const caller = normalize(callerRef);
+  const target = normalize(userId);
+  return caller === target || namePart(caller) === namePart(target);
+}
+
+/**
+ * Authorizes access to a user-scoped onboarding resource using an
+ * "ownership + role bypass" model:
+ *
+ * - If the caller owns the resource (the authenticated user ref matches the
+ *   `userId` parameter), the caller's own `ownerPermission` is evaluated. This
+ *   lets users read/update their own onboarding data.
+ * - If the caller does NOT own the resource, the `elevatedPermission` is
+ *   evaluated instead. This is the manager/buddy/admin gate that allows trusted
+ *   roles to access other users' onboarding data.
+ *
+ * In either branch a DENY decision results in a {@link NotAllowedError}. This
+ * prevents the IDOR class of bug where an allow-all policy would otherwise let
+ * any authenticated user read or mutate another user's progress.
+ */
+async function assertUserAccess(opts: {
+  credentials: BackstageCredentials<BackstageUserPrincipal>;
+  userId: string;
+  permissions: PermissionsService;
+  ownerPermission: BasicPermission;
+  elevatedPermission: BasicPermission;
+}): Promise<void> {
+  const {
+    credentials,
+    userId,
+    permissions,
+    ownerPermission,
+    elevatedPermission,
+  } = opts;
+
+  const callerRef = credentials.principal.userEntityRef;
+  const owner = isSameUser(callerRef, userId);
+  const permission = owner ? ownerPermission : elevatedPermission;
+
+  const decision = (
+    await permissions.authorize([{ permission }], { credentials })
+  )[0];
+
+  if (decision.result === AuthorizeResult.DENY) {
+    throw new NotAllowedError(
+      owner
+        ? 'Unauthorized'
+        : 'You are not allowed to access another user\u2019s onboarding progress',
+    );
+  }
+}
+
 /** @public */
 export async function createRouter(
   options: RouterOptions,
@@ -102,15 +182,13 @@ export async function createRouter(
     const { userId } = req.params;
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
 
-    const decision = (
-      await permissions.authorize(
-        [{ permission: onboardingProgressReadPermission }],
-        { credentials },
-      )
-    )[0];
-    if (decision.result === AuthorizeResult.DENY) {
-      throw new NotAllowedError('Unauthorized');
-    }
+    await assertUserAccess({
+      credentials,
+      userId,
+      permissions,
+      ownerPermission: onboardingProgressReadPermission,
+      elevatedPermission: onboardingTeamReadPermission,
+    });
 
     let progress = await store.getProgress(userId);
 
@@ -135,15 +213,13 @@ export async function createRouter(
     const { userId, taskId } = req.params;
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
 
-    const decision = (
-      await permissions.authorize(
-        [{ permission: onboardingProgressUpdatePermission }],
-        { credentials },
-      )
-    )[0];
-    if (decision.result === AuthorizeResult.DENY) {
-      throw new NotAllowedError('Unauthorized');
-    }
+    await assertUserAccess({
+      credentials,
+      userId,
+      permissions,
+      ownerPermission: onboardingProgressUpdatePermission,
+      elevatedPermission: onboardingTeamReadPermission,
+    });
 
     const { status, blockedReason } = req.body as {
       status?: TaskStatus;
@@ -152,7 +228,9 @@ export async function createRouter(
 
     if (!status || !VALID_STATUSES.includes(status)) {
       throw new InputError(
-        `Invalid status: ${status}. Must be one of: ${VALID_STATUSES.join(', ')}`,
+        `Invalid status: ${status}. Must be one of: ${VALID_STATUSES.join(
+          ', ',
+        )}`,
       );
     }
 
@@ -190,7 +268,9 @@ export async function createRouter(
 
           if (unmetDeps.length > 0) {
             throw new InputError(
-              `Cannot mark task ${taskId} as done. Unmet dependencies: ${unmetDeps.join(', ')}`,
+              `Cannot mark task ${taskId} as done. Unmet dependencies: ${unmetDeps.join(
+                ', ',
+              )}`,
             );
           }
         }
@@ -233,7 +313,20 @@ export async function createRouter(
         kind: 'User',
         'relations.memberOf': `group:default/${teamName}`,
       },
+      fields: [
+        'kind',
+        'metadata.name',
+        'spec.profile.displayName',
+        'relations',
+      ],
+      limit: MAX_CATALOG_USERS,
     });
+
+    // Index members by their user ref once so the active-joiner mapping below is
+    // O(n) rather than O(n^2) via repeated Array.find lookups.
+    const membersByRef = new Map(
+      teamMembers.items.map(e => [`user:default/${e.metadata.name}`, e]),
+    );
 
     const userIds = teamMembers.items.map(
       e => `user:default/${e.metadata.name}`,
@@ -250,9 +343,7 @@ export async function createRouter(
         return started >= cutoffDate && donePercent < 1;
       })
       .map(p => {
-        const member = teamMembers.items.find(
-          e => `user:default/${e.metadata.name}` === p.userId,
-        );
+        const member = membersByRef.get(p.userId);
         const doneTasks = p.tasks.filter(t => t.status === 'done').length;
         const blockedTasks = p.tasks.filter(t => t.status === 'blocked').length;
         const completionPercent =
@@ -322,70 +413,58 @@ export async function createRouter(
     }
 
     const query = String(req.query.query ?? '').trim();
-    if (!query) {
-      res.status(200).json([]);
-      return;
-    }
 
     if (query.length > 100) {
       throw new InputError('Search query must not exceed 100 characters');
     }
 
-    const result = await catalogApi.queryEntities({
+    // Read all User entities (capped) and filter in memory rather than relying
+    // on the catalog full-text index, which may be unpopulated or stale and
+    // would otherwise cause matching users to be silently missed. An empty
+    // query lists users so the assign picker can be browsed without typing.
+    const allUsers = await catalogApi.getEntities({
       filter: { kind: 'User' },
-      fullTextFilter: {
-        term: query,
-        fields: [
-          'metadata.name',
-          'metadata.title',
-          'spec.profile.displayName',
-          'spec.profile.email',
-        ],
-      },
-      limit: MAX_USER_SEARCH_RESULTS,
+      fields: [
+        'kind',
+        'metadata.name',
+        'metadata.namespace',
+        'metadata.title',
+        'spec.profile.displayName',
+        'spec.profile.email',
+      ],
+      limit: MAX_CATALOG_USERS,
     });
 
-    // If full-text search returns few results, supplement with a broader
-    // name-prefix filter to catch users that the FTS index may have missed.
-    const items = result.items;
-    if (items.length < 5) {
-      const fallback = await catalogApi.getEntities({
-        filter: { kind: 'User' },
-      });
-      const lowerQuery = query.toLowerCase();
-      const additional = fallback.items.filter(entity => {
-        const name = entity.metadata.name?.toLowerCase() ?? '';
-        const title = (entity.metadata.title ?? '').toLowerCase();
-        const spec = entity.spec as Record<string, unknown> | undefined;
-        const profile = spec?.profile as Record<string, unknown> | undefined;
-        const displayName = (
-          (profile?.displayName as string) ?? ''
-        ).toLowerCase();
-        const email = ((profile?.email as string) ?? '').toLowerCase();
-        return (
-          name.includes(lowerQuery) ||
-          title.includes(lowerQuery) ||
-          displayName.includes(lowerQuery) ||
-          email.includes(lowerQuery)
-        );
-      });
-      // Merge without duplicates
-      const existingRefs = new Set(items.map(e => stringifyEntityRef(e)));
-      for (const entity of additional) {
-        if (!existingRefs.has(stringifyEntityRef(entity))) {
-          items.push(entity);
-        }
-        if (items.length >= MAX_USER_SEARCH_RESULTS) break;
-      }
-    }
+    const lowerQuery = query.toLowerCase();
+    const matched = query
+      ? allUsers.items.filter(entity => {
+          const name = entity.metadata.name?.toLowerCase() ?? '';
+          const title = (entity.metadata.title ?? '').toLowerCase();
+          const spec = entity.spec as Record<string, unknown> | undefined;
+          const profile = spec?.profile as Record<string, unknown> | undefined;
+          const displayName = (
+            (profile?.displayName as string) ?? ''
+          ).toLowerCase();
+          const email = ((profile?.email as string) ?? '').toLowerCase();
+          return (
+            name.includes(lowerQuery) ||
+            title.includes(lowerQuery) ||
+            displayName.includes(lowerQuery) ||
+            email.includes(lowerQuery)
+          );
+        })
+      : allUsers.items;
 
-    res.status(200).json(
-      items.map(entity => ({
+    const results = matched
+      .map(entity => ({
         entityRef: stringifyEntityRef(entity),
         displayName: getEntityDisplayName(entity, entity.metadata.name),
         email: getEntityEmail(entity),
-      })),
-    );
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName))
+      .slice(0, MAX_USER_SEARCH_RESULTS);
+
+    res.status(200).json(results);
   });
 
   router.post('/templates/:templateName/assign/:userId', async (req, res) => {
@@ -535,6 +614,7 @@ async function findTemplateForUser(
       filter: {
         kind: 'OnboardingTemplate',
       },
+      limit: MAX_CATALOG_TEMPLATES,
     });
 
     for (const entity of templateEntities.items) {
@@ -563,6 +643,7 @@ async function getAllTemplates(
       filter: {
         kind: 'OnboardingTemplate',
       },
+      limit: MAX_CATALOG_TEMPLATES,
     });
 
     if (entities.items.length > 0) {
@@ -599,7 +680,9 @@ function getTemplatesFromConfig(
     for (const phase of phases) {
       if (!VALID_PHASES.has(phase as Phase)) {
         throw new Error(
-          `onboarding.templates.defaults: invalid phase "${phase}" in template "${name}". Must be one of: ${[...VALID_PHASES].join(', ')}`,
+          `onboarding.templates.defaults: invalid phase "${phase}" in template "${name}". Must be one of: ${[
+            ...VALID_PHASES,
+          ].join(', ')}`,
         );
       }
       phaseMap.set(phase, []);
@@ -609,7 +692,11 @@ function getTemplatesFromConfig(
       const phase = taskCfg.getString('phase');
       if (!VALID_PHASES.has(phase as Phase)) {
         throw new Error(
-          `onboarding.templates.defaults: invalid phase "${phase}" for task "${taskCfg.getString('id')}" in template "${name}". Must be one of: ${[...VALID_PHASES].join(', ')}`,
+          `onboarding.templates.defaults: invalid phase "${phase}" for task "${taskCfg.getString(
+            'id',
+          )}" in template "${name}". Must be one of: ${[...VALID_PHASES].join(
+            ', ',
+          )}`,
         );
       }
 

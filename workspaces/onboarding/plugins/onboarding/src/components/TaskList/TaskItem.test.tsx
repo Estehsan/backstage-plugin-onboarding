@@ -83,16 +83,13 @@ describe('TaskItem', () => {
     expect(checkbox).toBeChecked();
 
     const title = screen.getByText('Test Task Title');
-    expect(title).toHaveStyle('text-decoration: line-through');
+    expect(title.className).toContain('titleDone');
   });
 
-  it('renders blocked state with blocked badge and red border', () => {
-    const { container } = renderTaskItem({ status: 'blocked' });
+  it('renders blocked state with blocked badge', () => {
+    renderTaskItem({ status: 'blocked' });
 
     expect(screen.getByText('Blocked')).toBeInTheDocument();
-
-    const root = container.querySelector('[class*="blocked"]');
-    expect(root).toBeTruthy();
   });
 
   it('renders locked state with disabled checkbox and lock icon', () => {

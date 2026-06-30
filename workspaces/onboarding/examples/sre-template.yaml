@@ -1,4 +1,4 @@
-apiVersion: backstage.io/v1alpha1
+apiVersion: onboarding.backstage.io/v1
 kind: OnboardingTemplate
 metadata:
   name: sre-infrastructure

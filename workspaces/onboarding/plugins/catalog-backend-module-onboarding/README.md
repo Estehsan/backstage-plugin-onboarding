@@ -32,10 +32,18 @@ backend.add(
 );
 ```
 
-This registers the `OnboardingTemplateProcessor` which:
+This registers the `OnboardingTemplateProcessor` which validates entities with
+`apiVersion: onboarding.backstage.io/v1` and `kind: OnboardingTemplate`. The
+processor performs structural validation of the template spec and throws an
+`InputError` (rejecting the entity) when any of the following is violated:
 
-- Validates entities with `apiVersion: onboarding.backstage.io/v1` and `kind: OnboardingTemplate`
-- Ensures `spec.phases` is present and is an array
+- `spec.role` is a non-empty string and `spec.team` (if present) is a string
+- `spec.phases` is an array and every phase `id` is one of `day1`, `week1`,
+  `week2`, `month1`
+- each task has a non-empty `id`, with no duplicate task ids in the template
+- each task `type` is `manual` or `automated`, and `automated` tasks define an
+  `automationRef`
+- every `dependsOn` entry references a task id defined in the same template
 
 ## License
 

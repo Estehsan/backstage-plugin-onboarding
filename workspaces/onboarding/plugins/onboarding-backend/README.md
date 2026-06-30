@@ -54,14 +54,25 @@ onboarding:
 
 ## API Endpoints
 
-| Method | Path                                                     | Description                    |
-| ------ | -------------------------------------------------------- | ------------------------------ |
-| GET    | `/api/onboarding/health`                                 | Health check                   |
-| GET    | `/api/onboarding/progress/:userId`                       | Get user's onboarding progress |
-| POST   | `/api/onboarding/progress/:userId/tasks/:taskId`         | Update a task status           |
-| GET    | `/api/onboarding/team/:teamName/stats`                   | Get team onboarding stats      |
-| GET    | `/api/onboarding/templates`                              | List all onboarding templates  |
-| POST   | `/api/onboarding/templates/:templateName/assign/:userId` | Assign a template to a user    |
+| Method | Path                                                     | Description                                                   |
+| ------ | -------------------------------------------------------- | ------------------------------------------------------------- |
+| GET    | `/api/onboarding/health`                                 | Health check                                                  |
+| GET    | `/api/onboarding/progress/:userId`                       | Get user's onboarding progress                                |
+| POST   | `/api/onboarding/progress/:userId/tasks/:taskId`         | Update a task status                                          |
+| GET    | `/api/onboarding/team/:teamName/stats`                   | Get team onboarding stats                                     |
+| GET    | `/api/onboarding/templates`                              | List all onboarding templates                                 |
+| GET    | `/api/onboarding/users/search?query=`                    | Search catalog users for assignment (empty query lists users) |
+| POST   | `/api/onboarding/templates/:templateName/assign/:userId` | Assign a template to a user                                   |
+
+### User search
+
+`GET /users/search` reads `User` entities directly from the catalog and filters
+them in memory across `metadata.name`, `metadata.title`,
+`spec.profile.displayName`, and `spec.profile.email` (case-insensitive). It does
+not depend on the catalog full-text index, so results are reliable even when the
+search index is unpopulated. An empty `query` returns the available users
+(sorted by display name) so the assignment picker can be browsed without typing.
+Requires the `onboarding.template.assign` permission.
 
 ## License
 

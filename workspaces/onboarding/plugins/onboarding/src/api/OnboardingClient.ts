@@ -15,6 +15,7 @@
  */
 
 import { DiscoveryApi, FetchApi } from '@backstage/core-plugin-api';
+import { ResponseError, type ConsumedResponse } from '@backstage/errors';
 import { OnboardingApi } from './OnboardingApi';
 import {
   OnboardingCatalogUser,
@@ -47,7 +48,9 @@ export class OnboardingClient implements OnboardingApi {
     blockedReason?: string,
   ): Promise<OnboardingProgress> {
     return this.request<OnboardingProgress>(
-      `/progress/${encodeURIComponent(userId)}/tasks/${encodeURIComponent(taskId)}`,
+      `/progress/${encodeURIComponent(userId)}/tasks/${encodeURIComponent(
+        taskId,
+      )}`,
       {
         method: 'POST',
         body: JSON.stringify({ status, blockedReason }),
@@ -71,7 +74,9 @@ export class OnboardingClient implements OnboardingApi {
     userId: string,
   ): Promise<OnboardingProgress> {
     return this.request<OnboardingProgress>(
-      `/templates/${encodeURIComponent(templateName)}/assign/${encodeURIComponent(userId)}`,
+      `/templates/${encodeURIComponent(
+        templateName,
+      )}/assign/${encodeURIComponent(userId)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,9 +112,10 @@ export class OnboardingClient implements OnboardingApi {
     }
 
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(
-        `Request failed with status ${res.status}: ${text.slice(0, 500)}`,
+      // The DOM `Response` type satisfies `ConsumedResponse` at runtime; the
+      // cast bridges the narrower `Headers` lib type used by this workspace.
+      throw await ResponseError.fromResponse(
+        res as unknown as ConsumedResponse & { text(): Promise<string> },
       );
     }
 
