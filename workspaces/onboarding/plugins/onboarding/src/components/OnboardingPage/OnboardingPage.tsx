@@ -20,9 +20,11 @@ import {
   Header,
   Content,
   ResponseErrorPanel,
+  WarningPanel,
   Progress,
 } from '@backstage/core-components';
 import { identityApiRef, useApi } from '@backstage/core-plugin-api';
+import { ResponseError } from '@backstage/errors';
 import { Tabs, TabList, TabPanel, Tab } from '@backstage/ui';
 import { onboardingApiRef } from '../../api/OnboardingApi';
 import {
@@ -36,6 +38,23 @@ import { TeamView } from '../TeamView/TeamView';
 import { TemplatesView } from '../TemplatesView/TemplatesView';
 import { useAutomatedTask } from '../../hooks/useAutomatedTask';
 
+function asError(reason: unknown): Error {
+  return reason instanceof Error ? reason : new Error(String(reason));
+}
+
+// A missing progress record (404 / NotFoundError) is the normal "no checklist
+// assigned yet" state rather than a real failure to surface to the user.
+function isNotFound(reason: unknown): boolean {
+  if (reason instanceof ResponseError) {
+    return reason.statusCode === 404;
+  }
+  const err = asError(reason);
+  return (
+    err.name === 'NotFoundError' ||
+    (err as { cause?: { name?: string } }).cause?.name === 'NotFoundError'
+  );
+}
+
 /** @public */
 export function OnboardingPage() {
   const [tab, setTab] = useState('tasks');
@@ -46,17 +65,18 @@ export function OnboardingPage() {
   const [templates, setTemplates] = useState<OnboardingTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | undefined>();
+  // Non-fatal load error surfaced to the user while still rendering the page.
+  const [loadWarning, setLoadWarning] = useState<Error | undefined>();
   const [userId, setUserId] = useState<string>('');
 
   const reloadProgress = useCallback(async () => {
     if (!userId) return;
     try {
-      const updated = await onboardingApi
-        .getProgress(userId)
-        .catch(() => undefined);
+      const updated = await onboardingApi.getProgress(userId);
       setProgress(updated);
     } catch {
-      // ignore
+      // A reload failure should not wipe the currently displayed progress;
+      // keep the existing state so the user doesn't lose their checklist.
     }
   }, [onboardingApi, userId]);
 
@@ -74,16 +94,35 @@ export function OnboardingPage() {
         const userEntityRef = identity.userEntityRef;
         setUserId(userEntityRef);
 
-        const [progressData, templateData] = await Promise.all([
-          onboardingApi.getProgress(userEntityRef).catch(() => undefined),
-          onboardingApi.getTemplates().catch(() => []),
+        const [progressResult, templatesResult] = await Promise.allSettled([
+          onboardingApi.getProgress(userEntityRef),
+          onboardingApi.getTemplates(),
         ]);
 
-        if (!cancelled) {
-          setProgress(progressData);
-          setTemplates(templateData);
-          setError(undefined);
+        if (cancelled) return;
+
+        let progressData: OnboardingProgress | undefined;
+        let templateData: OnboardingTemplate[] = [];
+        const warnings: Error[] = [];
+
+        if (progressResult.status === 'fulfilled') {
+          progressData = progressResult.value;
+        } else if (!isNotFound(progressResult.reason)) {
+          // A missing progress record simply means no checklist has been
+          // assigned yet — that is the empty state, not an error.
+          warnings.push(asError(progressResult.reason));
         }
+
+        if (templatesResult.status === 'fulfilled') {
+          templateData = templatesResult.value;
+        } else {
+          warnings.push(asError(templatesResult.reason));
+        }
+
+        setProgress(progressData);
+        setTemplates(templateData);
+        setError(undefined);
+        setLoadWarning(warnings[0]);
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e : new Error(String(e)));
@@ -184,6 +223,12 @@ export function OnboardingPage() {
         subtitle="Your onboarding checklist"
       />
       <Content>
+        {loadWarning && (
+          <WarningPanel
+            title="Some onboarding data could not be loaded"
+            message={loadWarning.message}
+          />
+        )}
         <Tabs selectedKey={tab} onSelectionChange={handleTabChange}>
           <TabList>
             <Tab id="tasks">My Tasks</Tab>

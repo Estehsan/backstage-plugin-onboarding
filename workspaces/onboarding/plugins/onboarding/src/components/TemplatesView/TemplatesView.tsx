@@ -50,9 +50,10 @@ export function TemplatesView(props: TemplatesViewProps) {
   const [userInputValue, setUserInputValue] = useState('');
   const [useManualUserRef, setUseManualUserRef] = useState(false);
 
-  // Debounced backend search for catalog users.
+  // Debounced backend search for catalog users. Runs when the dialog is open
+  // (even with an empty query) so the picker can be browsed without typing.
   useEffect(() => {
-    if (!dialogOpen || useManualUserRef || !userInputValue.trim()) {
+    if (!dialogOpen || useManualUserRef) {
       setUserOptions([]);
       return undefined;
     }
@@ -197,16 +198,12 @@ export function TemplatesView(props: TemplatesViewProps) {
             }}
             disabled={assigning || assignSuccess}
             noOptionsText={
-              userInputValue.trim()
-                ? 'No users found'
-                : 'Start typing to search'
+              userSearchLoading ? 'Searching\u2026' : 'No users found'
             }
             renderInput={params => (
               <TextField
                 {...params}
                 id="onboarding-template-user-search"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
                 margin="dense"
                 label="Search User"
                 variant="outlined"

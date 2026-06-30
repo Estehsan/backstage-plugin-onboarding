@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useEffect, useState, Fragment } from 'react';
+import { useCallback, useEffect, useState, Fragment } from 'react';
 import { Box, Text, Tag, TagGroup, ButtonIcon } from '@backstage/ui';
 import Collapse from '@material-ui/core/Collapse';
 import LinearProgress from '@material-ui/core/LinearProgress';
@@ -53,7 +53,7 @@ export function TeamView(props: TeamViewProps) {
   const [error, setError] = useState<string | undefined>();
   const [expandedRow, setExpandedRow] = useState<string | undefined>();
 
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (!teamName.trim()) return;
     setLoading(true);
     setError(undefined);
@@ -66,7 +66,7 @@ export function TeamView(props: TeamViewProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [onboardingApi, teamName]);
 
   useEffect(() => {
     if (teamName) {
@@ -74,8 +74,7 @@ export function TeamView(props: TeamViewProps) {
       return () => clearTimeout(timer);
     }
     return undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamName]);
+  }, [teamName, handleSearch]);
 
   const handleRowExpand = (userId: string) => {
     setExpandedRow(expandedRow === userId ? undefined : userId);

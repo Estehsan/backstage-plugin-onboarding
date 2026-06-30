@@ -16,6 +16,7 @@
 
 import { Box, Text } from '@backstage/ui';
 import LinearProgress from '@material-ui/core/LinearProgress';
+import { useTheme } from '@material-ui/core/styles';
 import styles from './ProgressBar.module.css';
 
 /** @public */
@@ -27,6 +28,7 @@ export interface ProgressBarProps {
 /** @public */
 export function ProgressBar(props: ProgressBarProps) {
   const { completed, total } = props;
+  const theme = useTheme();
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return (
@@ -46,7 +48,7 @@ export function ProgressBar(props: ProgressBarProps) {
           style={{
             height: '100%',
             borderRadius: 5,
-            backgroundColor: '#1D9E75',
+            backgroundColor: theme.palette.success.main,
           }}
         />
       </div>

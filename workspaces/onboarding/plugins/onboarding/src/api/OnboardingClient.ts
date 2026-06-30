@@ -15,6 +15,7 @@
  */
 
 import { DiscoveryApi, FetchApi } from '@backstage/core-plugin-api';
+import { ResponseError } from '@backstage/errors';
 import { OnboardingApi } from './OnboardingApi';
 import {
   OnboardingCatalogUser,
@@ -47,7 +48,9 @@ export class OnboardingClient implements OnboardingApi {
     blockedReason?: string,
   ): Promise<OnboardingProgress> {
     return this.request<OnboardingProgress>(
-      `/progress/${encodeURIComponent(userId)}/tasks/${encodeURIComponent(taskId)}`,
+      `/progress/${encodeURIComponent(userId)}/tasks/${encodeURIComponent(
+        taskId,
+      )}`,
       {
         method: 'POST',
         body: JSON.stringify({ status, blockedReason }),
@@ -71,7 +74,9 @@ export class OnboardingClient implements OnboardingApi {
     userId: string,
   ): Promise<OnboardingProgress> {
     return this.request<OnboardingProgress>(
-      `/templates/${encodeURIComponent(templateName)}/assign/${encodeURIComponent(userId)}`,
+      `/templates/${encodeURIComponent(
+        templateName,
+      )}/assign/${encodeURIComponent(userId)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,10 +112,7 @@ export class OnboardingClient implements OnboardingApi {
     }
 
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(
-        `Request failed with status ${res.status}: ${text.slice(0, 500)}`,
-      );
+      throw await ResponseError.fromResponse(res);
     }
 
     return res.json() as Promise<T>;

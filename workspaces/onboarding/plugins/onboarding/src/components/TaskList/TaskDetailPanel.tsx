@@ -106,7 +106,7 @@ export function TaskDetailPanel(props: TaskDetailPanelProps) {
               </div>
               <Box>
                 {steps.map((step, i) => (
-                  <div key={i} className={styles.stepRow}>
+                  <div key={`${task.id}-step-${i}`} className={styles.stepRow}>
                     <span className={styles.stepNumber}>{i + 1}</span>
                     <Text variant="body-small">{step}</Text>
                   </div>
@@ -125,10 +125,13 @@ export function TaskDetailPanel(props: TaskDetailPanelProps) {
                 </Text>
               </div>
               <ul className={styles.resourceList}>
-                {task.resources.map((res, i) => {
+                {task.resources.map(res => {
                   const Icon = RESOURCE_ICONS[res.type] ?? RiFileTextLine;
                   return (
-                    <li key={i} className={styles.resourceItem}>
+                    <li
+                      key={`${res.type}-${res.url}`}
+                      className={styles.resourceItem}
+                    >
                       <span className={styles.resourceIcon}>
                         <Icon size={16} />
                       </span>
@@ -163,7 +166,10 @@ export function TaskDetailPanel(props: TaskDetailPanelProps) {
                 <Text variant="title-small">Tips &amp; recommendations</Text>
               </div>
               {task.recommendations.map((rec, i) => (
-                <div key={i} className={styles.recommendationItem}>
+                <div
+                  key={`${task.id}-rec-${i}`}
+                  className={styles.recommendationItem}
+                >
                   <span className={styles.recommendationIcon}>
                     <RiLightbulbLine size={16} />
                   </span>
