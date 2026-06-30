@@ -58,7 +58,7 @@ export class OnboardingTemplateProcessor implements CatalogProcessor {
 
   /**
    * Validates the structure of an OnboardingTemplate entity spec, throwing an
-   * {@link InputError} with a descriptive message on any violation. Entities of
+   * an `InputError` with a descriptive message on any violation. Entities of
    * other kinds are returned unchanged.
    */
   async preProcessEntity(
