@@ -15,7 +15,7 @@
  */
 
 import { ElementType } from 'react';
-import { Box, Text, Tag } from '@backstage/ui';
+import { Box, Text, Tag, TagGroup } from '@backstage/ui';
 import Collapse from '@material-ui/core/Collapse';
 import {
   RiBookLine,
@@ -144,12 +144,14 @@ export function TaskDetailPanel(props: TaskDetailPanelProps) {
                         >
                           {res.title}
                         </a>
-                        <Tag size="small">{RESOURCE_LABELS[res.type]}</Tag>
-                        {res.duration && (
-                          <Tag size="small" icon={<RiTimeLine size={12} />}>
-                            {res.duration}
-                          </Tag>
-                        )}
+                        <TagGroup aria-label={`${res.title} details`}>
+                          <Tag size="small">{RESOURCE_LABELS[res.type]}</Tag>
+                          {res.duration && (
+                            <Tag size="small" icon={<RiTimeLine size={12} />}>
+                              {res.duration}
+                            </Tag>
+                          )}
+                        </TagGroup>
                       </div>
                     </li>
                   );

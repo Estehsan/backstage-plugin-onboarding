@@ -58,3 +58,6 @@ yarn-error.log*
 # CLAUDE md file
 CLAUDE.md
 
+
+# Brainstorming visual companion artifacts
+.superpowers/
