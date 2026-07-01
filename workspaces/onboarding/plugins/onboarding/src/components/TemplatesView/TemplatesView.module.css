@@ -2,7 +2,7 @@
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: var(--bui-space-4);
+    gap: var(--bui-space-5);
   }
 
   .card {
@@ -13,18 +13,20 @@
 
   .cardBody {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--bui-space-2);
   }
 
   .cardFooter {
-    padding: var(--bui-space-2) var(--bui-space-4) var(--bui-space-4);
+    padding: var(--bui-space-3) var(--bui-space-3) var(--bui-space-3);
   }
 
   .tagRow {
-    margin-top: var(--bui-space-3);
+    margin-top: var(--bui-space-2);
   }
 
   .description {
-    margin-top: var(--bui-space-1);
     color: var(--bui-fg-secondary);
   }
 

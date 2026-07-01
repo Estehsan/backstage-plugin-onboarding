@@ -50,6 +50,12 @@ export function TemplatesView(props: TemplatesViewProps) {
   const [userInputValue, setUserInputValue] = useState('');
   const [useManualUserRef, setUseManualUserRef] = useState(false);
 
+  const [buddyOptions, setBuddyOptions] = useState<OnboardingCatalogUser[]>([]);
+  const [buddySearchLoading, setBuddySearchLoading] = useState(false);
+  const [buddyInputValue, setBuddyInputValue] = useState('');
+  const [selectedBuddy, setSelectedBuddy] =
+    useState<OnboardingCatalogUser | null>(null);
+
   // Debounced backend search for catalog users. Runs when the dialog is open
   // (even with an empty query) so the picker can be browsed without typing.
   useEffect(() => {
@@ -73,6 +79,29 @@ export function TemplatesView(props: TemplatesViewProps) {
     return () => clearTimeout(timer);
   }, [dialogOpen, onboardingApi, useManualUserRef, userInputValue]);
 
+  // Debounced buddy search (optional field)
+  useEffect(() => {
+    if (!dialogOpen) {
+      setBuddyOptions([]);
+      return undefined;
+    }
+
+    const timer = setTimeout(async () => {
+      setBuddySearchLoading(true);
+      try {
+        const users = await onboardingApi.searchCatalogUsers(buddyInputValue);
+        setBuddyOptions(users);
+      } catch (e) {
+        // Don't set error for optional buddy field, just clear options
+        setBuddyOptions([]);
+      } finally {
+        setBuddySearchLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [dialogOpen, onboardingApi, buddyInputValue]);
+
   const handleAssignClick = (templateName: string) => {
     setSelectedTemplate(templateName);
     setAssignUserId('');
@@ -81,6 +110,9 @@ export function TemplatesView(props: TemplatesViewProps) {
     setUserInputValue('');
     setUserOptions([]);
     setUseManualUserRef(false);
+    setBuddyInputValue('');
+    setBuddyOptions([]);
+    setSelectedBuddy(null);
     setDialogOpen(true);
   };
 
@@ -89,7 +121,18 @@ export function TemplatesView(props: TemplatesViewProps) {
     setAssigning(true);
     setAssignError(undefined);
     try {
-      await onboardingApi.assignTemplate(selectedTemplate, assignUserId.trim());
+      if (selectedBuddy) {
+        await onboardingApi.assignTemplate(
+          selectedTemplate,
+          assignUserId.trim(),
+          selectedBuddy.entityRef,
+        );
+      } else {
+        await onboardingApi.assignTemplate(
+          selectedTemplate,
+          assignUserId.trim(),
+        );
+      }
       setAssignSuccess(true);
     } catch (e) {
       setAssignError(e instanceof Error ? e.message : String(e));
@@ -105,6 +148,9 @@ export function TemplatesView(props: TemplatesViewProps) {
     setUserInputValue('');
     setUserOptions([]);
     setUseManualUserRef(false);
+    setBuddyInputValue('');
+    setBuddyOptions([]);
+    setSelectedBuddy(null);
   };
 
   if (templates.length === 0) {
@@ -158,8 +204,10 @@ export function TemplatesView(props: TemplatesViewProps) {
                 </CardBody>
                 <div className={styles.cardFooter}>
                   <Button
+                    fullWidth
                     size="small"
                     color="primary"
+                    variant="contained"
                     onClick={() => handleAssignClick(template.metadata.name)}
                   >
                     Use Template
@@ -256,6 +304,52 @@ export function TemplatesView(props: TemplatesViewProps) {
               disabled={assigning || assignSuccess}
             />
           )}
+
+          <Box mt="3">
+            <Autocomplete
+              options={buddyOptions}
+              loading={buddySearchLoading}
+              getOptionLabel={opt =>
+                opt.email
+                  ? `${opt.displayName} (${opt.email})`
+                  : opt.displayName
+              }
+              inputValue={buddyInputValue}
+              onInputChange={(_, val) => {
+                setBuddyInputValue(val);
+                if (!val.trim()) {
+                  setSelectedBuddy(null);
+                }
+              }}
+              onChange={(_, selected) => {
+                setSelectedBuddy(selected);
+              }}
+              disabled={assigning || assignSuccess}
+              noOptionsText={
+                buddySearchLoading ? 'Searching\u2026' : 'No users found'
+              }
+              renderInput={params => (
+                <TextField
+                  {...params}
+                  id="onboarding-template-buddy-search"
+                  margin="dense"
+                  label="Buddy (optional)"
+                  variant="outlined"
+                  fullWidth
+                  placeholder="Search for a buddy to help onboard this user"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {buddySearchLoading && <CircularProgress size={16} />}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+            />
+          </Box>
 
           {assignError && (
             <Text variant="body-small" className={styles.errorText}>
