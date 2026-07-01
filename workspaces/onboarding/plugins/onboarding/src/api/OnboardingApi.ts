@@ -20,6 +20,7 @@ import {
   OnboardingProgress,
   OnboardingTemplate,
   TaskStatus,
+  TeamJoinerSummary,
   TeamOnboardingStats,
 } from '../types';
 
@@ -53,7 +54,16 @@ export interface OnboardingApi {
   assignTemplate(
     templateName: string,
     userId: string,
+    buddyUserId?: string,
   ): Promise<OnboardingProgress>;
   /** Searches catalog users to support template assignment. */
   searchCatalogUsers(query: string): Promise<OnboardingCatalogUser[]>;
+  /** Sets the buddy for a user's onboarding. */
+  setBuddy(userId: string, buddyUserId: string | undefined): Promise<void>;
+  /** Retrieves the teams the current user belongs to. */
+  getMyTeams(): Promise<{ teams: string[] }>;
+  /** Retrieves the list of users the current user is buddying. */
+  getMyBuddies(): Promise<TeamJoinerSummary[]>;
+  /** Checks if the current user has template assigner permissions. */
+  getIsAssigner(): Promise<{ isAssigner: boolean }>;
 }

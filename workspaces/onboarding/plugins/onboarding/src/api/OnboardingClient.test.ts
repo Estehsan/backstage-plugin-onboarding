@@ -17,7 +17,7 @@
 import { DiscoveryApi, FetchApi } from '@backstage/core-plugin-api';
 import { ResponseError } from '@backstage/errors';
 import { OnboardingClient } from './OnboardingClient';
-import { OnboardingProgress } from '../types';
+import { OnboardingProgress, TeamJoinerSummary } from '../types';
 
 describe('OnboardingClient', () => {
   const baseUrl = 'http://backstage.test/api/onboarding';
@@ -109,6 +109,150 @@ describe('OnboardingClient', () => {
     await expect(promise).rejects.toMatchObject({
       name: 'ResponseError',
       cause: { name: 'NotFoundError', message: 'no such user' },
+    });
+  });
+
+  describe('assignTemplate', () => {
+    it('includes buddyUserId in POST body when provided', async () => {
+      const progress: OnboardingProgress = {
+        userId: 'user:default/alice',
+        templateName: 'backend-template',
+        startDate: '2026-01-01T00:00:00.000Z',
+        tasks: [],
+      };
+      fetchApi.fetch.mockResolvedValue(okResponse(progress));
+
+      await createClient().assignTemplate(
+        'backend-template',
+        'user:default/alice',
+        'user:default/bob',
+      );
+
+      const [url, init] = fetchApi.fetch.mock.calls[0];
+      expect(url).toBe(
+        `${baseUrl}/templates/${encodeURIComponent(
+          'backend-template',
+        )}/assign/${encodeURIComponent('user:default/alice')}`,
+      );
+      expect(init).toMatchObject({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(JSON.parse(init?.body as string)).toEqual({
+        buddyUserId: 'user:default/bob',
+      });
+    });
+
+    it('sends empty object in POST body when buddyUserId is undefined', async () => {
+      const progress: OnboardingProgress = {
+        userId: 'user:default/alice',
+        templateName: 'backend-template',
+        startDate: '2026-01-01T00:00:00.000Z',
+        tasks: [],
+      };
+      fetchApi.fetch.mockResolvedValue(okResponse(progress));
+
+      await createClient().assignTemplate(
+        'backend-template',
+        'user:default/alice',
+      );
+
+      const [, init] = fetchApi.fetch.mock.calls[0];
+      expect(JSON.parse(init?.body as string)).toEqual({});
+    });
+  });
+
+  describe('setBuddy', () => {
+    it('posts to the correct URL with buddyUserId in body', async () => {
+      fetchApi.fetch.mockResolvedValue(
+        okResponse({
+          userId: 'user:default/alice',
+          buddyUserId: 'user:default/bob',
+        }),
+      );
+
+      await createClient().setBuddy('user:default/alice', 'user:default/bob');
+
+      const [url, init] = fetchApi.fetch.mock.calls[0];
+      expect(url).toBe(
+        `${baseUrl}/progress/${encodeURIComponent('user:default/alice')}/buddy`,
+      );
+      expect(init).toMatchObject({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(JSON.parse(init?.body as string)).toEqual({
+        buddyUserId: 'user:default/bob',
+      });
+    });
+
+    it('sends null in body when buddyUserId is undefined', async () => {
+      fetchApi.fetch.mockResolvedValue(
+        okResponse({ userId: 'user:default/alice', buddyUserId: null }),
+      );
+
+      await createClient().setBuddy('user:default/alice', undefined);
+
+      const [, init] = fetchApi.fetch.mock.calls[0];
+      expect(JSON.parse(init?.body as string)).toEqual({ buddyUserId: null });
+    });
+  });
+
+  describe('getMyTeams', () => {
+    it('fetches teams from /teams/mine and returns parsed response', async () => {
+      const teams = { teams: ['platform', 'devex'] };
+      fetchApi.fetch.mockResolvedValue(okResponse(teams));
+
+      const result = await createClient().getMyTeams();
+
+      expect(result).toEqual(teams);
+      const [url] = fetchApi.fetch.mock.calls[0];
+      expect(url).toBe(`${baseUrl}/teams/mine`);
+    });
+  });
+
+  describe('getIsAssigner', () => {
+    it('fetches assigner status from /assigner/me and returns parsed response', async () => {
+      const status = { isAssigner: true };
+      fetchApi.fetch.mockResolvedValue(okResponse(status));
+
+      const result = await createClient().getIsAssigner();
+
+      expect(result).toEqual(status);
+      const [url] = fetchApi.fetch.mock.calls[0];
+      expect(url).toBe(`${baseUrl}/assigner/me`);
+    });
+  });
+
+  describe('getMyBuddies', () => {
+    it('fetches buddies from /buddies/mine and returns parsed array', async () => {
+      const buddies: TeamJoinerSummary[] = [
+        {
+          userId: 'user:default/alice',
+          displayName: 'Alice Smith',
+          role: 'backend-engineer',
+          startDate: '2026-01-01',
+          completionPercent: 45,
+          blockedTaskCount: 1,
+          buddyUserId: 'user:default/charlie',
+          buddyDisplayName: 'Charlie Brown',
+        },
+        {
+          userId: 'user:default/bob',
+          displayName: 'Bob Jones',
+          role: 'frontend-engineer',
+          startDate: '2026-01-15',
+          completionPercent: 20,
+          blockedTaskCount: 0,
+        },
+      ];
+      fetchApi.fetch.mockResolvedValue(okResponse(buddies));
+
+      const result = await createClient().getMyBuddies();
+
+      expect(result).toEqual(buddies);
+      const [url] = fetchApi.fetch.mock.calls[0];
+      expect(url).toBe(`${baseUrl}/buddies/mine`);
     });
   });
 });

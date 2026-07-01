@@ -24,6 +24,7 @@ export type {
   OnboardingTemplate,
   OnboardingProgress,
   TeamOnboardingStats,
+  TeamJoinerSummary,
 } from '@estehsaan/backstage-plugin-onboarding-common';
 
 /**
