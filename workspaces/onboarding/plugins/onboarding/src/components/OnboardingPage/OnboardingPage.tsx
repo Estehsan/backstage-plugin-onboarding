@@ -131,13 +131,29 @@ export function OnboardingPage() {
           warnings.push(asError(templatesResult.reason));
         }
 
-        // Permission checks fail closed/silently — don't surface as errors
+        // Permission checks fail closed silently to the user (a denied or
+        // unreachable check both simply hide the affected tab), but the
+        // rejection reason is still logged so a genuine service outage can
+        // be distinguished from "not permitted" during support/on-call
+        // investigation.
         if (isAssignerResult.status === 'fulfilled') {
           isAssignerData = isAssignerResult.value.isAssigner;
+        } else {
+          // eslint-disable-next-line no-console
+          console.error(
+            'Failed to check assigner permission, defaulting to false:',
+            isAssignerResult.reason,
+          );
         }
 
         if (myBuddiesResult.status === 'fulfilled') {
           myBuddiesData = myBuddiesResult.value;
+        } else {
+          // eslint-disable-next-line no-console
+          console.error(
+            'Failed to load buddy assignments, defaulting to none:',
+            myBuddiesResult.reason,
+          );
         }
 
         setProgress(progressData);
