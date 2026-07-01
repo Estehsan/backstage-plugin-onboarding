@@ -298,7 +298,7 @@ export function OnboardingPage() {
 
           {showTeamViewTab && (
             <TabPanel id="team">
-              <TeamView onboardingApi={onboardingApi} />
+              <TeamView onboardingApi={onboardingApi} isAssigner={isAssigner} />
             </TabPanel>
           )}
 

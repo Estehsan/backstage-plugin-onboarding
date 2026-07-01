@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderInTestApp } from '@backstage/test-utils';
 import { TeamView } from './TeamView';
 import { OnboardingApi } from '../../api/OnboardingApi';
-import { TeamOnboardingStats } from '../../types';
+import { TeamOnboardingStats, TeamJoinerSummary } from '../../types';
 
 const stats: TeamOnboardingStats = {
   teamName: 'platform',
@@ -37,6 +37,15 @@ const stats: TeamOnboardingStats = {
   totalBlockedTasks: 2,
 };
 
+const buddySummary: TeamJoinerSummary = {
+  userId: 'user:default/john.smith',
+  displayName: 'John Smith',
+  role: 'frontend-engineer',
+  startDate: new Date().toISOString(),
+  completionPercent: 40,
+  blockedTaskCount: 1,
+};
+
 function createOnboardingApiMock(): jest.Mocked<OnboardingApi> {
   return {
     getProgress: jest.fn(),
@@ -45,34 +54,166 @@ function createOnboardingApiMock(): jest.Mocked<OnboardingApi> {
     getTemplates: jest.fn(),
     assignTemplate: jest.fn(),
     searchCatalogUsers: jest.fn(),
+    setBuddy: jest.fn(),
+    getMyTeams: jest.fn(),
+    getMyBuddies: jest.fn(),
+    getIsAssigner: jest.fn(),
   };
 }
 
 describe('TeamView', () => {
-  it('shows the prompt before a team is searched', async () => {
-    const onboardingApi = createOnboardingApiMock();
+  describe('lead roster mode', () => {
+    it('shows team stats for a lead with exactly one team', async () => {
+      const onboardingApi = createOnboardingApiMock();
+      onboardingApi.getMyTeams.mockResolvedValue({ teams: ['platform'] });
+      onboardingApi.getMyBuddies.mockResolvedValue([]);
+      onboardingApi.getTeamStats.mockResolvedValue(stats);
 
-    await renderInTestApp(<TeamView onboardingApi={onboardingApi} />);
+      await renderInTestApp(
+        <TeamView onboardingApi={onboardingApi} isAssigner />,
+      );
 
-    expect(
-      await screen.findByText('Enter a team name to view onboarding stats.'),
-    ).toBeInTheDocument();
+      // Should show team name (but not a dropdown selector for single team)
+      expect(await screen.findByText(/Team: platform/i)).toBeInTheDocument();
+      expect(screen.queryByLabelText(/team/i)).not.toBeInTheDocument();
+
+      // Should show stats
+      expect(await screen.findByText('Active Joiners')).toBeInTheDocument();
+      expect(await screen.findByText('Jane Doe')).toBeInTheDocument();
+      expect(screen.getByText('backend-engineer')).toBeInTheDocument();
+
+      // Should show Assign Buddy button in roster mode
+      expect(
+        screen.getByRole('button', { name: /assign buddy/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('shows team selector for a lead with multiple teams', async () => {
+      const onboardingApi = createOnboardingApiMock();
+      onboardingApi.getMyTeams.mockResolvedValue({
+        teams: ['platform', 'frontend'],
+      });
+      onboardingApi.getMyBuddies.mockResolvedValue([]);
+      onboardingApi.getTeamStats.mockResolvedValue(stats);
+
+      await renderInTestApp(
+        <TeamView onboardingApi={onboardingApi} isAssigner />,
+      );
+
+      // Should show team selector dropdown
+      const teamSelector = await screen.findByLabelText(/team/i);
+      expect(teamSelector).toBeInTheDocument();
+
+      // Should default to first team and fetch its stats
+      expect(onboardingApi.getTeamStats).toHaveBeenCalledWith('platform');
+      expect(await screen.findByText('Jane Doe')).toBeInTheDocument();
+    });
+
+    it('allows assigning a buddy via the dialog', async () => {
+      const onboardingApi = createOnboardingApiMock();
+      onboardingApi.getMyTeams.mockResolvedValue({ teams: ['platform'] });
+      onboardingApi.getMyBuddies.mockResolvedValue([]);
+      onboardingApi.getTeamStats.mockResolvedValue(stats);
+      onboardingApi.searchCatalogUsers.mockResolvedValue([
+        {
+          entityRef: 'user:default/buddy.user',
+          displayName: 'Buddy User',
+          email: 'buddy@example.com',
+        },
+      ]);
+      onboardingApi.setBuddy.mockResolvedValue();
+
+      await renderInTestApp(
+        <TeamView onboardingApi={onboardingApi} isAssigner />,
+      );
+
+      // Click Assign Buddy button
+      const assignButton = await screen.findByRole('button', {
+        name: /assign buddy/i,
+      });
+      await userEvent.click(assignButton);
+
+      // Dialog should open
+      expect(await screen.findByText(/assign buddy/i)).toBeInTheDocument();
+
+      // Search for buddy
+      const buddySearchField = screen.getByLabelText(/buddy/i);
+      await userEvent.type(buddySearchField, 'Buddy');
+
+      // Select buddy from autocomplete
+      await waitFor(() => {
+        expect(onboardingApi.searchCatalogUsers).toHaveBeenCalledWith('Buddy');
+      });
+
+      // Confirm assignment
+      const confirmButton = screen.getByRole('button', { name: /confirm/i });
+      await userEvent.click(confirmButton);
+
+      await waitFor(() => {
+        expect(onboardingApi.setBuddy).toHaveBeenCalledWith(
+          'user:default/jane.doe',
+          'user:default/buddy.user',
+        );
+      });
+    });
   });
 
-  it('searches the team and renders the returned stats', async () => {
-    const onboardingApi = createOnboardingApiMock();
-    onboardingApi.getTeamStats.mockResolvedValue(stats);
+  describe('buddy read-only mode', () => {
+    it('shows My Buddies view when not an assigner', async () => {
+      const onboardingApi = createOnboardingApiMock();
+      onboardingApi.getMyTeams.mockResolvedValue({ teams: [] });
+      onboardingApi.getMyBuddies.mockResolvedValue([buddySummary]);
 
-    await renderInTestApp(<TeamView onboardingApi={onboardingApi} />);
+      await renderInTestApp(
+        <TeamView onboardingApi={onboardingApi} isAssigner={false} />,
+      );
 
-    await userEvent.type(
-      await screen.findByPlaceholderText('e.g. platform'),
-      'platform',
-    );
+      // Should show My Buddies header
+      expect(await screen.findByText('My Buddies')).toBeInTheDocument();
 
-    expect(await screen.findByText('Active Joiners')).toBeInTheDocument();
-    expect(await screen.findByText('Jane Doe')).toBeInTheDocument();
-    expect(screen.getByText('backend-engineer')).toBeInTheDocument();
-    expect(onboardingApi.getTeamStats).toHaveBeenCalledWith('platform');
+      // Should show buddy info
+      expect(await screen.findByText('John Smith')).toBeInTheDocument();
+      expect(screen.getByText('frontend-engineer')).toBeInTheDocument();
+
+      // Should NOT show Assign Buddy button in buddy mode
+      expect(
+        screen.queryByRole('button', { name: /assign buddy/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows empty state when not assigned as a buddy', async () => {
+      const onboardingApi = createOnboardingApiMock();
+      onboardingApi.getMyTeams.mockResolvedValue({ teams: [] });
+      onboardingApi.getMyBuddies.mockResolvedValue([]);
+
+      await renderInTestApp(
+        <TeamView onboardingApi={onboardingApi} isAssigner={false} />,
+      );
+
+      expect(
+        await screen.findByText(
+          /you are not currently assigned as a buddy for any joiner/i,
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('shows buddy mode when assigner has zero teams', async () => {
+      const onboardingApi = createOnboardingApiMock();
+      onboardingApi.getMyTeams.mockResolvedValue({ teams: [] });
+      onboardingApi.getMyBuddies.mockResolvedValue([buddySummary]);
+
+      await renderInTestApp(
+        <TeamView onboardingApi={onboardingApi} isAssigner />,
+      );
+
+      // Even though isAssigner=true, zero teams → buddy mode
+      expect(await screen.findByText('My Buddies')).toBeInTheDocument();
+      expect(await screen.findByText('John Smith')).toBeInTheDocument();
+
+      // No Assign Buddy button in buddy mode
+      expect(
+        screen.queryByRole('button', { name: /assign buddy/i }),
+      ).not.toBeInTheDocument();
+    });
   });
 });
