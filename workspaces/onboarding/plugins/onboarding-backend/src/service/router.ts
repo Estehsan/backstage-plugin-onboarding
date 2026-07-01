@@ -18,8 +18,6 @@ import express from 'express';
 import Router from 'express-promise-router';
 import { stringifyEntityRef } from '@backstage/catalog-model';
 import {
-  BackstageCredentials,
-  BackstageUserPrincipal,
   HttpAuthService,
   LoggerService,
   PermissionsService,
@@ -27,11 +25,9 @@ import {
 } from '@backstage/backend-plugin-api';
 import { CatalogApi } from '@backstage/catalog-client';
 import { InputError, NotAllowedError, NotFoundError } from '@backstage/errors';
-import {
-  AuthorizeResult,
-  BasicPermission,
-} from '@backstage/plugin-permission-common';
+import { AuthorizeResult } from '@backstage/plugin-permission-common';
 import { DatabaseOnboardingStore } from './OnboardingStore';
+import { assertUserAccess } from './authz';
 import {
   OnboardingProgress,
   OnboardingTask,
@@ -83,72 +79,6 @@ function getActiveJoinerWindowDays(config: RootConfigService): number {
 const MAX_CATALOG_USERS = 1000;
 const MAX_CATALOG_TEMPLATES = 1000;
 
-/**
- * Returns true when the authenticated caller is the same user as the `userId`
- * route parameter. Backstage user refs may be supplied either as a full entity
- * ref (e.g. `user:default/alice`) or as a short name (e.g. `alice`); both forms
- * are compared case-insensitively, and as a fallback the trailing name portion
- * of each ref is compared so that the two forms resolve to the same user.
- */
-function isSameUser(callerRef: string, userId: string): boolean {
-  const normalize = (value: string) => value.trim().toLowerCase();
-  const namePart = (value: string) => {
-    const normalized = normalize(value);
-    const slashIndex = normalized.lastIndexOf('/');
-    return slashIndex >= 0 ? normalized.slice(slashIndex + 1) : normalized;
-  };
-
-  const caller = normalize(callerRef);
-  const target = normalize(userId);
-  return caller === target || namePart(caller) === namePart(target);
-}
-
-/**
- * Authorizes access to a user-scoped onboarding resource using an
- * "ownership + role bypass" model:
- *
- * - If the caller owns the resource (the authenticated user ref matches the
- *   `userId` parameter), the caller's own `ownerPermission` is evaluated. This
- *   lets users read/update their own onboarding data.
- * - If the caller does NOT own the resource, the `elevatedPermission` is
- *   evaluated instead. This is the manager/buddy/admin gate that allows trusted
- *   roles to access other users' onboarding data.
- *
- * In either branch a DENY decision results in a {@link NotAllowedError}. This
- * prevents the IDOR class of bug where an allow-all policy would otherwise let
- * any authenticated user read or mutate another user's progress.
- */
-async function assertUserAccess(opts: {
-  credentials: BackstageCredentials<BackstageUserPrincipal>;
-  userId: string;
-  permissions: PermissionsService;
-  ownerPermission: BasicPermission;
-  elevatedPermission: BasicPermission;
-}): Promise<void> {
-  const {
-    credentials,
-    userId,
-    permissions,
-    ownerPermission,
-    elevatedPermission,
-  } = opts;
-
-  const callerRef = credentials.principal.userEntityRef;
-  const owner = isSameUser(callerRef, userId);
-  const permission = owner ? ownerPermission : elevatedPermission;
-
-  const decision = (
-    await permissions.authorize([{ permission }], { credentials })
-  )[0];
-
-  if (decision.result === AuthorizeResult.DENY) {
-    throw new NotAllowedError(
-      owner
-        ? 'Unauthorized'
-        : 'You are not allowed to access another user\u2019s onboarding progress',
-    );
-  }
-}
 
 /** @public */
 export async function createRouter(
