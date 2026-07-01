@@ -33,6 +33,7 @@ const enc = encodeURIComponent;
 const mockCatalogApi = {
   getEntities: jest.fn(),
   getEntityByRef: jest.fn(),
+  getEntitiesByRefs: jest.fn().mockResolvedValue({ items: [] }),
   addLocation: jest.fn(),
   getLocationByRef: jest.fn(),
   removeLocationById: jest.fn(),
@@ -48,6 +49,8 @@ const mockStore: jest.Mocked<DatabaseOnboardingStore> = {
   getProgress: jest.fn(),
   upsertProgress: jest.fn(),
   getTeamProgress: jest.fn(),
+  setBuddy: jest.fn().mockResolvedValue(true),
+  getBuddyProgress: jest.fn().mockResolvedValue([]),
 } as unknown as jest.Mocked<DatabaseOnboardingStore>;
 
 const mockPermissions = {
@@ -55,12 +58,23 @@ const mockPermissions = {
   authorizeConditional: jest.fn(),
 };
 
-async function createApp(callerRef = 'user:default/jane.doe') {
+async function createApp(
+  callerRef = 'user:default/jane.doe',
+  configOverrides?: Record<string, unknown>,
+) {
+  const baseDefaults = { activeJoinerWindowDays: 90 };
+  const overrideOnboarding = configOverrides?.onboarding as
+    | { defaults?: Record<string, unknown> }
+    | undefined;
+  const mergedConfig = {
+    onboarding: {
+      defaults: { ...baseDefaults, ...overrideOnboarding?.defaults },
+    },
+  };
+
   const router = await createRouter({
     logger: mockServices.logger.mock(),
-    config: new ConfigReader({
-      onboarding: { defaults: { activeJoinerWindowDays: 90 } },
-    }),
+    config: new ConfigReader(mergedConfig),
     store: mockStore,
     permissions: mockPermissions,
     httpAuth: mockServices.httpAuth.mock({
@@ -347,6 +361,249 @@ describe('createRouter', () => {
     });
   });
 
+  describe('POST /progress/:userId/buddy', () => {
+    it('allows setting a buddy when permission is granted', async () => {
+      mockStore.setBuddy.mockResolvedValue(true);
+
+      const res = await request(app)
+        .post(`/progress/${enc('user:default/new-joiner')}/buddy`)
+        .set('Authorization', '******')
+        .send({ buddyUserId: 'user:default/mentor' });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        userId: 'user:default/new-joiner',
+        buddyUserId: 'user:default/mentor',
+      });
+      expect(mockStore.setBuddy).toHaveBeenCalledWith(
+        'user:default/new-joiner',
+        'user:default/mentor',
+      );
+    });
+
+    it('allows clearing a buddy by sending null', async () => {
+      mockStore.setBuddy.mockResolvedValue(true);
+
+      const res = await request(app)
+        .post(`/progress/${enc('user:default/new-joiner')}/buddy`)
+        .set('Authorization', '******')
+        .send({ buddyUserId: null });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        userId: 'user:default/new-joiner',
+        buddyUserId: undefined,
+      });
+      expect(mockStore.setBuddy).toHaveBeenCalledWith(
+        'user:default/new-joiner',
+        undefined,
+      );
+    });
+
+    it('returns 404 when user has no onboarding progress', async () => {
+      mockStore.setBuddy.mockResolvedValue(false);
+
+      const res = await request(app)
+        .post(`/progress/${enc('user:default/unknown')}/buddy`)
+        .set('Authorization', '******')
+        .send({ buddyUserId: 'user:default/mentor' });
+
+      expect(res.status).toBe(404);
+      expect(res.body.error.message).toContain('No onboarding progress found');
+    });
+
+    it('returns 403 when permission is denied', async () => {
+      mockPermissions.authorize.mockResolvedValue([
+        { result: AuthorizeResult.DENY },
+      ]);
+
+      const res = await request(app)
+        .post(`/progress/${enc('user:default/new-joiner')}/buddy`)
+        .set('Authorization', '******')
+        .send({ buddyUserId: 'user:default/mentor' });
+
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe('GET /teams/mine', () => {
+    it('returns matching assigner groups when caller is a member', async () => {
+      const appWithGroups = await createApp('user:default/jane.doe', {
+        onboarding: {
+          defaults: {
+            activeJoinerWindowDays: 90,
+            assignerGroups: ['platform', 'infrastructure'],
+          },
+        },
+      });
+
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [
+          { type: 'memberOf', targetRef: 'group:default/platform' },
+          { type: 'memberOf', targetRef: 'group:default/another-team' },
+        ],
+      });
+
+      const res = await request(appWithGroups)
+        .get('/teams/mine')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ teams: ['platform'] });
+    });
+
+    it('returns empty array when assignerGroups is not configured', async () => {
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/platform' }],
+      });
+
+      const res = await request(app)
+        .get('/teams/mine')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ teams: [] });
+    });
+  });
+
+  describe('GET /assigner/me', () => {
+    it('returns true when permission allows and caller is in assigner group', async () => {
+      const appWithGroups = await createApp('user:default/jane.doe', {
+        onboarding: {
+          defaults: {
+            activeJoinerWindowDays: 90,
+            assignerGroups: ['platform'],
+          },
+        },
+      });
+
+      mockPermissions.authorize.mockResolvedValue([
+        { result: AuthorizeResult.ALLOW },
+      ]);
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/platform' }],
+      });
+
+      const res = await request(appWithGroups)
+        .get('/assigner/me')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ isAssigner: true });
+    });
+
+    it('returns false when permission denies', async () => {
+      mockPermissions.authorize.mockResolvedValue([
+        { result: AuthorizeResult.DENY },
+      ]);
+
+      const res = await request(app)
+        .get('/assigner/me')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ isAssigner: false });
+    });
+
+    it('returns false when permission allows but caller is not in assigner group', async () => {
+      const appWithGroups = await createApp('user:default/jane.doe', {
+        onboarding: {
+          defaults: {
+            activeJoinerWindowDays: 90,
+            assignerGroups: ['platform'],
+          },
+        },
+      });
+
+      mockPermissions.authorize.mockResolvedValue([
+        { result: AuthorizeResult.ALLOW },
+      ]);
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/other' }],
+      });
+
+      const res = await request(appWithGroups)
+        .get('/assigner/me')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ isAssigner: false });
+    });
+  });
+
+  describe('GET /buddies/mine', () => {
+    it('returns joiner summaries for users with this caller as buddy', async () => {
+      const recentDate = new Date(
+        Date.now() - 10 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      mockStore.getBuddyProgress.mockResolvedValue([
+        {
+          userId: 'user:default/joiner-a',
+          templateName: 'backend-engineer',
+          startDate: recentDate,
+          buddyUserId: 'user:default/jane.doe',
+          tasks: [
+            { taskId: 'task1', status: 'done' },
+            { taskId: 'task2', status: 'pending' },
+            { taskId: 'task3', status: 'blocked', blockedReason: 'Waiting' },
+          ],
+        },
+        {
+          userId: 'user:default/joiner-b',
+          templateName: 'frontend-engineer',
+          startDate: recentDate,
+          buddyUserId: 'user:default/jane.doe',
+          tasks: [
+            { taskId: 'task1', status: 'done' },
+            { taskId: 'task2', status: 'done' },
+          ],
+        },
+      ]);
+
+      mockCatalogApi.getEntitiesByRefs.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'joiner-a' },
+            spec: { profile: { displayName: 'Joiner A' } },
+          },
+          {
+            metadata: { name: 'joiner-b' },
+            spec: { profile: { displayName: 'Joiner B' } },
+          },
+        ],
+      });
+
+      const res = await request(app)
+        .get('/buddies/mine')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveLength(2);
+      expect(res.body[0]).toMatchObject({
+        userId: 'user:default/joiner-a',
+        displayName: 'Joiner A',
+        role: 'backend-engineer',
+        completionPercent: 33,
+        blockedTaskCount: 1,
+        buddyUserId: 'user:default/jane.doe',
+      });
+      expect(res.body[1]).toMatchObject({
+        userId: 'user:default/joiner-b',
+        displayName: 'Joiner B',
+        role: 'frontend-engineer',
+        completionPercent: 100,
+        blockedTaskCount: 0,
+      });
+      expect(mockStore.getBuddyProgress).toHaveBeenCalledWith(
+        'user:default/jane.doe',
+      );
+    });
+  });
+
   describe('GET /team/:teamName/stats', () => {
     it('returns team stats with active joiners', async () => {
       const now = new Date();
@@ -363,6 +620,12 @@ describe('createRouter', () => {
             spec: { profile: { displayName: 'Taylor Kim' } },
           },
         ],
+      });
+
+      // Mock caller is a member of the team
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/platform' }],
       });
 
       mockStore.getTeamProgress.mockResolvedValue([
@@ -395,6 +658,21 @@ describe('createRouter', () => {
       expect(res.body.activeJoiners).toHaveLength(2);
       expect(res.body.avgCompletionPercent).toBeGreaterThanOrEqual(0);
       expect(res.body.totalBlockedTasks).toBe(1);
+    });
+
+    it('returns 403 when caller is not a member of the team', async () => {
+      // Mock caller is NOT a member of the team
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [],
+      });
+
+      const res = await request(app)
+        .get('/team/platform/stats')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.message).toContain('Not a member of team');
     });
 
     it('returns 403 when permission is denied', async () => {
@@ -630,6 +908,94 @@ describe('createRouter', () => {
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(403);
+    });
+
+    it('calls setBuddy when buddyUserId is provided in body', async () => {
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'be-template', title: 'BE', description: '' },
+            spec: {
+              role: 'backend-engineer',
+              phases: [
+                {
+                  id: 'day1',
+                  tasks: [
+                    {
+                      id: 'task-1',
+                      phase: 'day1',
+                      title: 'Task 1',
+                      description: '',
+                      type: 'manual',
+                      assignee: 'self',
+                      duePhase: 'day1',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        kind: 'User',
+        metadata: { name: 'new-joiner' },
+      });
+      mockStore.upsertProgress.mockResolvedValue(undefined);
+      mockStore.setBuddy.mockResolvedValue(true);
+
+      const res = await request(app)
+        .post(`/templates/be-template/assign/${enc('user:default/new-joiner')}`)
+        .set('Authorization', '******')
+        .send({ buddyUserId: 'user:default/mentor' });
+
+      expect(res.status).toBe(200);
+      expect(mockStore.setBuddy).toHaveBeenCalledWith(
+        'user:default/new-joiner',
+        'user:default/mentor',
+      );
+    });
+
+    it('does not call setBuddy when buddyUserId is omitted', async () => {
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'be-template', title: 'BE', description: '' },
+            spec: {
+              role: 'backend-engineer',
+              phases: [
+                {
+                  id: 'day1',
+                  tasks: [
+                    {
+                      id: 'task-1',
+                      phase: 'day1',
+                      title: 'Task 1',
+                      description: '',
+                      type: 'manual',
+                      assignee: 'self',
+                      duePhase: 'day1',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        kind: 'User',
+        metadata: { name: 'new-joiner' },
+      });
+      mockStore.upsertProgress.mockResolvedValue(undefined);
+      mockStore.setBuddy.mockClear();
+
+      const res = await request(app)
+        .post(`/templates/be-template/assign/${enc('user:default/new-joiner')}`)
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(mockStore.setBuddy).not.toHaveBeenCalled();
     });
   });
 

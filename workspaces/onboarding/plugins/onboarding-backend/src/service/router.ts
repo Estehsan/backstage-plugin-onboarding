@@ -16,7 +16,7 @@
 
 import express from 'express';
 import Router from 'express-promise-router';
-import { stringifyEntityRef } from '@backstage/catalog-model';
+import { parseEntityRef, stringifyEntityRef } from '@backstage/catalog-model';
 import {
   HttpAuthService,
   LoggerService,
@@ -27,7 +27,12 @@ import { CatalogApi } from '@backstage/catalog-client';
 import { InputError, NotAllowedError, NotFoundError } from '@backstage/errors';
 import { AuthorizeResult } from '@backstage/plugin-permission-common';
 import { DatabaseOnboardingStore } from './OnboardingStore';
-import { assertUserAccess } from './authz';
+import {
+  assertUserAccess,
+  getAssignerGroupRefs,
+  getCallerGroupRefs,
+  isMemberOfAssignerGroup,
+} from './authz';
 import {
   OnboardingProgress,
   OnboardingTask,
@@ -36,6 +41,7 @@ import {
   ResourceType,
   TaskStatus,
   TaskType,
+  TeamJoinerSummary,
 } from '../types';
 import {
   onboardingProgressReadPermission,
@@ -78,7 +84,6 @@ function getActiveJoinerWindowDays(config: RootConfigService): number {
  */
 const MAX_CATALOG_USERS = 1000;
 const MAX_CATALOG_TEMPLATES = 1000;
-
 
 /** @public */
 export async function createRouter(
@@ -220,6 +225,71 @@ export async function createRouter(
     res.status(200).json(progress);
   });
 
+  router.post('/progress/:userId/buddy', async (req, res) => {
+    const { userId } = req.params;
+    const { buddyUserId } = req.body as { buddyUserId?: string | null };
+    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+
+    const decision = (
+      await permissions.authorize(
+        [{ permission: onboardingTemplateAssignPermission }],
+        { credentials },
+      )
+    )[0];
+    if (decision.result === AuthorizeResult.DENY) {
+      throw new NotAllowedError('Not authorized to assign a buddy');
+    }
+
+    const updated = await store.setBuddy(userId, buddyUserId ?? undefined);
+    if (!updated) {
+      throw new NotFoundError(`No onboarding progress found for ${userId}`);
+    }
+    res.status(200).json({ userId, buddyUserId: buddyUserId ?? undefined });
+  });
+
+  router.get('/teams/mine', async (req, res) => {
+    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+    const callerRef = credentials.principal.userEntityRef;
+    const assignerGroups = getAssignerGroupRefs(config);
+    if (assignerGroups.size === 0) {
+      res.status(200).json({ teams: [] });
+      return;
+    }
+    const callerGroups = await getCallerGroupRefs(catalogApi, callerRef);
+    const teams = [...callerGroups]
+      .filter(group => assignerGroups.has(group))
+      .map(group => parseEntityRef(group).name)
+      .sort();
+    res.status(200).json({ teams });
+  });
+
+  router.get('/assigner/me', async (req, res) => {
+    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+    const callerRef = credentials.principal.userEntityRef;
+    const decision = (
+      await permissions.authorize(
+        [{ permission: onboardingTemplateAssignPermission }],
+        { credentials },
+      )
+    )[0];
+    const hasPermission = decision.result === AuthorizeResult.ALLOW;
+    const isGroupMember = hasPermission
+      ? await isMemberOfAssignerGroup(catalogApi, callerRef, config)
+      : false;
+    res.status(200).json({ isAssigner: hasPermission && isGroupMember });
+  });
+
+  router.get('/buddies/mine', async (req, res) => {
+    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+    const callerRef = credentials.principal.userEntityRef;
+    const progressList = await store.getBuddyProgress(callerRef);
+    const displayNames = await getDisplayNamesByRef(
+      catalogApi,
+      progressList.map(p => p.userId),
+    );
+    res.status(200).json(toJoinerSummaries(progressList, displayNames));
+  });
+
   router.get('/team/:teamName/stats', async (req, res) => {
     const { teamName } = req.params;
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
@@ -232,6 +302,13 @@ export async function createRouter(
     )[0];
     if (decision.result === AuthorizeResult.DENY) {
       throw new NotAllowedError('Unauthorized');
+    }
+
+    // Check caller is a member of the team's group
+    const callerRef = credentials.principal.userEntityRef;
+    const callerGroups = await getCallerGroupRefs(catalogApi, callerRef);
+    if (!callerGroups.has(`group:default/${teamName}`)) {
+      throw new NotAllowedError(`Not a member of team ${teamName}`);
     }
 
     const windowDays = getActiveJoinerWindowDays(config);
@@ -252,44 +329,25 @@ export async function createRouter(
       limit: MAX_CATALOG_USERS,
     });
 
-    // Index members by their user ref once so the active-joiner mapping below is
-    // O(n) rather than O(n^2) via repeated Array.find lookups.
-    const membersByRef = new Map(
-      teamMembers.items.map(e => [`user:default/${e.metadata.name}`, e]),
-    );
-
     const userIds = teamMembers.items.map(
       e => `user:default/${e.metadata.name}`,
     );
     const allProgress = await store.getTeamProgress(userIds);
 
-    const activeJoiners = allProgress
-      .filter(p => {
-        const started = new Date(p.startDate);
-        const donePercent =
-          p.tasks.length > 0
-            ? p.tasks.filter(t => t.status === 'done').length / p.tasks.length
-            : 0;
-        return started >= cutoffDate && donePercent < 1;
-      })
-      .map(p => {
-        const member = membersByRef.get(p.userId);
-        const doneTasks = p.tasks.filter(t => t.status === 'done').length;
-        const blockedTasks = p.tasks.filter(t => t.status === 'blocked').length;
-        const completionPercent =
-          p.tasks.length > 0
-            ? Math.round((doneTasks / p.tasks.length) * 100)
-            : 0;
+    const filteredProgress = allProgress.filter(p => {
+      const started = new Date(p.startDate);
+      const donePercent =
+        p.tasks.length > 0
+          ? p.tasks.filter(t => t.status === 'done').length / p.tasks.length
+          : 0;
+      return started >= cutoffDate && donePercent < 1;
+    });
 
-        return {
-          userId: p.userId,
-          displayName: getEntityDisplayName(member, p.userId),
-          role: p.templateName,
-          startDate: p.startDate,
-          completionPercent,
-          blockedTaskCount: blockedTasks,
-        };
-      });
+    const displayNames = await getDisplayNamesByRef(
+      catalogApi,
+      filteredProgress.map(p => p.userId),
+    );
+    const activeJoiners = toJoinerSummaries(filteredProgress, displayNames);
 
     const avgCompletionPercent =
       activeJoiners.length > 0
@@ -399,6 +457,7 @@ export async function createRouter(
 
   router.post('/templates/:templateName/assign/:userId', async (req, res) => {
     const { templateName, userId } = req.params;
+    const { buddyUserId } = req.body as { buddyUserId?: string };
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
 
     const decision = (
@@ -425,6 +484,10 @@ export async function createRouter(
     const progress = initializeProgress(userId, template);
     await store.upsertProgress(progress);
 
+    if (buddyUserId) {
+      await store.setBuddy(userId, buddyUserId);
+    }
+
     logger.info(`Assigned template ${templateName} to user ${userId}`);
     res.status(200).json(progress);
   });
@@ -445,6 +508,57 @@ function getEntityEmail(entity: { spec?: unknown }): string | undefined {
   const spec = entity.spec as Record<string, unknown> | undefined;
   const profile = spec?.profile as Record<string, unknown> | undefined;
   return profile?.email as string | undefined;
+}
+
+async function getDisplayNamesByRef(
+  catalogApi: CatalogApi,
+  refs: string[],
+): Promise<Map<string, string>> {
+  if (refs.length === 0) {
+    return new Map();
+  }
+  const { items } = await catalogApi.getEntitiesByRefs({
+    entityRefs: refs,
+    fields: ['metadata.name', 'spec.profile.displayName'],
+  });
+  const result = new Map<string, string>();
+  refs.forEach((ref, index) => {
+    const entity = items[index];
+    const displayName =
+      (entity?.spec as { profile?: { displayName?: string } } | undefined)
+        ?.profile?.displayName ??
+      entity?.metadata.name ??
+      ref;
+    result.set(ref, displayName);
+  });
+  return result;
+}
+
+function toJoinerSummaries(
+  progressList: OnboardingProgress[],
+  displayNames: Map<string, string>,
+): TeamJoinerSummary[] {
+  return progressList.map(progress => {
+    const doneTasks = progress.tasks.filter(t => t.status === 'done').length;
+    const blockedTasks = progress.tasks.filter(
+      t => t.status === 'blocked',
+    ).length;
+    return {
+      userId: progress.userId,
+      displayName: displayNames.get(progress.userId) ?? progress.userId,
+      role: progress.templateName,
+      startDate: progress.startDate,
+      completionPercent:
+        progress.tasks.length === 0
+          ? 0
+          : Math.round((doneTasks / progress.tasks.length) * 100),
+      blockedTaskCount: blockedTasks,
+      buddyUserId: progress.buddyUserId,
+      buddyDisplayName: progress.buddyUserId
+        ? displayNames.get(progress.buddyUserId)
+        : undefined,
+    };
+  });
 }
 
 async function assertCatalogUserExists(
