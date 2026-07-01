@@ -104,6 +104,15 @@ export interface Config {
          */
         autoAssign?: boolean;
       };
+
+      /**
+       * Catalog group refs (or bare names, assumed group:default/<name>) whose
+       * members are allowed to assign onboarding templates and see full team
+       * rosters in Team View. Leave unset/empty to disable the restriction
+       * (backward compatible - everyone with the base permission can assign).
+       * @visibility backend
+       */
+      assignerGroups?: string[];
     };
   };
 }
