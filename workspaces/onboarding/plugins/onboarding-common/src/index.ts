@@ -29,6 +29,7 @@ export type {
   OnboardingTask,
   OnboardingTemplate,
   OnboardingProgress,
+  TeamJoinerSummary,
   TeamOnboardingStats,
 } from './types';
 
