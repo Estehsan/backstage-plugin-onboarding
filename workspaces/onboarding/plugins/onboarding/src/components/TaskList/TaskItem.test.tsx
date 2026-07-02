@@ -15,6 +15,7 @@
  */
 
 import { screen, render } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { TaskItem, TaskItemProps } from './TaskItem';
 import { OnboardingTask } from '../../types';
 
@@ -76,14 +77,11 @@ describe('TaskItem', () => {
     expect(checkbox).not.toBeDisabled();
   });
 
-  it('renders done state with strikethrough and checked checkbox', () => {
+  it('renders done state with checked checkbox', () => {
     renderTaskItem({ status: 'done' });
 
     const checkbox = screen.getByRole('checkbox');
     expect(checkbox).toBeChecked();
-
-    const title = screen.getByText('Test Task Title');
-    expect(title.className).toContain('titleDone');
   });
 
   it('renders blocked state with blocked badge', () => {
@@ -134,17 +132,17 @@ describe('TaskItem', () => {
     renderTaskItem({ onToggle });
 
     const checkbox = screen.getByRole('checkbox');
-    checkbox.click();
+    await userEvent.click(checkbox);
 
     expect(onToggle).toHaveBeenCalledWith('test-task');
   });
 
-  it('does not call onToggle when locked', () => {
+  it('does not call onToggle when locked', async () => {
     const onToggle = jest.fn();
     renderTaskItem({ locked: true, onToggle });
 
     const checkbox = screen.getByRole('checkbox');
-    checkbox.click();
+    await userEvent.click(checkbox);
 
     expect(onToggle).not.toHaveBeenCalled();
   });

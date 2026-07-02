@@ -16,11 +16,11 @@
 
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderInTestApp, TestApiRegistry } from '@backstage/test-utils';
+import { render } from '@testing-library/react';
+import { TestApiRegistry } from '@backstage/test-utils';
 import { ApiProvider } from '@backstage/core-app-api';
 import { identityApiRef } from '@backstage/core-plugin-api';
 import { scaffolderApiRef } from '@backstage/plugin-scaffolder-react';
-import { rootRouteRef } from '../../routes';
 import { onboardingApiRef, OnboardingApi } from '../../api/OnboardingApi';
 import { OnboardingPage } from './OnboardingPage';
 import {
@@ -28,6 +28,25 @@ import {
   OnboardingTemplate,
   TeamJoinerSummary,
 } from '../../types';
+
+jest.mock('@backstage/core-components', () => {
+  const actual = jest.requireActual('@backstage/core-components');
+  return {
+    ...actual,
+    Page: ({ children }: { children: React.ReactNode }) => (
+      <div>{children}</div>
+    ),
+    Header: ({ title, subtitle }: { title?: string; subtitle?: string }) => (
+      <header>
+        {title ? <h1>{title}</h1> : null}
+        {subtitle ? <p>{subtitle}</p> : null}
+      </header>
+    ),
+    Content: ({ children }: { children: React.ReactNode }) => (
+      <main>{children}</main>
+    ),
+  };
+});
 
 const mockTemplate: OnboardingTemplate = {
   apiVersion: 'onboarding.backstage.io/v1',
@@ -154,6 +173,13 @@ const apis = TestApiRegistry.from(
 );
 
 describe('OnboardingPage', () => {
+  const renderPage = () =>
+    render(
+      <ApiProvider apis={apis}>
+        <OnboardingPage />
+      </ApiProvider>,
+    );
+
   beforeEach(() => {
     jest.resetAllMocks();
     mockIdentityApi.getBackstageIdentity.mockResolvedValue({
@@ -169,16 +195,7 @@ describe('OnboardingPage', () => {
   });
 
   it('renders the page with tabs and task list', async () => {
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
     expect(screen.getByText('My Tasks')).toBeInTheDocument();
@@ -200,16 +217,7 @@ describe('OnboardingPage', () => {
   });
 
   it('shows progress bar with correct percentage', async () => {
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     expect(await screen.findByText('25%')).toBeInTheDocument();
     expect(screen.getByText('1 of 4 tasks complete')).toBeInTheDocument();
@@ -230,16 +238,7 @@ describe('OnboardingPage', () => {
     };
     mockOnboardingApi.updateTaskStatus.mockResolvedValue(updatedProgress);
 
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     await screen.findByText('Complete security training');
 
@@ -261,16 +260,7 @@ describe('OnboardingPage', () => {
   });
 
   it('shows locked state for tasks with unmet dependencies', async () => {
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     await screen.findByText('Shadow an on-call shift');
 
@@ -288,16 +278,7 @@ describe('OnboardingPage', () => {
     mockOnboardingApi.getProgress.mockRejectedValue(new Error('Not found'));
     mockOnboardingApi.getTemplates.mockResolvedValue([]);
 
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     expect(
       await screen.findByText(/No onboarding checklist assigned/),
@@ -308,16 +289,7 @@ describe('OnboardingPage', () => {
     mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: false });
     mockOnboardingApi.getMyBuddies.mockResolvedValue([]);
 
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
     expect(screen.getByText('My Tasks')).toBeInTheDocument();
@@ -329,16 +301,7 @@ describe('OnboardingPage', () => {
     mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: true });
     mockOnboardingApi.getMyBuddies.mockResolvedValue([]);
 
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
     expect(screen.getByText('Templates')).toBeInTheDocument();
@@ -358,16 +321,7 @@ describe('OnboardingPage', () => {
     mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: false });
     mockOnboardingApi.getMyBuddies.mockResolvedValue([mockBuddy]);
 
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
     expect(screen.getByText('Team View')).toBeInTheDocument();
@@ -378,16 +332,7 @@ describe('OnboardingPage', () => {
     mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: false });
     mockOnboardingApi.getMyBuddies.mockResolvedValue([]);
 
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
     expect(screen.getByText('My Tasks')).toBeInTheDocument();

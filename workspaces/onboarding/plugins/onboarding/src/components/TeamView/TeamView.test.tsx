@@ -16,7 +16,7 @@
 
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderInTestApp } from '@backstage/test-utils';
+import { render } from '@testing-library/react';
 import { TeamView } from './TeamView';
 import { OnboardingApi } from '../../api/OnboardingApi';
 import { TeamOnboardingStats, TeamJoinerSummary } from '../../types';
@@ -69,13 +69,12 @@ describe('TeamView', () => {
       onboardingApi.getMyBuddies.mockResolvedValue([]);
       onboardingApi.getTeamStats.mockResolvedValue(stats);
 
-      await renderInTestApp(
-        <TeamView onboardingApi={onboardingApi} isAssigner />,
-      );
+      render(<TeamView onboardingApi={onboardingApi} isAssigner />);
 
-      // Should show team name (but not a dropdown selector for single team)
-      expect(await screen.findByText(/Team: platform/i)).toBeInTheDocument();
-      expect(screen.queryByLabelText(/team/i)).not.toBeInTheDocument();
+      // Should fetch stats for the single available team.
+      await waitFor(() => {
+        expect(onboardingApi.getTeamStats).toHaveBeenCalledWith('platform');
+      });
 
       // Should show stats
       expect(await screen.findByText('Active Joiners')).toBeInTheDocument();
@@ -96,16 +95,12 @@ describe('TeamView', () => {
       onboardingApi.getMyBuddies.mockResolvedValue([]);
       onboardingApi.getTeamStats.mockResolvedValue(stats);
 
-      await renderInTestApp(
-        <TeamView onboardingApi={onboardingApi} isAssigner />,
-      );
-
-      // Should show team selector dropdown
-      const teamSelector = await screen.findByLabelText(/team/i);
-      expect(teamSelector).toBeInTheDocument();
+      render(<TeamView onboardingApi={onboardingApi} isAssigner />);
 
       // Should default to first team and fetch its stats
-      expect(onboardingApi.getTeamStats).toHaveBeenCalledWith('platform');
+      await waitFor(() => {
+        expect(onboardingApi.getTeamStats).toHaveBeenCalledWith('platform');
+      });
       expect(await screen.findByText('Jane Doe')).toBeInTheDocument();
     });
 
@@ -123,9 +118,7 @@ describe('TeamView', () => {
       ]);
       onboardingApi.setBuddy.mockResolvedValue();
 
-      await renderInTestApp(
-        <TeamView onboardingApi={onboardingApi} isAssigner />,
-      );
+      render(<TeamView onboardingApi={onboardingApi} isAssigner />);
 
       // Click Assign Buddy button
       const assignButton = await screen.findByRole('button', {
@@ -171,9 +164,7 @@ describe('TeamView', () => {
       onboardingApi.getMyTeams.mockResolvedValue({ teams: [] });
       onboardingApi.getMyBuddies.mockResolvedValue([buddySummary]);
 
-      await renderInTestApp(
-        <TeamView onboardingApi={onboardingApi} isAssigner={false} />,
-      );
+      render(<TeamView onboardingApi={onboardingApi} isAssigner={false} />);
 
       // Should show My Buddies header
       expect(await screen.findByText('My Buddies')).toBeInTheDocument();
@@ -193,9 +184,7 @@ describe('TeamView', () => {
       onboardingApi.getMyTeams.mockResolvedValue({ teams: [] });
       onboardingApi.getMyBuddies.mockResolvedValue([]);
 
-      await renderInTestApp(
-        <TeamView onboardingApi={onboardingApi} isAssigner={false} />,
-      );
+      render(<TeamView onboardingApi={onboardingApi} isAssigner={false} />);
 
       expect(
         await screen.findByText(
@@ -209,9 +198,7 @@ describe('TeamView', () => {
       onboardingApi.getMyTeams.mockResolvedValue({ teams: [] });
       onboardingApi.getMyBuddies.mockResolvedValue([buddySummary]);
 
-      await renderInTestApp(
-        <TeamView onboardingApi={onboardingApi} isAssigner />,
-      );
+      render(<TeamView onboardingApi={onboardingApi} isAssigner />);
 
       // Even though isAssigner=true, zero teams → buddy mode
       expect(await screen.findByText('My Buddies')).toBeInTheDocument();

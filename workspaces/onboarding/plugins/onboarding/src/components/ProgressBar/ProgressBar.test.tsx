@@ -15,12 +15,12 @@
  */
 
 import { screen } from '@testing-library/react';
-import { renderInTestApp } from '@backstage/test-utils';
+import { render } from '@testing-library/react';
 import { ProgressBar } from './ProgressBar';
 
 describe('ProgressBar', () => {
   it('renders the completed/total label and the rounded percentage', async () => {
-    await renderInTestApp(<ProgressBar completed={1} total={4} />);
+    render(<ProgressBar completed={1} total={4} />);
 
     expect(
       await screen.findByText('1 of 4 tasks complete'),
@@ -29,7 +29,7 @@ describe('ProgressBar', () => {
   });
 
   it('renders 0% without dividing by zero when there are no tasks', async () => {
-    await renderInTestApp(<ProgressBar completed={0} total={0} />);
+    render(<ProgressBar completed={0} total={0} />);
 
     expect(
       await screen.findByText('0 of 0 tasks complete'),

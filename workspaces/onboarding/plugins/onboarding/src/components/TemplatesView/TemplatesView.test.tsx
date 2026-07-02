@@ -18,7 +18,7 @@
 
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderInTestApp } from '@backstage/test-utils';
+import { render } from '@testing-library/react';
 import { TemplatesView } from './TemplatesView';
 import { OnboardingApi } from '../../api/OnboardingApi';
 import { OnboardingTemplate } from '../../types';
@@ -104,7 +104,7 @@ describe('TemplatesView', () => {
       },
     ]);
 
-    await renderInTestApp(
+    render(
       <TemplatesView templates={[template]} onboardingApi={onboardingApi} />,
     );
 
@@ -128,7 +128,7 @@ describe('TemplatesView', () => {
   it('allows manual user entity ref fallback', async () => {
     const onboardingApi = createOnboardingApiMock();
 
-    await renderInTestApp(
+    render(
       <TemplatesView templates={[template]} onboardingApi={onboardingApi} />,
     );
 
@@ -188,7 +188,7 @@ describe('TemplatesView', () => {
       ];
     });
 
-    await renderInTestApp(
+    render(
       <TemplatesView templates={[template]} onboardingApi={onboardingApi} />,
     );
 
