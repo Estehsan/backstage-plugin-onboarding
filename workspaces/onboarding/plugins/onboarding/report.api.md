@@ -27,6 +27,7 @@ import { OverridableFrontendPlugin } from '@backstage/frontend-plugin-api';
 import { RouteRef } from '@backstage/core-plugin-api';
 import { RouteRef as RouteRef_2 } from '@backstage/frontend-plugin-api';
 import { TaskStatus } from '@estehsaan/backstage-plugin-onboarding-common';
+import { TeamJoinerSummary } from '@estehsaan/backstage-plugin-onboarding-common';
 import { TeamOnboardingStats } from '@estehsaan/backstage-plugin-onboarding-common';
 
 // @public
@@ -102,11 +103,20 @@ export interface OnboardingApiType {
   assignTemplate(
     templateName: string,
     userId: string,
+    buddyUserId?: string,
   ): Promise<OnboardingProgress>;
+  getIsAssigner(): Promise<{
+    isAssigner: boolean;
+  }>;
+  getMyBuddies(): Promise<TeamJoinerSummary[]>;
+  getMyTeams(): Promise<{
+    teams: string[];
+  }>;
   getProgress(userId: string): Promise<OnboardingProgress>;
   getTeamStats(teamName: string): Promise<TeamOnboardingStats>;
   getTemplates(): Promise<OnboardingTemplate[]>;
   searchCatalogUsers(query: string): Promise<OnboardingCatalogUser[]>;
+  setBuddy(userId: string, buddyUserId: string | undefined): Promise<void>;
   updateTaskStatus(
     userId: string,
     taskId: string,

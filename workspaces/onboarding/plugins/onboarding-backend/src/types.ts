@@ -23,6 +23,7 @@ export type {
   OnboardingTask,
   OnboardingTemplate,
   OnboardingProgress,
+  TeamJoinerSummary,
   TeamOnboardingStats,
 } from '@estehsaan/backstage-plugin-onboarding-common';
 
@@ -34,4 +35,5 @@ export interface OnboardingProgressRow {
   start_date: string;
   tasks: string;
   updated_at: string;
+  buddy_user_id: string | null;
 }

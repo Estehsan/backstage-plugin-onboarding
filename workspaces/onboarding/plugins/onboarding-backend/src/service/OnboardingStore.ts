@@ -99,6 +99,24 @@ export class DatabaseOnboardingStore {
     return rows.map(row => this.rowToProgress(row));
   }
 
+  async setBuddy(
+    userId: string,
+    buddyUserId: string | undefined,
+  ): Promise<boolean> {
+    const updated = await this.db<OnboardingProgressRow>('onboarding_progress')
+      .where('user_id', userId)
+      .update({ buddy_user_id: buddyUserId ?? null });
+    return updated > 0;
+  }
+
+  async getBuddyProgress(buddyUserId: string): Promise<OnboardingProgress[]> {
+    const rows = await this.db<OnboardingProgressRow>('onboarding_progress')
+      .where('buddy_user_id', buddyUserId)
+      .select();
+
+    return rows.map(row => this.rowToProgress(row));
+  }
+
   private rowToProgress(row: OnboardingProgressRow): OnboardingProgress {
     let tasks: OnboardingProgress['tasks'];
     try {
@@ -123,6 +141,7 @@ export class DatabaseOnboardingStore {
       templateName: row.template_name,
       startDate: row.start_date,
       tasks,
+      buddyUserId: row.buddy_user_id ?? undefined,
     };
   }
 }

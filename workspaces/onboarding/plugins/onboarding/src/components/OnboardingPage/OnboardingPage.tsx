@@ -31,6 +31,7 @@ import {
   OnboardingProgress,
   OnboardingTemplate,
   TaskStatus,
+  TeamJoinerSummary,
 } from '../../types';
 import { ProgressBar } from '../ProgressBar';
 import { TaskList } from '../TaskList';
@@ -63,6 +64,8 @@ export function OnboardingPage() {
 
   const [progress, setProgress] = useState<OnboardingProgress | undefined>();
   const [templates, setTemplates] = useState<OnboardingTemplate[]>([]);
+  const [isAssigner, setIsAssigner] = useState(false);
+  const [myBuddies, setMyBuddies] = useState<TeamJoinerSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | undefined>();
   // Non-fatal load error surfaced to the user while still rendering the page.
@@ -94,15 +97,24 @@ export function OnboardingPage() {
         const userEntityRef = identity.userEntityRef;
         setUserId(userEntityRef);
 
-        const [progressResult, templatesResult] = await Promise.allSettled([
+        const [
+          progressResult,
+          templatesResult,
+          isAssignerResult,
+          myBuddiesResult,
+        ] = await Promise.allSettled([
           onboardingApi.getProgress(userEntityRef),
           onboardingApi.getTemplates(),
+          onboardingApi.getIsAssigner(),
+          onboardingApi.getMyBuddies(),
         ]);
 
         if (cancelled) return;
 
         let progressData: OnboardingProgress | undefined;
         let templateData: OnboardingTemplate[] = [];
+        let isAssignerData = false;
+        let myBuddiesData: TeamJoinerSummary[] = [];
         const warnings: Error[] = [];
 
         if (progressResult.status === 'fulfilled') {
@@ -119,8 +131,35 @@ export function OnboardingPage() {
           warnings.push(asError(templatesResult.reason));
         }
 
+        // Permission checks fail closed silently to the user (a denied or
+        // unreachable check both simply hide the affected tab), but the
+        // rejection reason is still logged so a genuine service outage can
+        // be distinguished from "not permitted" during support/on-call
+        // investigation.
+        if (isAssignerResult.status === 'fulfilled') {
+          isAssignerData = isAssignerResult.value.isAssigner;
+        } else {
+          // eslint-disable-next-line no-console
+          console.error(
+            'Failed to check assigner permission, defaulting to false:',
+            isAssignerResult.reason,
+          );
+        }
+
+        if (myBuddiesResult.status === 'fulfilled') {
+          myBuddiesData = myBuddiesResult.value;
+        } else {
+          // eslint-disable-next-line no-console
+          console.error(
+            'Failed to load buddy assignments, defaulting to none:',
+            myBuddiesResult.reason,
+          );
+        }
+
         setProgress(progressData);
         setTemplates(templateData);
+        setIsAssigner(isAssignerData);
+        setMyBuddies(myBuddiesData);
         setError(undefined);
         setLoadWarning(warnings[0]);
       } catch (e) {
@@ -184,6 +223,9 @@ export function OnboardingPage() {
     setTab(String(key));
   }, []);
 
+  const showTemplatesTab = isAssigner;
+  const showTeamViewTab = isAssigner || myBuddies.length > 0;
+
   if (loading) {
     return (
       <Page themeId="tool">
@@ -232,8 +274,8 @@ export function OnboardingPage() {
         <Tabs selectedKey={tab} onSelectionChange={handleTabChange}>
           <TabList>
             <Tab id="tasks">My Tasks</Tab>
-            <Tab id="team">Team View</Tab>
-            <Tab id="templates">Templates</Tab>
+            {showTeamViewTab && <Tab id="team">Team View</Tab>}
+            {showTemplatesTab && <Tab id="templates">Templates</Tab>}
           </TabList>
 
           <TabPanel id="tasks">
@@ -254,16 +296,20 @@ export function OnboardingPage() {
             )}
           </TabPanel>
 
-          <TabPanel id="team">
-            <TeamView onboardingApi={onboardingApi} />
-          </TabPanel>
+          {showTeamViewTab && (
+            <TabPanel id="team">
+              <TeamView onboardingApi={onboardingApi} isAssigner={isAssigner} />
+            </TabPanel>
+          )}
 
-          <TabPanel id="templates">
-            <TemplatesView
-              templates={templates}
-              onboardingApi={onboardingApi}
-            />
-          </TabPanel>
+          {showTemplatesTab && (
+            <TabPanel id="templates">
+              <TemplatesView
+                templates={templates}
+                onboardingApi={onboardingApi}
+              />
+            </TabPanel>
+          )}
         </Tabs>
       </Content>
     </Page>

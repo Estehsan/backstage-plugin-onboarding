@@ -10,6 +10,7 @@ export const onboardingPermissions: BasicPermission[];
 
 // @public
 export interface OnboardingProgress {
+  buddyUserId?: string;
   startDate: string;
   tasks: {
     taskId: string;
@@ -100,15 +101,20 @@ export type TaskStatus = 'pending' | 'in-progress' | 'done' | 'blocked';
 export type TaskType = 'manual' | 'automated';
 
 // @public
+export interface TeamJoinerSummary {
+  blockedTaskCount: number;
+  buddyDisplayName?: string;
+  buddyUserId?: string;
+  completionPercent: number;
+  displayName: string;
+  role: string;
+  startDate: string;
+  userId: string;
+}
+
+// @public
 export interface TeamOnboardingStats {
-  activeJoiners: {
-    userId: string;
-    displayName: string;
-    role: string;
-    startDate: string;
-    completionPercent: number;
-    blockedTaskCount: number;
-  }[];
+  activeJoiners: TeamJoinerSummary[];
   avgCompletionPercent: number;
   teamName: string;
   totalBlockedTasks: number;

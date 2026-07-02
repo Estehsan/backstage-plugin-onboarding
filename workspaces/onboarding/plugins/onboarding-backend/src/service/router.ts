@@ -16,10 +16,8 @@
 
 import express from 'express';
 import Router from 'express-promise-router';
-import { stringifyEntityRef } from '@backstage/catalog-model';
+import { parseEntityRef, stringifyEntityRef } from '@backstage/catalog-model';
 import {
-  BackstageCredentials,
-  BackstageUserPrincipal,
   HttpAuthService,
   LoggerService,
   PermissionsService,
@@ -27,11 +25,14 @@ import {
 } from '@backstage/backend-plugin-api';
 import { CatalogApi } from '@backstage/catalog-client';
 import { InputError, NotAllowedError, NotFoundError } from '@backstage/errors';
-import {
-  AuthorizeResult,
-  BasicPermission,
-} from '@backstage/plugin-permission-common';
+import { AuthorizeResult } from '@backstage/plugin-permission-common';
 import { DatabaseOnboardingStore } from './OnboardingStore';
+import {
+  assertUserAccess,
+  getAssignerGroupRefs,
+  getCallerGroupRefs,
+  isMemberOfAssignerGroup,
+} from './authz';
 import {
   OnboardingProgress,
   OnboardingTask,
@@ -40,6 +41,7 @@ import {
   ResourceType,
   TaskStatus,
   TaskType,
+  TeamJoinerSummary,
 } from '../types';
 import {
   onboardingProgressReadPermission,
@@ -82,73 +84,6 @@ function getActiveJoinerWindowDays(config: RootConfigService): number {
  */
 const MAX_CATALOG_USERS = 1000;
 const MAX_CATALOG_TEMPLATES = 1000;
-
-/**
- * Returns true when the authenticated caller is the same user as the `userId`
- * route parameter. Backstage user refs may be supplied either as a full entity
- * ref (e.g. `user:default/alice`) or as a short name (e.g. `alice`); both forms
- * are compared case-insensitively, and as a fallback the trailing name portion
- * of each ref is compared so that the two forms resolve to the same user.
- */
-function isSameUser(callerRef: string, userId: string): boolean {
-  const normalize = (value: string) => value.trim().toLowerCase();
-  const namePart = (value: string) => {
-    const normalized = normalize(value);
-    const slashIndex = normalized.lastIndexOf('/');
-    return slashIndex >= 0 ? normalized.slice(slashIndex + 1) : normalized;
-  };
-
-  const caller = normalize(callerRef);
-  const target = normalize(userId);
-  return caller === target || namePart(caller) === namePart(target);
-}
-
-/**
- * Authorizes access to a user-scoped onboarding resource using an
- * "ownership + role bypass" model:
- *
- * - If the caller owns the resource (the authenticated user ref matches the
- *   `userId` parameter), the caller's own `ownerPermission` is evaluated. This
- *   lets users read/update their own onboarding data.
- * - If the caller does NOT own the resource, the `elevatedPermission` is
- *   evaluated instead. This is the manager/buddy/admin gate that allows trusted
- *   roles to access other users' onboarding data.
- *
- * In either branch a DENY decision results in a {@link NotAllowedError}. This
- * prevents the IDOR class of bug where an allow-all policy would otherwise let
- * any authenticated user read or mutate another user's progress.
- */
-async function assertUserAccess(opts: {
-  credentials: BackstageCredentials<BackstageUserPrincipal>;
-  userId: string;
-  permissions: PermissionsService;
-  ownerPermission: BasicPermission;
-  elevatedPermission: BasicPermission;
-}): Promise<void> {
-  const {
-    credentials,
-    userId,
-    permissions,
-    ownerPermission,
-    elevatedPermission,
-  } = opts;
-
-  const callerRef = credentials.principal.userEntityRef;
-  const owner = isSameUser(callerRef, userId);
-  const permission = owner ? ownerPermission : elevatedPermission;
-
-  const decision = (
-    await permissions.authorize([{ permission }], { credentials })
-  )[0];
-
-  if (decision.result === AuthorizeResult.DENY) {
-    throw new NotAllowedError(
-      owner
-        ? 'Unauthorized'
-        : 'You are not allowed to access another user\u2019s onboarding progress',
-    );
-  }
-}
 
 /** @public */
 export async function createRouter(
@@ -290,6 +225,77 @@ export async function createRouter(
     res.status(200).json(progress);
   });
 
+  router.post('/progress/:userId/buddy', async (req, res) => {
+    const { userId } = req.params;
+    const { buddyUserId } = req.body as { buddyUserId?: string | null };
+    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+
+    const decision = (
+      await permissions.authorize(
+        [{ permission: onboardingTemplateAssignPermission }],
+        { credentials },
+      )
+    )[0];
+    if (decision.result === AuthorizeResult.DENY) {
+      throw new NotAllowedError('Not authorized to assign a buddy');
+    }
+
+    const callerRef = credentials.principal.userEntityRef;
+    if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
+      throw new NotAllowedError(
+        'You are not a member of an authorized assigner group',
+      );
+    }
+
+    const updated = await store.setBuddy(userId, buddyUserId ?? undefined);
+    if (!updated) {
+      throw new NotFoundError(`No onboarding progress found for ${userId}`);
+    }
+    res.status(200).json({ userId, buddyUserId: buddyUserId ?? undefined });
+  });
+
+  router.get('/teams/mine', async (req, res) => {
+    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+    const callerRef = credentials.principal.userEntityRef;
+    const assignerGroups = getAssignerGroupRefs(config);
+    if (assignerGroups.size === 0) {
+      res.status(200).json({ teams: [] });
+      return;
+    }
+    const callerGroups = await getCallerGroupRefs(catalogApi, callerRef);
+    const teams = [...callerGroups]
+      .filter(group => assignerGroups.has(group))
+      .map(group => parseEntityRef(group).name)
+      .sort();
+    res.status(200).json({ teams });
+  });
+
+  router.get('/assigner/me', async (req, res) => {
+    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+    const callerRef = credentials.principal.userEntityRef;
+    const decision = (
+      await permissions.authorize(
+        [{ permission: onboardingTemplateAssignPermission }],
+        { credentials },
+      )
+    )[0];
+    const hasPermission = decision.result === AuthorizeResult.ALLOW;
+    const isGroupMember = hasPermission
+      ? await isMemberOfAssignerGroup(catalogApi, callerRef, config)
+      : false;
+    res.status(200).json({ isAssigner: hasPermission && isGroupMember });
+  });
+
+  router.get('/buddies/mine', async (req, res) => {
+    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+    const callerRef = credentials.principal.userEntityRef;
+    const progressList = await store.getBuddyProgress(callerRef);
+    const displayNames = await getDisplayNamesByRef(catalogApi, [
+      ...collectJoinerAndBuddyRefs(progressList),
+    ]);
+    res.status(200).json(toJoinerSummaries(progressList, displayNames));
+  });
+
   router.get('/team/:teamName/stats', async (req, res) => {
     const { teamName } = req.params;
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
@@ -302,6 +308,25 @@ export async function createRouter(
     )[0];
     if (decision.result === AuthorizeResult.DENY) {
       throw new NotAllowedError('Unauthorized');
+    }
+
+    // Check caller is a member of the team's group
+    const callerRef = credentials.principal.userEntityRef;
+    const callerGroups = await getCallerGroupRefs(catalogApi, callerRef);
+    if (!callerGroups.has(`group:default/${teamName}`)) {
+      throw new NotAllowedError(`Not a member of team ${teamName}`);
+    }
+
+    // Restrict full team roster visibility to configured assigner groups
+    // (backward compatible: no restriction when assignerGroups is unset).
+    const assignerGroups = getAssignerGroupRefs(config);
+    if (
+      assignerGroups.size > 0 &&
+      !assignerGroups.has(`group:default/${teamName}`)
+    ) {
+      throw new NotAllowedError(
+        'Team stats restricted to configured assigner groups',
+      );
     }
 
     const windowDays = getActiveJoinerWindowDays(config);
@@ -322,44 +347,24 @@ export async function createRouter(
       limit: MAX_CATALOG_USERS,
     });
 
-    // Index members by their user ref once so the active-joiner mapping below is
-    // O(n) rather than O(n^2) via repeated Array.find lookups.
-    const membersByRef = new Map(
-      teamMembers.items.map(e => [`user:default/${e.metadata.name}`, e]),
-    );
-
     const userIds = teamMembers.items.map(
       e => `user:default/${e.metadata.name}`,
     );
     const allProgress = await store.getTeamProgress(userIds);
 
-    const activeJoiners = allProgress
-      .filter(p => {
-        const started = new Date(p.startDate);
-        const donePercent =
-          p.tasks.length > 0
-            ? p.tasks.filter(t => t.status === 'done').length / p.tasks.length
-            : 0;
-        return started >= cutoffDate && donePercent < 1;
-      })
-      .map(p => {
-        const member = membersByRef.get(p.userId);
-        const doneTasks = p.tasks.filter(t => t.status === 'done').length;
-        const blockedTasks = p.tasks.filter(t => t.status === 'blocked').length;
-        const completionPercent =
-          p.tasks.length > 0
-            ? Math.round((doneTasks / p.tasks.length) * 100)
-            : 0;
+    const filteredProgress = allProgress.filter(p => {
+      const started = new Date(p.startDate);
+      const donePercent =
+        p.tasks.length > 0
+          ? p.tasks.filter(t => t.status === 'done').length / p.tasks.length
+          : 0;
+      return started >= cutoffDate && donePercent < 1;
+    });
 
-        return {
-          userId: p.userId,
-          displayName: getEntityDisplayName(member, p.userId),
-          role: p.templateName,
-          startDate: p.startDate,
-          completionPercent,
-          blockedTaskCount: blockedTasks,
-        };
-      });
+    const displayNames = await getDisplayNamesByRef(catalogApi, [
+      ...collectJoinerAndBuddyRefs(filteredProgress),
+    ]);
+    const activeJoiners = toJoinerSummaries(filteredProgress, displayNames);
 
     const avgCompletionPercent =
       activeJoiners.length > 0
@@ -410,6 +415,13 @@ export async function createRouter(
     )[0];
     if (decision.result === AuthorizeResult.DENY) {
       throw new NotAllowedError('Unauthorized');
+    }
+
+    const callerRef = credentials.principal.userEntityRef;
+    if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
+      throw new NotAllowedError(
+        'You are not a member of an authorized assigner group',
+      );
     }
 
     const query = String(req.query.query ?? '').trim();
@@ -469,6 +481,7 @@ export async function createRouter(
 
   router.post('/templates/:templateName/assign/:userId', async (req, res) => {
     const { templateName, userId } = req.params;
+    const { buddyUserId } = req.body as { buddyUserId?: string };
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
 
     const decision = (
@@ -479,6 +492,13 @@ export async function createRouter(
     )[0];
     if (decision.result === AuthorizeResult.DENY) {
       throw new NotAllowedError('Unauthorized');
+    }
+
+    const callerRef = credentials.principal.userEntityRef;
+    if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
+      throw new NotAllowedError(
+        'You are not a member of an authorized assigner group',
+      );
     }
 
     const templates = await getTemplatesCached();
@@ -494,6 +514,10 @@ export async function createRouter(
 
     const progress = initializeProgress(userId, template);
     await store.upsertProgress(progress);
+
+    if (buddyUserId) {
+      await store.setBuddy(userId, buddyUserId);
+    }
 
     logger.info(`Assigned template ${templateName} to user ${userId}`);
     res.status(200).json(progress);
@@ -515,6 +539,76 @@ function getEntityEmail(entity: { spec?: unknown }): string | undefined {
   const spec = entity.spec as Record<string, unknown> | undefined;
   const profile = spec?.profile as Record<string, unknown> | undefined;
   return profile?.email as string | undefined;
+}
+
+/**
+ * Collects the deduplicated set of user entity refs (joiners plus any
+ * assigned buddies) that display names need to be resolved for, so that
+ * buddy display names actually resolve instead of always falling back to
+ * "\u2014" when the buddy isn't otherwise in the joiner list.
+ */
+function collectJoinerAndBuddyRefs(
+  progressList: OnboardingProgress[],
+): Set<string> {
+  const refs = new Set<string>();
+  for (const progress of progressList) {
+    refs.add(progress.userId);
+    if (progress.buddyUserId) {
+      refs.add(progress.buddyUserId);
+    }
+  }
+  return refs;
+}
+
+async function getDisplayNamesByRef(
+  catalogApi: CatalogApi,
+  refs: string[],
+): Promise<Map<string, string>> {
+  if (refs.length === 0) {
+    return new Map();
+  }
+  const { items } = await catalogApi.getEntitiesByRefs({
+    entityRefs: refs,
+    fields: ['metadata.name', 'spec.profile.displayName'],
+  });
+  const result = new Map<string, string>();
+  refs.forEach((ref, index) => {
+    const entity = items[index];
+    const displayName =
+      (entity?.spec as { profile?: { displayName?: string } } | undefined)
+        ?.profile?.displayName ??
+      entity?.metadata.name ??
+      ref;
+    result.set(ref, displayName);
+  });
+  return result;
+}
+
+function toJoinerSummaries(
+  progressList: OnboardingProgress[],
+  displayNames: Map<string, string>,
+): TeamJoinerSummary[] {
+  return progressList.map(progress => {
+    const doneTasks = progress.tasks.filter(t => t.status === 'done').length;
+    const blockedTasks = progress.tasks.filter(
+      t => t.status === 'blocked',
+    ).length;
+    return {
+      userId: progress.userId,
+      displayName: displayNames.get(progress.userId) ?? progress.userId,
+      role: progress.templateName,
+      startDate: progress.startDate,
+      completionPercent:
+        progress.tasks.length === 0
+          ? 0
+          : Math.round((doneTasks / progress.tasks.length) * 100),
+      blockedTaskCount: blockedTasks,
+      buddyUserId: progress.buddyUserId,
+      buddyDisplayName: progress.buddyUserId
+        ? displayNames.get(progress.buddyUserId)
+        : undefined,
+    };
+  });
 }
 
 async function assertCatalogUserExists(

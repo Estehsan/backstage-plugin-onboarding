@@ -23,7 +23,11 @@ import { scaffolderApiRef } from '@backstage/plugin-scaffolder-react';
 import { rootRouteRef } from '../../routes';
 import { onboardingApiRef, OnboardingApi } from '../../api/OnboardingApi';
 import { OnboardingPage } from './OnboardingPage';
-import { OnboardingProgress, OnboardingTemplate } from '../../types';
+import {
+  OnboardingProgress,
+  OnboardingTemplate,
+  TeamJoinerSummary,
+} from '../../types';
 
 const mockTemplate: OnboardingTemplate = {
   apiVersion: 'onboarding.backstage.io/v1',
@@ -112,6 +116,10 @@ const mockOnboardingApi: jest.Mocked<OnboardingApi> = {
   getTemplates: jest.fn(),
   assignTemplate: jest.fn(),
   searchCatalogUsers: jest.fn(),
+  setBuddy: jest.fn(),
+  getMyTeams: jest.fn(),
+  getMyBuddies: jest.fn(),
+  getIsAssigner: jest.fn(),
 };
 
 const mockIdentityApi = {
@@ -155,6 +163,9 @@ describe('OnboardingPage', () => {
     });
     mockOnboardingApi.getProgress.mockResolvedValue(mockProgress);
     mockOnboardingApi.getTemplates.mockResolvedValue([mockTemplate]);
+    // Default to assigner state to keep existing tests passing
+    mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: true });
+    mockOnboardingApi.getMyBuddies.mockResolvedValue([]);
   });
 
   it('renders the page with tabs and task list', async () => {
@@ -291,5 +302,95 @@ describe('OnboardingPage', () => {
     expect(
       await screen.findByText(/No onboarding checklist assigned/),
     ).toBeInTheDocument();
+  });
+
+  it('hides the Templates tab for non-assigners without buddies', async () => {
+    mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: false });
+    mockOnboardingApi.getMyBuddies.mockResolvedValue([]);
+
+    await renderInTestApp(
+      <ApiProvider apis={apis}>
+        <OnboardingPage />
+      </ApiProvider>,
+      {
+        mountedRoutes: {
+          '/onboarding': rootRouteRef,
+        },
+      },
+    );
+
+    expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
+    expect(screen.getByText('My Tasks')).toBeInTheDocument();
+    expect(screen.queryByText('Templates')).not.toBeInTheDocument();
+    expect(screen.queryByText('Team View')).not.toBeInTheDocument();
+  });
+
+  it('shows the Templates tab for assigners', async () => {
+    mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: true });
+    mockOnboardingApi.getMyBuddies.mockResolvedValue([]);
+
+    await renderInTestApp(
+      <ApiProvider apis={apis}>
+        <OnboardingPage />
+      </ApiProvider>,
+      {
+        mountedRoutes: {
+          '/onboarding': rootRouteRef,
+        },
+      },
+    );
+
+    expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
+    expect(screen.getByText('Templates')).toBeInTheDocument();
+    expect(screen.getByText('Team View')).toBeInTheDocument();
+  });
+
+  it('shows the Team View tab for a buddy with assigned joiners even if not an assigner', async () => {
+    const mockBuddy: TeamJoinerSummary = {
+      userId: 'user:default/newjoiner',
+      displayName: 'New Joiner',
+      role: 'backend-engineer',
+      startDate: '2026-07-01T00:00:00Z',
+      completionPercent: 25,
+      blockedTaskCount: 0,
+    };
+
+    mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: false });
+    mockOnboardingApi.getMyBuddies.mockResolvedValue([mockBuddy]);
+
+    await renderInTestApp(
+      <ApiProvider apis={apis}>
+        <OnboardingPage />
+      </ApiProvider>,
+      {
+        mountedRoutes: {
+          '/onboarding': rootRouteRef,
+        },
+      },
+    );
+
+    expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
+    expect(screen.getByText('Team View')).toBeInTheDocument();
+    expect(screen.queryByText('Templates')).not.toBeInTheDocument();
+  });
+
+  it('hides the Team View tab for a non-assigner with no buddies', async () => {
+    mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: false });
+    mockOnboardingApi.getMyBuddies.mockResolvedValue([]);
+
+    await renderInTestApp(
+      <ApiProvider apis={apis}>
+        <OnboardingPage />
+      </ApiProvider>,
+      {
+        mountedRoutes: {
+          '/onboarding': rootRouteRef,
+        },
+      },
+    );
+
+    expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
+    expect(screen.getByText('My Tasks')).toBeInTheDocument();
+    expect(screen.queryByText('Team View')).not.toBeInTheDocument();
   });
 });
