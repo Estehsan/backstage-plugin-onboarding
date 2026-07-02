@@ -58,7 +58,6 @@
     "@backstage/errors": "^1.2.7",
     "@backstage/frontend-plugin-api": "^0.15.0",
     "@backstage/plugin-catalog-react": "^2.0.0",
-    "@backstage/plugin-permission-react": "^0.5.2",
     "@backstage/plugin-scaffolder-react": "^1.19.7",
     "@backstage/theme": "^0.7.2",
     "@backstage/ui": "^0.16.0",
