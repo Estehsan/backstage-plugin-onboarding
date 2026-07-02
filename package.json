@@ -50,6 +50,8 @@
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "react": "^18.0.2",
-    "react-dom": "^18.0.2"
+    "react-dom": "^18.0.2",
+    "react-aria": "3.48.0",
+    "react-stately": "3.46.0"
   }
 }

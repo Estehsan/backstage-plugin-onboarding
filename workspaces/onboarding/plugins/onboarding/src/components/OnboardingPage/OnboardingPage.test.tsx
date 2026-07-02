@@ -16,14 +16,37 @@
 
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderInTestApp, TestApiRegistry } from '@backstage/test-utils';
+import { render } from '@testing-library/react';
+import { TestApiRegistry } from '@backstage/test-utils';
 import { ApiProvider } from '@backstage/core-app-api';
 import { identityApiRef } from '@backstage/core-plugin-api';
 import { scaffolderApiRef } from '@backstage/plugin-scaffolder-react';
-import { rootRouteRef } from '../../routes';
 import { onboardingApiRef, OnboardingApi } from '../../api/OnboardingApi';
 import { OnboardingPage } from './OnboardingPage';
-import { OnboardingProgress, OnboardingTemplate } from '../../types';
+import {
+  OnboardingProgress,
+  OnboardingTemplate,
+  TeamJoinerSummary,
+} from '../../types';
+
+jest.mock('@backstage/core-components', () => {
+  const actual = jest.requireActual('@backstage/core-components');
+  return {
+    ...actual,
+    Page: ({ children }: { children: React.ReactNode }) => (
+      <div>{children}</div>
+    ),
+    Header: ({ title, subtitle }: { title?: string; subtitle?: string }) => (
+      <header>
+        {title ? <h1>{title}</h1> : null}
+        {subtitle ? <p>{subtitle}</p> : null}
+      </header>
+    ),
+    Content: ({ children }: { children: React.ReactNode }) => (
+      <main>{children}</main>
+    ),
+  };
+});
 
 const mockTemplate: OnboardingTemplate = {
   apiVersion: 'onboarding.backstage.io/v1',
@@ -112,6 +135,10 @@ const mockOnboardingApi: jest.Mocked<OnboardingApi> = {
   getTemplates: jest.fn(),
   assignTemplate: jest.fn(),
   searchCatalogUsers: jest.fn(),
+  setBuddy: jest.fn(),
+  getMyTeams: jest.fn(),
+  getMyBuddies: jest.fn(),
+  getIsAssigner: jest.fn(),
 };
 
 const mockIdentityApi = {
@@ -146,6 +173,13 @@ const apis = TestApiRegistry.from(
 );
 
 describe('OnboardingPage', () => {
+  const renderPage = () =>
+    render(
+      <ApiProvider apis={apis}>
+        <OnboardingPage />
+      </ApiProvider>,
+    );
+
   beforeEach(() => {
     jest.resetAllMocks();
     mockIdentityApi.getBackstageIdentity.mockResolvedValue({
@@ -155,19 +189,13 @@ describe('OnboardingPage', () => {
     });
     mockOnboardingApi.getProgress.mockResolvedValue(mockProgress);
     mockOnboardingApi.getTemplates.mockResolvedValue([mockTemplate]);
+    // Default to assigner state to keep existing tests passing
+    mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: true });
+    mockOnboardingApi.getMyBuddies.mockResolvedValue([]);
   });
 
   it('renders the page with tabs and task list', async () => {
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
     expect(screen.getByText('My Tasks')).toBeInTheDocument();
@@ -189,16 +217,7 @@ describe('OnboardingPage', () => {
   });
 
   it('shows progress bar with correct percentage', async () => {
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     expect(await screen.findByText('25%')).toBeInTheDocument();
     expect(screen.getByText('1 of 4 tasks complete')).toBeInTheDocument();
@@ -219,16 +238,7 @@ describe('OnboardingPage', () => {
     };
     mockOnboardingApi.updateTaskStatus.mockResolvedValue(updatedProgress);
 
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     await screen.findByText('Complete security training');
 
@@ -250,16 +260,7 @@ describe('OnboardingPage', () => {
   });
 
   it('shows locked state for tasks with unmet dependencies', async () => {
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     await screen.findByText('Shadow an on-call shift');
 
@@ -277,19 +278,64 @@ describe('OnboardingPage', () => {
     mockOnboardingApi.getProgress.mockRejectedValue(new Error('Not found'));
     mockOnboardingApi.getTemplates.mockResolvedValue([]);
 
-    await renderInTestApp(
-      <ApiProvider apis={apis}>
-        <OnboardingPage />
-      </ApiProvider>,
-      {
-        mountedRoutes: {
-          '/onboarding': rootRouteRef,
-        },
-      },
-    );
+    renderPage();
 
     expect(
       await screen.findByText(/No onboarding checklist assigned/),
     ).toBeInTheDocument();
+  });
+
+  it('hides the Templates tab for non-assigners without buddies', async () => {
+    mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: false });
+    mockOnboardingApi.getMyBuddies.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
+    expect(screen.getByText('My Tasks')).toBeInTheDocument();
+    expect(screen.queryByText('Templates')).not.toBeInTheDocument();
+    expect(screen.queryByText('Team View')).not.toBeInTheDocument();
+  });
+
+  it('shows the Templates tab for assigners', async () => {
+    mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: true });
+    mockOnboardingApi.getMyBuddies.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
+    expect(screen.getByText('Templates')).toBeInTheDocument();
+    expect(screen.getByText('Team View')).toBeInTheDocument();
+  });
+
+  it('shows the Team View tab for a buddy with assigned joiners even if not an assigner', async () => {
+    const mockBuddy: TeamJoinerSummary = {
+      userId: 'user:default/newjoiner',
+      displayName: 'New Joiner',
+      role: 'backend-engineer',
+      startDate: '2026-07-01T00:00:00Z',
+      completionPercent: 25,
+      blockedTaskCount: 0,
+    };
+
+    mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: false });
+    mockOnboardingApi.getMyBuddies.mockResolvedValue([mockBuddy]);
+
+    renderPage();
+
+    expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
+    expect(screen.getByText('Team View')).toBeInTheDocument();
+    expect(screen.queryByText('Templates')).not.toBeInTheDocument();
+  });
+
+  it('hides the Team View tab for a non-assigner with no buddies', async () => {
+    mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: false });
+    mockOnboardingApi.getMyBuddies.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText('Developer Onboarding')).toBeInTheDocument();
+    expect(screen.getByText('My Tasks')).toBeInTheDocument();
+    expect(screen.queryByText('Team View')).not.toBeInTheDocument();
   });
 });

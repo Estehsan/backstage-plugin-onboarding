@@ -52,6 +52,15 @@
     "start": "backstage-cli package start",
     "test": "backstage-cli package test"
   },
+  "jest": {
+    "moduleNameMapper": {
+      "^react$": "<rootDir>/../node_modules/react",
+      "^react-dom$": "<rootDir>/../node_modules/react-dom",
+      "^react/jsx-runtime$": "<rootDir>/../node_modules/react/jsx-runtime.js",
+      "style-inject\\.es\\.esm\\.js$": "<rootDir>/test/styleInjectMock.js",
+      "\\.css$": "<rootDir>/test/styleModuleMock.js"
+    }
+  },
   "dependencies": {
     "@backstage/core-components": "^0.18.7",
     "@backstage/core-plugin-api": "^1.12.3",

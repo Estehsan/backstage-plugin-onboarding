@@ -21,6 +21,14 @@
     margin-bottom: var(--bui-space-4);
   }
 
+  .teamSelector {
+    margin-bottom: var(--bui-space-4);
+  }
+
+  .sectionTitle {
+    margin-bottom: var(--bui-space-4);
+  }
+
   .progressCell {
     display: flex;
     align-items: center;

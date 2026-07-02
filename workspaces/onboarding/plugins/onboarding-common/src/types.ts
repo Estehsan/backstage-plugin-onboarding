@@ -138,6 +138,32 @@ export interface OnboardingProgress {
     completedAt?: string;
     blockedReason?: string;
   }[];
+  /** Backstage user entity ref of the assigned onboarding buddy, if any. */
+  buddyUserId?: string;
+}
+
+/**
+ * Summary of a single joiner's onboarding progress, used in team rosters
+ * and buddy views.
+ * @public
+ */
+export interface TeamJoinerSummary {
+  /** Backstage user entity ref of the joiner. */
+  userId: string;
+  /** Human-readable display name of the joiner. */
+  displayName: string;
+  /** Role/template name assigned to the joiner. */
+  role: string;
+  /** ISO-8601 timestamp when onboarding started. */
+  startDate: string;
+  /** Percentage of tasks completed (0-100). */
+  completionPercent: number;
+  /** Count of currently blocked tasks. */
+  blockedTaskCount: number;
+  /** Backstage user entity ref of the joiner's assigned buddy, if any. */
+  buddyUserId?: string;
+  /** Human-readable display name of the joiner's buddy, if any. */
+  buddyDisplayName?: string;
 }
 
 /**
@@ -148,14 +174,7 @@ export interface TeamOnboardingStats {
   /** Team name. */
   teamName: string;
   /** Active joiners with their progress details. */
-  activeJoiners: {
-    userId: string;
-    displayName: string;
-    role: string;
-    startDate: string;
-    completionPercent: number;
-    blockedTaskCount: number;
-  }[];
+  activeJoiners: TeamJoinerSummary[];
   /** Average completion percentage across all active joiners. */
   avgCompletionPercent: number;
   /** Total number of blocked tasks across the team. */

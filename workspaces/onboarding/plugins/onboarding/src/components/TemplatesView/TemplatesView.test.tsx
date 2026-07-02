@@ -18,7 +18,7 @@
 
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderInTestApp } from '@backstage/test-utils';
+import { render } from '@testing-library/react';
 import { TemplatesView } from './TemplatesView';
 import { OnboardingApi } from '../../api/OnboardingApi';
 import { OnboardingTemplate } from '../../types';
@@ -104,7 +104,7 @@ describe('TemplatesView', () => {
       },
     ]);
 
-    await renderInTestApp(
+    render(
       <TemplatesView templates={[template]} onboardingApi={onboardingApi} />,
     );
 
@@ -128,7 +128,7 @@ describe('TemplatesView', () => {
   it('allows manual user entity ref fallback', async () => {
     const onboardingApi = createOnboardingApiMock();
 
-    await renderInTestApp(
+    render(
       <TemplatesView templates={[template]} onboardingApi={onboardingApi} />,
     );
 
@@ -148,6 +148,73 @@ describe('TemplatesView', () => {
     expect(onboardingApi.assignTemplate).toHaveBeenCalledWith(
       'backend-template',
       'user:default/alex',
+    );
+  });
+
+  it('includes the selected buddy when assigning a template', async () => {
+    const onboardingApi = createOnboardingApiMock();
+    onboardingApi.searchCatalogUsers.mockImplementation(async query => {
+      // Return different results based on query to simulate separate searches
+      if (query.includes('jane')) {
+        return [
+          {
+            entityRef: 'user:default/jane.doe',
+            displayName: 'Jane Doe',
+            email: 'jane@example.com',
+          },
+        ];
+      }
+      if (query.includes('bob')) {
+        return [
+          {
+            entityRef: 'user:default/bob.smith',
+            displayName: 'Bob Smith',
+            email: 'bob@example.com',
+          },
+        ];
+      }
+      // Default: return both for browsing
+      return [
+        {
+          entityRef: 'user:default/jane.doe',
+          displayName: 'Jane Doe',
+          email: 'jane@example.com',
+        },
+        {
+          entityRef: 'user:default/bob.smith',
+          displayName: 'Bob Smith',
+          email: 'bob@example.com',
+        },
+      ];
+    });
+
+    render(
+      <TemplatesView templates={[template]} onboardingApi={onboardingApi} />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Use Template' }));
+
+    // Select user
+    const userSearchInput = await screen.findByLabelText('Search User');
+    await userEvent.type(userSearchInput, 'jane');
+    await userEvent.click(
+      await screen.findByText('Jane Doe (jane@example.com)'),
+    );
+
+    // Select buddy
+    const buddySearchInput = await screen.findByLabelText('Buddy (optional)');
+    await userEvent.type(buddySearchInput, 'bob');
+    await userEvent.click(
+      await screen.findByText('Bob Smith (bob@example.com)'),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Assign' }));
+
+    await screen.findByText('Template assigned successfully!');
+    expect(onboardingApi.assignTemplate).toHaveBeenCalledWith(
+      'backend-template',
+      'user:default/jane.doe',
+      'user:default/bob.smith',
     );
   });
 });

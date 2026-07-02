@@ -22,6 +22,7 @@ import {
   OnboardingProgress,
   OnboardingTemplate,
   TaskStatus,
+  TeamJoinerSummary,
   TeamOnboardingStats,
 } from '../types';
 
@@ -72,6 +73,7 @@ export class OnboardingClient implements OnboardingApi {
   async assignTemplate(
     templateName: string,
     userId: string,
+    buddyUserId?: string,
   ): Promise<OnboardingProgress> {
     return this.request<OnboardingProgress>(
       `/templates/${encodeURIComponent(
@@ -80,6 +82,7 @@ export class OnboardingClient implements OnboardingApi {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buddyUserId ? { buddyUserId } : {}),
       },
     );
   }
@@ -88,6 +91,29 @@ export class OnboardingClient implements OnboardingApi {
     return this.request<OnboardingCatalogUser[]>(
       `/users/search?query=${encodeURIComponent(query)}`,
     );
+  }
+
+  async setBuddy(
+    userId: string,
+    buddyUserId: string | undefined,
+  ): Promise<void> {
+    await this.request<void>(`/progress/${encodeURIComponent(userId)}/buddy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ buddyUserId: buddyUserId ?? null }),
+    });
+  }
+
+  async getMyTeams(): Promise<{ teams: string[] }> {
+    return this.request<{ teams: string[] }>('/teams/mine');
+  }
+
+  async getMyBuddies(): Promise<TeamJoinerSummary[]> {
+    return this.request<TeamJoinerSummary[]>('/buddies/mine');
+  }
+
+  async getIsAssigner(): Promise<{ isAssigner: boolean }> {
+    return this.request<{ isAssigner: boolean }>('/assigner/me');
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
