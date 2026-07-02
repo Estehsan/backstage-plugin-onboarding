@@ -1,3 +1,29 @@
+# [1.3.0](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.2.0...v1.3.0) (2026-07-02)
+
+
+### Bug Fixes
+
+* **onboarding-backend:** enforce assignerGroups on sensitive routes and resolve buddy display names ([96a515e](https://github.com/Estehsan/backstage-plugin-onboarding/commit/96a515ec428528dd90ac017e482684772593c114))
+* **onboarding:** correct buddy-assignment test selection and dialog query ([22acc2e](https://github.com/Estehsan/backstage-plugin-onboarding/commit/22acc2ea88e946b8a83f8962ddd20a56cc700045))
+* **onboarding:** eliminate stale-state flash in buddy assignment dialog ([e2ee5e2](https://github.com/Estehsan/backstage-plugin-onboarding/commit/e2ee5e27dad36d8254b14bb0888cd8893882f468))
+* **onboarding:** log permission-check failures for observability ([22da98c](https://github.com/Estehsan/backstage-plugin-onboarding/commit/22da98c76902555b1573c744cf8194303c9ad3e0))
+* **onboarding:** stabilize frontend test environment and suites ([046a0d5](https://github.com/Estehsan/backstage-plugin-onboarding/commit/046a0d5b66d6de114de4685bcfe00cc18d867602))
+* **onboarding:** wrap resource Tag elements in TagGroup ([d73b9ac](https://github.com/Estehsan/backstage-plugin-onboarding/commit/d73b9ac8f5f150e12e195d4d5169b97d879d0bd9))
+
+
+### Features
+
+* **onboarding-backend:** add assignerGroups config schema ([b500296](https://github.com/Estehsan/backstage-plugin-onboarding/commit/b500296bc798474ac288fc5f3810ef3b95353903))
+* **onboarding-backend:** add buddy_user_id migration ([aed6f7d](https://github.com/Estehsan/backstage-plugin-onboarding/commit/aed6f7da35a4b55d5fdaac8ff9168f00d0484ecf))
+* **onboarding-backend:** add buddy_user_id to OnboardingProgressRow ([f47d97d](https://github.com/Estehsan/backstage-plugin-onboarding/commit/f47d97dbfa5b758fa3b79a28774ccbb2d56fb5a3))
+* **onboarding-backend:** add buddy, teams/mine, assigner/me, buddies/mine routes ([6737513](https://github.com/Estehsan/backstage-plugin-onboarding/commit/6737513acacf3a4e16282d92eec9ca3b7594d737))
+* **onboarding-backend:** add setBuddy/getBuddyProgress to OnboardingStore ([29055cc](https://github.com/Estehsan/backstage-plugin-onboarding/commit/29055ccd0c5a87fa384c70f367b8410e27bb48c3))
+* **onboarding-common:** add buddyUserId and TeamJoinerSummary types ([a6608f9](https://github.com/Estehsan/backstage-plugin-onboarding/commit/a6608f9eb6d9f46fe1d3b9505097fd958c925f27))
+* **onboarding:** add buddy/teams/assigner API client methods ([9b760f4](https://github.com/Estehsan/backstage-plugin-onboarding/commit/9b760f41b2838be61b978ca5007fd5537c4d0bdd))
+* **onboarding:** add lead/buddy dual-mode Team View with team selector ([d96a0ce](https://github.com/Estehsan/backstage-plugin-onboarding/commit/d96a0cedce7568950517b0aa5cf882a7d516016c))
+* **onboarding:** redesign templates cards and add buddy picker ([1f84876](https://github.com/Estehsan/backstage-plugin-onboarding/commit/1f848768eaa1f22bd6d18f9cbc42855211a20fd4))
+* **onboarding:** scope Templates/Team View tabs to assigners and buddies ([ca392ab](https://github.com/Estehsan/backstage-plugin-onboarding/commit/ca392ab0f1ebfef9d1b15d1d213952a50b79d802))
+
 # [1.2.0](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.1.0...v1.2.0) (2026-06-30)
 
 
