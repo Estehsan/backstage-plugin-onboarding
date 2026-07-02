@@ -47,9 +47,7 @@ describe('DatabaseOnboardingStore buddy support', () => {
       const progress = await store.getProgress('user:default/joiner');
       expect(progress?.buddyUserId).toBe('user:default/buddy');
 
-      const buddyProgress = await store.getBuddyProgress(
-        'user:default/buddy',
-      );
+      const buddyProgress = await store.getBuddyProgress('user:default/buddy');
       expect(buddyProgress).toHaveLength(1);
       expect(buddyProgress[0].userId).toBe('user:default/joiner');
 

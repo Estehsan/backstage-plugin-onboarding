@@ -143,7 +143,9 @@ describe('isMemberOfAssignerGroup', () => {
     });
     const catalogApi = {
       getEntityByRef: jest.fn().mockResolvedValue({
-        relations: [{ type: 'memberOf', targetRef: 'group:default/other-team' }],
+        relations: [
+          { type: 'memberOf', targetRef: 'group:default/other-team' },
+        ],
       }),
     } as any;
     const result = await isMemberOfAssignerGroup(
