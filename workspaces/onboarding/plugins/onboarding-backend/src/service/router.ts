@@ -240,6 +240,13 @@ export async function createRouter(
       throw new NotAllowedError('Not authorized to assign a buddy');
     }
 
+    const callerRef = credentials.principal.userEntityRef;
+    if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
+      throw new NotAllowedError(
+        'You are not a member of an authorized assigner group',
+      );
+    }
+
     const updated = await store.setBuddy(userId, buddyUserId ?? undefined);
     if (!updated) {
       throw new NotFoundError(`No onboarding progress found for ${userId}`);
@@ -283,10 +290,9 @@ export async function createRouter(
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
     const callerRef = credentials.principal.userEntityRef;
     const progressList = await store.getBuddyProgress(callerRef);
-    const displayNames = await getDisplayNamesByRef(
-      catalogApi,
-      progressList.map(p => p.userId),
-    );
+    const displayNames = await getDisplayNamesByRef(catalogApi, [
+      ...collectJoinerAndBuddyRefs(progressList),
+    ]);
     res.status(200).json(toJoinerSummaries(progressList, displayNames));
   });
 
@@ -309,6 +315,18 @@ export async function createRouter(
     const callerGroups = await getCallerGroupRefs(catalogApi, callerRef);
     if (!callerGroups.has(`group:default/${teamName}`)) {
       throw new NotAllowedError(`Not a member of team ${teamName}`);
+    }
+
+    // Restrict full team roster visibility to configured assigner groups
+    // (backward compatible: no restriction when assignerGroups is unset).
+    const assignerGroups = getAssignerGroupRefs(config);
+    if (
+      assignerGroups.size > 0 &&
+      !assignerGroups.has(`group:default/${teamName}`)
+    ) {
+      throw new NotAllowedError(
+        'Team stats restricted to configured assigner groups',
+      );
     }
 
     const windowDays = getActiveJoinerWindowDays(config);
@@ -343,10 +361,9 @@ export async function createRouter(
       return started >= cutoffDate && donePercent < 1;
     });
 
-    const displayNames = await getDisplayNamesByRef(
-      catalogApi,
-      filteredProgress.map(p => p.userId),
-    );
+    const displayNames = await getDisplayNamesByRef(catalogApi, [
+      ...collectJoinerAndBuddyRefs(filteredProgress),
+    ]);
     const activeJoiners = toJoinerSummaries(filteredProgress, displayNames);
 
     const avgCompletionPercent =
@@ -398,6 +415,13 @@ export async function createRouter(
     )[0];
     if (decision.result === AuthorizeResult.DENY) {
       throw new NotAllowedError('Unauthorized');
+    }
+
+    const callerRef = credentials.principal.userEntityRef;
+    if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
+      throw new NotAllowedError(
+        'You are not a member of an authorized assigner group',
+      );
     }
 
     const query = String(req.query.query ?? '').trim();
@@ -470,6 +494,13 @@ export async function createRouter(
       throw new NotAllowedError('Unauthorized');
     }
 
+    const callerRef = credentials.principal.userEntityRef;
+    if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
+      throw new NotAllowedError(
+        'You are not a member of an authorized assigner group',
+      );
+    }
+
     const templates = await getTemplatesCached();
     const template = templates.find(t => t.metadata.name === templateName);
 
@@ -508,6 +539,25 @@ function getEntityEmail(entity: { spec?: unknown }): string | undefined {
   const spec = entity.spec as Record<string, unknown> | undefined;
   const profile = spec?.profile as Record<string, unknown> | undefined;
   return profile?.email as string | undefined;
+}
+
+/**
+ * Collects the deduplicated set of user entity refs (joiners plus any
+ * assigned buddies) that display names need to be resolved for, so that
+ * buddy display names actually resolve instead of always falling back to
+ * "\u2014" when the buddy isn't otherwise in the joiner list.
+ */
+function collectJoinerAndBuddyRefs(
+  progressList: OnboardingProgress[],
+): Set<string> {
+  const refs = new Set<string>();
+  for (const progress of progressList) {
+    refs.add(progress.userId);
+    if (progress.buddyUserId) {
+      refs.add(progress.buddyUserId);
+    }
+  }
+  return refs;
 }
 
 async function getDisplayNamesByRef(

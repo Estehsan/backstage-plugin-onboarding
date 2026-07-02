@@ -424,6 +424,54 @@ describe('createRouter', () => {
 
       expect(res.status).toBe(403);
     });
+
+    it('allows the buddy assignment when caller is a member of a configured assigner group', async () => {
+      const appWithGroups = await createApp('user:default/jane.doe', {
+        onboarding: {
+          defaults: {
+            activeJoinerWindowDays: 90,
+            assignerGroups: ['platform'],
+          },
+        },
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/platform' }],
+      });
+      mockStore.setBuddy.mockResolvedValue(true);
+
+      const res = await request(appWithGroups)
+        .post(`/progress/${enc('user:default/new-joiner')}/buddy`)
+        .set('Authorization', '******')
+        .send({ buddyUserId: 'user:default/mentor' });
+
+      expect(res.status).toBe(200);
+    });
+
+    it('denies the buddy assignment when caller is not a member of a configured assigner group', async () => {
+      const appWithGroups = await createApp('user:default/jane.doe', {
+        onboarding: {
+          defaults: {
+            activeJoinerWindowDays: 90,
+            assignerGroups: ['platform'],
+          },
+        },
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/other' }],
+      });
+
+      const res = await request(appWithGroups)
+        .post(`/progress/${enc('user:default/new-joiner')}/buddy`)
+        .set('Authorization', '******')
+        .send({ buddyUserId: 'user:default/mentor' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.message).toContain(
+        'not a member of an authorized assigner group',
+      );
+    });
   });
 
   describe('GET /teams/mine', () => {
@@ -571,6 +619,10 @@ describe('createRouter', () => {
             spec: { profile: { displayName: 'Joiner A' } },
           },
           {
+            metadata: { name: 'jane.doe' },
+            spec: { profile: { displayName: 'Jane Doe' } },
+          },
+          {
             metadata: { name: 'joiner-b' },
             spec: { profile: { displayName: 'Joiner B' } },
           },
@@ -601,6 +653,54 @@ describe('createRouter', () => {
       expect(mockStore.getBuddyProgress).toHaveBeenCalledWith(
         'user:default/jane.doe',
       );
+      expect(mockCatalogApi.getEntitiesByRefs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityRefs: expect.arrayContaining([
+            'user:default/joiner-a',
+            'user:default/joiner-b',
+            'user:default/jane.doe',
+          ]),
+        }),
+      );
+    });
+
+    it('resolves the buddy display name when the buddy is not one of the joiners', async () => {
+      const recentDate = new Date(
+        Date.now() - 10 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      mockStore.getBuddyProgress.mockResolvedValue([
+        {
+          userId: 'user:default/joiner-a',
+          templateName: 'backend-engineer',
+          startDate: recentDate,
+          buddyUserId: 'user:default/mentor-outside-list',
+          tasks: [{ taskId: 'task1', status: 'done' }],
+        },
+      ]);
+
+      mockCatalogApi.getEntitiesByRefs.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'joiner-a' },
+            spec: { profile: { displayName: 'Joiner A' } },
+          },
+          {
+            metadata: { name: 'mentor-outside-list' },
+            spec: { profile: { displayName: 'Mentor Outside' } },
+          },
+        ],
+      });
+
+      const res = await request(app)
+        .get('/buddies/mine')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body[0]).toMatchObject({
+        userId: 'user:default/joiner-a',
+        buddyUserId: 'user:default/mentor-outside-list',
+        buddyDisplayName: 'Mentor Outside',
+      });
     });
   });
 
@@ -682,9 +782,124 @@ describe('createRouter', () => {
 
       const res = await request(app)
         .get('/team/platform/stats')
-        .set('Authorization', 'Bearer mock-token');
+        .set('Authorization', '******');
 
       expect(res.status).toBe(403);
+    });
+
+    it('allows a team member to view stats when assignerGroups includes the team group', async () => {
+      const appWithGroups = await createApp('user:default/jane.doe', {
+        onboarding: {
+          defaults: {
+            activeJoinerWindowDays: 90,
+            assignerGroups: ['platform'],
+          },
+        },
+      });
+
+      mockCatalogApi.getEntities.mockResolvedValue({ items: [] });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/platform' }],
+      });
+      mockStore.getTeamProgress.mockResolvedValue([]);
+
+      const res = await request(appWithGroups)
+        .get('/team/platform/stats')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body.teamName).toBe('platform');
+    });
+
+    it('denies a team member from viewing stats when assignerGroups does not include the team group', async () => {
+      const appWithGroups = await createApp('user:default/jane.doe', {
+        onboarding: {
+          defaults: {
+            activeJoinerWindowDays: 90,
+            assignerGroups: ['other-team'],
+          },
+        },
+      });
+
+      // Caller is a member of the "platform" team, but assignerGroups only
+      // includes "other-team", so full-roster access should be denied.
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/platform' }],
+      });
+
+      const res = await request(appWithGroups)
+        .get('/team/platform/stats')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.message).toContain(
+        'restricted to configured assigner groups',
+      );
+    });
+
+    it('resolves buddy display names for active joiners', async () => {
+      const now = new Date();
+      const recentDate = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
+
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'jane.doe' },
+            spec: { profile: { displayName: 'Jane Doe' } },
+          },
+        ],
+      });
+
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/platform' }],
+      });
+
+      mockStore.getTeamProgress.mockResolvedValue([
+        {
+          userId: 'user:default/jane.doe',
+          templateName: 'backend-engineer-platform',
+          startDate: recentDate.toISOString(),
+          buddyUserId: 'user:default/mentor-not-in-team',
+          tasks: [
+            { taskId: 'a', status: 'done' },
+            { taskId: 'b', status: 'pending' },
+          ],
+        },
+      ]);
+
+      mockCatalogApi.getEntitiesByRefs.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'jane.doe' },
+            spec: { profile: { displayName: 'Jane Doe' } },
+          },
+          {
+            metadata: { name: 'mentor-not-in-team' },
+            spec: { profile: { displayName: 'Mentor Person' } },
+          },
+        ],
+      });
+
+      const res = await request(app)
+        .get('/team/platform/stats')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(mockCatalogApi.getEntitiesByRefs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityRefs: expect.arrayContaining([
+            'user:default/jane.doe',
+            'user:default/mentor-not-in-team',
+          ]),
+        }),
+      );
+      expect(res.body.activeJoiners[0]).toMatchObject({
+        buddyUserId: 'user:default/mentor-not-in-team',
+        buddyDisplayName: 'Mentor Person',
+      });
     });
   });
 
@@ -799,6 +1014,53 @@ describe('createRouter', () => {
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(400);
+      expect(mockCatalogApi.getEntities).not.toHaveBeenCalled();
+    });
+
+    it('allows the search when caller is a member of a configured assigner group', async () => {
+      const appWithGroups = await createApp('user:default/jane.doe', {
+        onboarding: {
+          defaults: {
+            activeJoinerWindowDays: 90,
+            assignerGroups: ['platform'],
+          },
+        },
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/platform' }],
+      });
+      mockCatalogApi.getEntities.mockResolvedValue({ items: catalogUsers });
+
+      const res = await request(appWithGroups)
+        .get('/users/search?query=jane')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+    });
+
+    it('denies the search when caller is not a member of a configured assigner group', async () => {
+      const appWithGroups = await createApp('user:default/jane.doe', {
+        onboarding: {
+          defaults: {
+            activeJoinerWindowDays: 90,
+            assignerGroups: ['platform'],
+          },
+        },
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/other' }],
+      });
+
+      const res = await request(appWithGroups)
+        .get('/users/search?query=jane')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.message).toContain(
+        'not a member of an authorized assigner group',
+      );
       expect(mockCatalogApi.getEntities).not.toHaveBeenCalled();
     });
   });
@@ -996,6 +1258,116 @@ describe('createRouter', () => {
 
       expect(res.status).toBe(200);
       expect(mockStore.setBuddy).not.toHaveBeenCalled();
+    });
+
+    it('allows the assignment when caller is a member of a configured assigner group', async () => {
+      const appWithGroups = await createApp('user:default/jane.doe', {
+        onboarding: {
+          defaults: {
+            activeJoinerWindowDays: 90,
+            assignerGroups: ['platform'],
+          },
+        },
+      });
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'be-template', title: 'BE', description: '' },
+            spec: {
+              role: 'backend-engineer',
+              phases: [
+                {
+                  id: 'day1',
+                  tasks: [
+                    {
+                      id: 'task-1',
+                      phase: 'day1',
+                      title: 'Task 1',
+                      description: '',
+                      type: 'manual',
+                      assignee: 'self',
+                      duePhase: 'day1',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      });
+      mockCatalogApi.getEntityByRef.mockImplementation(async (ref: string) => {
+        if (ref === 'user:default/jane.doe') {
+          return {
+            metadata: { name: 'jane.doe' },
+            relations: [
+              { type: 'memberOf', targetRef: 'group:default/platform' },
+            ],
+          };
+        }
+        return { kind: 'User', metadata: { name: 'new-joiner' } };
+      });
+      mockStore.upsertProgress.mockResolvedValue(undefined);
+
+      const res = await request(appWithGroups)
+        .post(`/templates/be-template/assign/${enc('user:default/new-joiner')}`)
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+    });
+
+    it('denies the assignment when caller is not a member of a configured assigner group', async () => {
+      const appWithGroups = await createApp('user:default/jane.doe', {
+        onboarding: {
+          defaults: {
+            activeJoinerWindowDays: 90,
+            assignerGroups: ['platform'],
+          },
+        },
+      });
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'be-template', title: 'BE', description: '' },
+            spec: {
+              role: 'backend-engineer',
+              phases: [
+                {
+                  id: 'day1',
+                  tasks: [
+                    {
+                      id: 'task-1',
+                      phase: 'day1',
+                      title: 'Task 1',
+                      description: '',
+                      type: 'manual',
+                      assignee: 'self',
+                      duePhase: 'day1',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      });
+      mockCatalogApi.getEntityByRef.mockImplementation(async (ref: string) => {
+        if (ref === 'user:default/jane.doe') {
+          return {
+            metadata: { name: 'jane.doe' },
+            relations: [{ type: 'memberOf', targetRef: 'group:default/other' }],
+          };
+        }
+        return { kind: 'User', metadata: { name: 'new-joiner' } };
+      });
+
+      const res = await request(appWithGroups)
+        .post(`/templates/be-template/assign/${enc('user:default/new-joiner')}`)
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.message).toContain(
+        'not a member of an authorized assigner group',
+      );
     });
   });
 
