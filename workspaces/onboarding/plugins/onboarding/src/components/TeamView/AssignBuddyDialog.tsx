@@ -93,18 +93,19 @@ export function AssignBuddyDialog(props: AssignBuddyDialogProps) {
     }
   };
 
-  // Reset state when dialog opens/closes
-  useEffect(() => {
-    if (joiner) {
-      setBuddyInputValue('');
-      setBuddyOptions([]);
-      setSelectedBuddy(null);
-      setAssignError(undefined);
-    }
-  }, [joiner]);
-
   return (
-    <Dialog open={!!joiner} onClose={handleClose} maxWidth="sm" fullWidth>
+    // Keying by the joiner's userId forces React to remount this subtree
+    // (and its useState hooks) whenever the target joiner changes, so the
+    // previous joiner's search text/selection/error can never flash before
+    // being cleared — a plain useEffect reset would run after paint and
+    // risk a stale-state flash for one commit.
+    <Dialog
+      key={joiner?.userId ?? 'closed'}
+      open={!!joiner}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+    >
       <DialogTitle>Assign Buddy</DialogTitle>
       <DialogContent>
         {joiner && (
