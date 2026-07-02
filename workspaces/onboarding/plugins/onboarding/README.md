@@ -125,12 +125,27 @@ onboarding:
     activeJoinerWindowDays: 90 # How many days to consider someone "new"
     buddy:
       autoAssign: true # Auto-assign buddy from team members
+    assignerGroups: ['platform-team'] # Restrict assigning/buddy/team-view access to these groups
 ```
 
 Template source options:
 
 - `type: catalog` — load templates from `kind: OnboardingTemplate` catalog entities (recommended).
 - `templates.defaults` fallback in `app-config.yaml` — used when no catalog templates are available.
+
+### Restricting Assigners with `assignerGroups`
+
+`onboarding.defaults.assignerGroups` restricts who can assign onboarding templates, assign buddies, and view a team's full joiner roster (Team View "lead" mode) to members of specific catalog groups.
+
+```yaml
+onboarding:
+  defaults:
+    assignerGroups: ['platform-team', 'group:default/infrastructure']
+```
+
+- Entries accept either bare group names (assumed to live in the `default` namespace, e.g. `platform-team` → `group:default/platform-team`) or full entity refs (e.g. `group:default/infrastructure`).
+- **Backward-compatible default:** if `assignerGroups` is unset or empty, no restriction is applied — this preserves the existing behavior where anyone holding the base `onboarding.template.assign` permission can assign templates/buddies and view team rosters.
+- For per-team Team View access, each team's own catalog group ref (e.g. `group:default/platform-team`) must be included in `assignerGroups` for that team's leads to see the full roster; otherwise team members can only see their own progress.
 
 ## Onboarding Templates
 
