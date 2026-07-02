@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderInTestApp } from '@backstage/test-utils';
 import { TeamView } from './TeamView';
@@ -133,17 +133,24 @@ describe('TeamView', () => {
       });
       await userEvent.click(assignButton);
 
-      // Dialog should open
-      expect(await screen.findByText(/assign buddy/i)).toBeInTheDocument();
+      // Dialog should open (scoped to dialog to avoid ambiguity with button)
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText(/assign buddy/i)).toBeInTheDocument();
 
       // Search for buddy
       const buddySearchField = screen.getByLabelText(/buddy/i);
       await userEvent.type(buddySearchField, 'Buddy');
 
-      // Select buddy from autocomplete
+      // Wait for search to complete
       await waitFor(() => {
         expect(onboardingApi.searchCatalogUsers).toHaveBeenCalledWith('Buddy');
       });
+
+      // Select buddy option from autocomplete dropdown
+      const buddyOption = await screen.findByText(
+        'Buddy User (buddy@example.com)',
+      );
+      await userEvent.click(buddyOption);
 
       // Confirm assignment
       const confirmButton = screen.getByRole('button', { name: /confirm/i });
