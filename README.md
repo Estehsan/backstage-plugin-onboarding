@@ -1,6 +1,10 @@
-# backstage-plugins
+<img width="1536" height="1024" alt="ChatGPT Image Jul 16, 2026, 05_44_49 PM" src="https://github.com/user-attachments/assets/c9177f40-441e-40c7-9fe5-121c1a4035d8" />
+
+# Backstage-plugins
 
 A standalone monorepo for Backstage plugins published under the `@estehsaan` npm scope, following the same workspace pattern as [`backstage/community-plugins`](https://github.com/backstage/community-plugins).
+
+
 
 # @estehsaan/backstage-plugin-onboarding
 
@@ -8,13 +12,6 @@ A structured, interactive onboarding checklist plugin for [Backstage](https://ba
 
 It replaces static Confluence/Notion docs with a live, trackable, automated checklist that both the new joiner and their manager/team lead can see.
 
-## Screenshots
-
-### Templates & Task Assignment
-
-| Templates View | Assign Template Dialog | My Tasks Guide View |
-|---|---|---|
-| <img src="https://github.com/user-attachments/assets/49959de1-25e4-403e-b41a-73b215beed38" width="400" alt="Templates View — list of available onboarding templates" /> | <img src="https://github.com/user-attachments/assets/56947506-b489-403d-9f12-dcd4bcb3a7c0" width="400" alt="Assign Template dialog — selecting a template to assign to a user" /> | <img src="https://github.com/user-attachments/assets/102cd854-c40c-4b27-81ea-cbca86f5e03b" width="400" alt="My Tasks guide view — step-by-step task checklist" /> |
 
 *Browse templates, assign them to a user, and track progress through guided tasks.*
 
