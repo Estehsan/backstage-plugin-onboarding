@@ -64,6 +64,13 @@ onboarding:
 | GET    | `/api/onboarding/users/search?query=`                    | Search catalog users for assignment (empty query lists users) |
 | POST   | `/api/onboarding/templates/:templateName/assign/:userId` | Assign a template to a user                                   |
 
+> **Note**: `:userId` is a full entity reference (e.g. `user:default/jane.doe`),
+> which always contains a `/`. Routes that accept `:userId` match it as a
+> greedy path segment so the request still resolves correctly even if a
+> reverse proxy or gateway decodes the `%2F` in the URL to a literal `/`
+> before forwarding the request to this backend (a known issue when running
+> behind some identity-provider-integrated proxies, e.g. Entra ID).
+
 ### User search
 
 `GET /users/search` reads `User` entities directly from the catalog and filters

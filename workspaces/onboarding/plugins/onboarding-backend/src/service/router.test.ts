@@ -1109,6 +1109,54 @@ describe('createRouter', () => {
       expect(res.body.tasks[0].status).toBe('pending');
     });
 
+    // Regression test: some reverse proxies/gateways (e.g. those fronting
+    // Entra ID-integrated deployments) normalize request URLs and decode
+    // "%2F" to a literal "/" before forwarding to the backend. Since every
+    // user entity ref contains a "/" (kind:namespace/name), the userId path
+    // param must still match when it arrives as a raw, un-encoded segment.
+    it('assigns a template when the userId path segment arrives with an un-encoded slash', async () => {
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'be-template', title: 'BE', description: '' },
+            spec: {
+              role: 'backend-engineer',
+              phases: [
+                {
+                  id: 'day1',
+                  tasks: [
+                    {
+                      id: 'task-1',
+                      phase: 'day1',
+                      title: 'Task 1',
+                      description: '',
+                      type: 'manual',
+                      assignee: 'self',
+                      duePhase: 'day1',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        kind: 'User',
+        metadata: { name: 'new-joiner' },
+      });
+      mockStore.upsertProgress.mockResolvedValue(undefined);
+
+      const res = await request(app)
+        .post('/templates/be-template/assign/user:default/new-joiner')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body.templateName).toBe('be-template');
+      expect(res.body.tasks).toHaveLength(1);
+      expect(res.body.tasks[0].status).toBe('pending');
+    });
+
     it('returns 400 when user does not exist in catalog', async () => {
       mockCatalogApi.getEntities.mockResolvedValue({
         items: [

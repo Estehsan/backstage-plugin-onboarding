@@ -4,16 +4,13 @@
 
 A standalone monorepo for Backstage plugins published under the `@estehsaan` npm scope, following the same workspace pattern as [`backstage/community-plugins`](https://github.com/backstage/community-plugins).
 
-
-
 # @estehsaan/backstage-plugin-onboarding
 
 A structured, interactive onboarding checklist plugin for [Backstage](https://backstage.io) that guides new engineers through their first Day 1, Week 1, Week 2, and Month 1.
 
 It replaces static Confluence/Notion docs with a live, trackable, automated checklist that both the new joiner and their manager/team lead can see.
 
-
-*Browse templates, assign them to a user, and track progress through guided tasks.*
+_Browse templates, assign them to a user, and track progress through guided tasks._
 
 > **Templates View** — Browse available onboarding templates and assign one to a joiner.
 >
@@ -333,7 +330,6 @@ yarn start
 ## License
 
 Apache-2.0
-
 
 ## Packages
 
