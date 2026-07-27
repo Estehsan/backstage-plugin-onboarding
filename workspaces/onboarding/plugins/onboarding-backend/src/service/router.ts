@@ -113,7 +113,7 @@ export async function createRouter(
     res.status(200).json({ status: 'ok' });
   });
 
-  router.get('/progress/:userId', async (req, res) => {
+  router.get('/progress/:userId(*)', async (req, res) => {
     const { userId } = req.params;
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
 
@@ -144,7 +144,7 @@ export async function createRouter(
     res.status(200).json(progress);
   });
 
-  router.post('/progress/:userId/tasks/:taskId', async (req, res) => {
+  router.post('/progress/:userId(*)/tasks/:taskId', async (req, res) => {
     const { userId, taskId } = req.params;
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
 
@@ -225,7 +225,7 @@ export async function createRouter(
     res.status(200).json(progress);
   });
 
-  router.post('/progress/:userId/buddy', async (req, res) => {
+  router.post('/progress/:userId(*)/buddy', async (req, res) => {
     const { userId } = req.params;
     const { buddyUserId } = req.body as { buddyUserId?: string | null };
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
@@ -479,49 +479,52 @@ export async function createRouter(
     res.status(200).json(results);
   });
 
-  router.post('/templates/:templateName/assign/:userId', async (req, res) => {
-    const { templateName, userId } = req.params;
-    const { buddyUserId } = req.body as { buddyUserId?: string };
-    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+  router.post(
+    '/templates/:templateName/assign/:userId(*)',
+    async (req, res) => {
+      const { templateName, userId } = req.params;
+      const { buddyUserId } = req.body as { buddyUserId?: string };
+      const credentials = await httpAuth.credentials(req, { allow: ['user'] });
 
-    const decision = (
-      await permissions.authorize(
-        [{ permission: onboardingTemplateAssignPermission }],
-        { credentials },
-      )
-    )[0];
-    if (decision.result === AuthorizeResult.DENY) {
-      throw new NotAllowedError('Unauthorized');
-    }
+      const decision = (
+        await permissions.authorize(
+          [{ permission: onboardingTemplateAssignPermission }],
+          { credentials },
+        )
+      )[0];
+      if (decision.result === AuthorizeResult.DENY) {
+        throw new NotAllowedError('Unauthorized');
+      }
 
-    const callerRef = credentials.principal.userEntityRef;
-    if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
-      throw new NotAllowedError(
-        'You are not a member of an authorized assigner group',
-      );
-    }
+      const callerRef = credentials.principal.userEntityRef;
+      if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
+        throw new NotAllowedError(
+          'You are not a member of an authorized assigner group',
+        );
+      }
 
-    const templates = await getTemplatesCached();
-    const template = templates.find(t => t.metadata.name === templateName);
+      const templates = await getTemplatesCached();
+      const template = templates.find(t => t.metadata.name === templateName);
 
-    if (!template) {
-      throw new NotFoundError(`Template ${templateName} not found`);
-    }
+      if (!template) {
+        throw new NotFoundError(`Template ${templateName} not found`);
+      }
 
-    await assertCatalogUserExists(catalogApi, userId);
+      await assertCatalogUserExists(catalogApi, userId);
 
-    validateTemplateDependencies(template);
+      validateTemplateDependencies(template);
 
-    const progress = initializeProgress(userId, template);
-    await store.upsertProgress(progress);
+      const progress = initializeProgress(userId, template);
+      await store.upsertProgress(progress);
 
-    if (buddyUserId) {
-      await store.setBuddy(userId, buddyUserId);
-    }
+      if (buddyUserId) {
+        await store.setBuddy(userId, buddyUserId);
+      }
 
-    logger.info(`Assigned template ${templateName} to user ${userId}`);
-    res.status(200).json(progress);
-  });
+      logger.info(`Assigned template ${templateName} to user ${userId}`);
+      res.status(200).json(progress);
+    },
+  );
 
   return router;
 }
