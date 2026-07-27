@@ -156,6 +156,10 @@ Templates are defined as YAML files and registered in the Backstage catalog as `
 1. **Catalog entities** (recommended) — Create YAML files with `kind: OnboardingTemplate` and register them in the catalog. This requires the catalog backend module so the custom entity kind is recognized.
 2. **Config-based fallback** — Define templates under `onboarding.templates.defaults` in `app-config.yaml`. This is useful for simpler deployments that do not manage onboarding templates as catalog entities.
 
+### Creating a Template From an Existing Document
+
+If your team already has an onboarding process written down somewhere — a checklist, a wiki page, a runbook, or plain notes — you don't need to hand-author the YAML from scratch. Paste the document's text into GitHub Copilot CLI and ask it to use the `onboarding-template-from-document` skill (e.g. "turn this doc into an onboarding template"). It will draft the `OnboardingTemplate` YAML for you, asking clarifying questions when the source is ambiguous instead of guessing. Review the generated draft and register it in the catalog following the manual authoring steps below.
+
 Example template:
 
 ```yaml
@@ -237,7 +241,7 @@ spec:
 
 ## Template Authoring Guide
 
-Use this section as a quick reference when authoring onboarding templates.
+Use this section as a quick reference when authoring onboarding templates from scratch. If a source document already exists, see [Creating a Template From an Existing Document](#creating-a-template-from-an-existing-document) above for a faster starting point.
 
 ### Template-level fields
 
