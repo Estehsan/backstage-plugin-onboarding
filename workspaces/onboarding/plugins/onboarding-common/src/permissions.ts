@@ -52,6 +52,16 @@ export const onboardingTemplateAssignPermission = createPermission({
 });
 
 /**
+ * Permission required to create, edit, and publish onboarding templates
+ * through the Template Studio.
+ * @public
+ */
+export const onboardingTemplateWritePermission = createPermission({
+  name: 'onboarding.template.write',
+  attributes: { action: 'create' },
+});
+
+/**
  * All onboarding permissions, for use in permission policy registration.
  * @public
  */
@@ -60,4 +70,5 @@ export const onboardingPermissions = [
   onboardingProgressUpdatePermission,
   onboardingTeamReadPermission,
   onboardingTemplateAssignPermission,
+  onboardingTemplateWritePermission,
 ];
