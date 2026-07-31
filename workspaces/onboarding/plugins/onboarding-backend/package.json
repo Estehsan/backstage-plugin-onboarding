@@ -56,6 +56,7 @@
     "@backstage/errors": "^1.2.7",
     "@backstage/plugin-permission-common": "^0.9.6",
     "@estehsaan/backstage-plugin-onboarding-common": "^1.3.1",
+    "@estehsaan/backstage-plugin-techdocs-editor-node": "^2.0.0",
     "express": "^4.17.1",
     "express-promise-router": "^4.1.0",
     "knex": "^3.0.0",
