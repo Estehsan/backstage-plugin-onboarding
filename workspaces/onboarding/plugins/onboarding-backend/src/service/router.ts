@@ -27,6 +27,11 @@ import { CatalogApi } from '@backstage/catalog-client';
 import { InputError, NotAllowedError, NotFoundError } from '@backstage/errors';
 import { AuthorizeResult } from '@backstage/plugin-permission-common';
 import { DatabaseOnboardingStore } from './OnboardingStore';
+import { DatabaseTemplateDraftStore } from './TemplateDraftStore';
+import { validateTemplate } from './templateValidation';
+import { templateToYaml } from './templateYaml';
+import { getBlockLibrary } from './blockLibrary';
+import type { TechDocsEditorVcs } from '@estehsaan/backstage-plugin-techdocs-editor-node';
 import {
   assertUserAccess,
   getAssignerGroupRefs,
@@ -38,16 +43,20 @@ import {
   OnboardingTask,
   OnboardingTemplate,
   Phase,
+  PublishTemplateRequest,
+  PublishTemplateResponse,
   ResourceType,
   TaskStatus,
   TaskType,
   TeamJoinerSummary,
+  TemplateDraft,
 } from '../types';
 import {
   onboardingProgressReadPermission,
   onboardingProgressUpdatePermission,
   onboardingTeamReadPermission,
   onboardingTemplateAssignPermission,
+  onboardingTemplateWritePermission,
 } from '../permissions';
 
 /** @public */
@@ -55,6 +64,8 @@ export interface RouterOptions {
   logger: LoggerService;
   config: RootConfigService;
   store: DatabaseOnboardingStore;
+  draftStore: DatabaseTemplateDraftStore;
+  vcs: TechDocsEditorVcs;
   permissions: PermissionsService;
   httpAuth: HttpAuthService;
   catalogApi: CatalogApi;
@@ -89,7 +100,16 @@ const MAX_CATALOG_TEMPLATES = 1000;
 export async function createRouter(
   options: RouterOptions,
 ): Promise<express.Router> {
-  const { logger, config, store, permissions, httpAuth, catalogApi } = options;
+  const {
+    logger,
+    config,
+    store,
+    draftStore,
+    vcs,
+    permissions,
+    httpAuth,
+    catalogApi,
+  } = options;
 
   // Cache catalog template lookups to avoid thundering-herd of catalog queries
   // on every task update. Each createRouter() call gets its own isolated cache.
@@ -526,6 +546,167 @@ export async function createRouter(
     },
   );
 
+  async function authorizeTemplateWrite(req: express.Request) {
+    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+    const decision = (
+      await permissions.authorize(
+        [{ permission: onboardingTemplateWritePermission }],
+        { credentials },
+      )
+    )[0];
+    if (decision.result === AuthorizeResult.DENY) {
+      throw new NotAllowedError('Unauthorized');
+    }
+    return credentials;
+  }
+
+  router.get('/blocks', async (req, res) => {
+    await authorizeTemplateWrite(req);
+    res.status(200).json(getBlockLibrary(config));
+  });
+
+  router.get('/templates/:name/draft', async (req, res) => {
+    await authorizeTemplateWrite(req);
+    const { name } = req.params;
+
+    const existing = await draftStore.getDraft(name);
+    if (existing) {
+      res.status(200).json(existing);
+      return;
+    }
+
+    const templates = await getTemplatesCached();
+    const template = templates.find(t => t.metadata.name === name);
+    if (!template) {
+      throw new NotFoundError(`Template ${name} not found`);
+    }
+
+    const sourceLocation = await findTemplateLocation(catalogApi, name, logger);
+    const draft: TemplateDraft = {
+      name,
+      template,
+      sourceLocation,
+      updatedAt: new Date().toISOString(),
+      status: 'draft',
+    };
+    res.status(200).json(draft);
+  });
+
+  router.put('/templates/:name/draft', async (req, res) => {
+    const credentials = await authorizeTemplateWrite(req);
+    const { name } = req.params;
+    const { template, sourceLocation } = req.body as {
+      template?: OnboardingTemplate;
+      sourceLocation?: string;
+    };
+    if (!template) {
+      throw new InputError('template is required');
+    }
+
+    const issues = validateTemplate(template);
+    if (issues.some(i => i.severity === 'error')) {
+      res.status(400).json({ issues });
+      return;
+    }
+
+    const existing = await draftStore.getDraft(name);
+    const draft: TemplateDraft = {
+      name,
+      template,
+      sourceLocation: sourceLocation ?? existing?.sourceLocation,
+      updatedBy: credentials.principal.userEntityRef,
+      updatedAt: new Date().toISOString(),
+      status: 'draft',
+    };
+    await draftStore.upsertDraft(draft);
+    res.status(200).json(draft);
+  });
+
+  router.post('/templates', async (req, res) => {
+    const credentials = await authorizeTemplateWrite(req);
+    const { name, role, title } = req.body as {
+      name?: string;
+      role?: string;
+      title?: string;
+    };
+    if (!name || !role) {
+      throw new InputError('name and role are required');
+    }
+
+    const draft: TemplateDraft = {
+      name,
+      template: {
+        apiVersion: 'onboarding.backstage.io/v1',
+        kind: 'OnboardingTemplate',
+        metadata: { name, title: title ?? name },
+        spec: { role, phases: [] },
+      },
+      updatedBy: credentials.principal.userEntityRef,
+      updatedAt: new Date().toISOString(),
+      status: 'draft',
+    };
+    await draftStore.upsertDraft(draft);
+    res.status(201).json(draft);
+  });
+
+  router.post('/templates/:name/validate', async (req, res) => {
+    await authorizeTemplateWrite(req);
+    const { template } = req.body as { template?: OnboardingTemplate };
+    if (!template) {
+      throw new InputError('template is required');
+    }
+    res.status(200).json(validateTemplate(template));
+  });
+
+  router.post('/templates/:name/publish', async (req, res) => {
+    const credentials = await authorizeTemplateWrite(req);
+    const { name } = req.params;
+    const body = req.body as PublishTemplateRequest;
+
+    const draft = await draftStore.getDraft(name);
+    if (!draft) {
+      throw new NotFoundError(`No draft found for template ${name}`);
+    }
+
+    const issues = validateTemplate(draft.template);
+    if (issues.some(i => i.severity === 'error')) {
+      res.status(400).json({ issues });
+      return;
+    }
+
+    const target = resolvePublishTarget(body, draft.sourceLocation);
+    const baseBranch =
+      body.baseBranch ?? (await vcs.getDefaultBranch(target.repoUrl));
+    const authorRef = credentials.principal.userEntityRef;
+    const authorName = authorRef ? parseEntityRef(authorRef).name : 'backstage';
+
+    const result = await vcs.openPullRequest({
+      repoUrl: target.repoUrl,
+      headBranch: `onboarding/template-${name}-${Date.now()}`,
+      baseBranch,
+      title: body.title,
+      description: body.description,
+      files: new Map([
+        [
+          target.filePath,
+          { content: templateToYaml(draft.template), encoding: 'utf8' },
+        ],
+      ]),
+      commitMessage: body.commitMessage ?? body.title,
+      authorName,
+      authorEmail: `${authorName}@users.noreply.github.com`,
+      draft: body.draft,
+      reviewers: body.reviewers,
+    });
+
+    await draftStore.markPublished(name);
+    const response: PublishTemplateResponse = {
+      url: result.url,
+      number: result.number,
+    };
+    res.status(200).json(response);
+  });
+
   return router;
 }
 
@@ -861,4 +1042,74 @@ function entityToTemplate(entity: {
       phases: (spec?.phases as OnboardingTemplate['spec']['phases']) ?? [],
     },
   };
+}
+
+/**
+ * Reads the `backstage.io/managed-by-location` annotation for an
+ * OnboardingTemplate so a publish can target its original file.
+ */
+async function findTemplateLocation(
+  catalogApi: CatalogApi,
+  name: string,
+  logger: LoggerService,
+): Promise<string | undefined> {
+  try {
+    const entities = await catalogApi.getEntities({
+      filter: { kind: 'OnboardingTemplate', 'metadata.name': name },
+      fields: ['metadata.annotations'],
+      limit: 1,
+    });
+    return entities.items[0]?.metadata?.annotations?.[
+      'backstage.io/managed-by-location'
+    ];
+  } catch (error) {
+    logger.warn(`Failed to read location for template ${name}`, {
+      error: String(error),
+    });
+    return undefined;
+  }
+}
+
+/**
+ * Parses a catalog `url:` location into a repository URL and file path,
+ * supporting GitHub (`/blob/`) and GitLab (`/-/blob/`) style URLs.
+ */
+export function parseSourceLocation(
+  location: string,
+): { repoUrl: string; filePath: string } | undefined {
+  const raw = location.startsWith('url:')
+    ? location.slice('url:'.length)
+    : location;
+  const match = raw.match(
+    /^(https?:\/\/[^/]+\/[^/]+\/[^/]+)\/(?:-\/)?(?:blob|tree)\/[^/]+\/(.+)$/,
+  );
+  if (!match) {
+    return undefined;
+  }
+  return { repoUrl: match[1], filePath: match[2] };
+}
+
+/**
+ * Resolves the repository URL and file path a publish should target, from the
+ * explicit request body or the draft's captured source location.
+ */
+function resolvePublishTarget(
+  body: PublishTemplateRequest,
+  sourceLocation: string | undefined,
+): { repoUrl: string; filePath: string } {
+  if (body.repoUrl && body.filePath) {
+    return { repoUrl: body.repoUrl, filePath: body.filePath };
+  }
+  if (sourceLocation) {
+    const parsed = parseSourceLocation(sourceLocation);
+    if (parsed) {
+      return {
+        repoUrl: body.repoUrl ?? parsed.repoUrl,
+        filePath: body.filePath ?? parsed.filePath,
+      };
+    }
+  }
+  throw new InputError(
+    'repoUrl and filePath are required to publish this template',
+  );
 }

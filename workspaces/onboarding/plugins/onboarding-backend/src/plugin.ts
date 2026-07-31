@@ -18,9 +18,11 @@ import {
   coreServices,
   createBackendPlugin,
 } from '@backstage/backend-plugin-api';
+import { techDocsEditorVcsServiceRef } from '@estehsaan/backstage-plugin-techdocs-editor-node';
 import { CatalogClient } from '@backstage/catalog-client';
 import { createRouter } from './service/router';
 import { DatabaseOnboardingStore } from './service/OnboardingStore';
+import { DatabaseTemplateDraftStore } from './service/TemplateDraftStore';
 import { seedDemoData } from './service/seedDemoData';
 
 /**
@@ -42,6 +44,7 @@ export const onboardingPlugin = createBackendPlugin({
         httpAuth: coreServices.httpAuth,
         auth: coreServices.auth,
         discovery: coreServices.discovery,
+        vcs: techDocsEditorVcsServiceRef,
       },
       async init({
         config,
@@ -52,8 +55,13 @@ export const onboardingPlugin = createBackendPlugin({
         httpAuth,
         auth,
         discovery,
+        vcs,
       }) {
         const store = await DatabaseOnboardingStore.create({
+          database,
+          logger,
+        });
+        const draftStore = await DatabaseTemplateDraftStore.create({
           database,
           logger,
         });
@@ -77,6 +85,8 @@ export const onboardingPlugin = createBackendPlugin({
             logger,
             config,
             store,
+            draftStore,
+            vcs,
             permissions,
             httpAuth,
             catalogApi,

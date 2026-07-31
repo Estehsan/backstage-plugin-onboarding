@@ -53,6 +53,21 @@ const mockStore: jest.Mocked<DatabaseOnboardingStore> = {
   getBuddyProgress: jest.fn().mockResolvedValue([]),
 } as unknown as jest.Mocked<DatabaseOnboardingStore>;
 
+const mockDraftStore = {
+  getDraft: jest.fn(),
+  upsertDraft: jest.fn().mockResolvedValue(undefined),
+  markPublished: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockVcs = {
+  resolveProvider: jest.fn(),
+  openPullRequest: jest
+    .fn()
+    .mockResolvedValue({ url: 'http://pr/1', number: 1 }),
+  readFile: jest.fn(),
+  getDefaultBranch: jest.fn().mockResolvedValue('main'),
+};
+
 const mockPermissions = {
   authorize: jest.fn().mockResolvedValue([{ result: AuthorizeResult.ALLOW }]),
   authorizeConditional: jest.fn(),
@@ -76,6 +91,8 @@ async function createApp(
     logger: mockServices.logger.mock(),
     config: new ConfigReader(mergedConfig),
     store: mockStore,
+    draftStore: mockDraftStore as any,
+    vcs: mockVcs as any,
     permissions: mockPermissions,
     httpAuth: mockServices.httpAuth.mock({
       credentials: async () => mockCredentials.user(callerRef),
@@ -1508,6 +1525,91 @@ describe('createRouter', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.userId).toBe('user:default/jane.doe');
+    });
+  });
+
+  describe('Template Studio', () => {
+    const validTemplate = {
+      apiVersion: 'onboarding.backstage.io/v1',
+      kind: 'OnboardingTemplate',
+      metadata: { name: 'eng', title: 'Engineer' },
+      spec: { role: 'engineer', phases: [] },
+    };
+
+    it('lists blocks from the library', async () => {
+      const res = await request(app)
+        .get('/blocks')
+        .set('Authorization', '******');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
+    });
+
+    it('rejects saving a draft with validation errors', async () => {
+      const res = await request(app)
+        .put('/templates/eng/draft')
+        .set('Authorization', '******')
+        .send({
+          template: {
+            ...validTemplate,
+            metadata: { name: '', title: '' },
+            spec: { role: '', phases: [] },
+          },
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.issues.length).toBeGreaterThan(0);
+      expect(mockDraftStore.upsertDraft).not.toHaveBeenCalled();
+    });
+
+    it('saves a valid draft', async () => {
+      mockDraftStore.getDraft.mockResolvedValue(undefined);
+      const res = await request(app)
+        .put('/templates/eng/draft')
+        .set('Authorization', '******')
+        .send({
+          template: validTemplate,
+          sourceLocation: 'url:https://github.com/o/r/blob/main/eng.yaml',
+        });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('draft');
+      expect(mockDraftStore.upsertDraft).toHaveBeenCalled();
+    });
+
+    it('publishes a draft and opens a PR', async () => {
+      mockDraftStore.getDraft.mockResolvedValue({
+        name: 'eng',
+        template: validTemplate,
+        sourceLocation: undefined,
+        updatedAt: '2026-08-01T00:00:00.000Z',
+        status: 'draft',
+      });
+
+      const res = await request(app)
+        .post('/templates/eng/publish')
+        .set('Authorization', '******')
+        .send({
+          title: 'Update onboarding template',
+          repoUrl: 'https://github.com/o/r',
+          filePath: 'catalog/onboarding/eng.yaml',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.url).toBe('http://pr/1');
+      expect(res.body.number).toBe(1);
+      expect(mockVcs.openPullRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ repoUrl: 'https://github.com/o/r' }),
+      );
+      expect(mockDraftStore.markPublished).toHaveBeenCalledWith('eng');
+    });
+
+    it('denies template writes without permission', async () => {
+      mockPermissions.authorize.mockResolvedValue([
+        { result: AuthorizeResult.DENY },
+      ]);
+      const res = await request(app)
+        .get('/blocks')
+        .set('Authorization', '******');
+      expect(res.status).toBe(403);
     });
   });
 });

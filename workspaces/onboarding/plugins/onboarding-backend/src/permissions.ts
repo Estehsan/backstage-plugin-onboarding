@@ -19,5 +19,6 @@ export {
   onboardingProgressUpdatePermission,
   onboardingTeamReadPermission,
   onboardingTemplateAssignPermission,
+  onboardingTemplateWritePermission,
   onboardingPermissions,
 } from '@estehsaan/backstage-plugin-onboarding-common';
