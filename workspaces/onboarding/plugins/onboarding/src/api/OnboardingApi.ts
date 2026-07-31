@@ -19,9 +19,14 @@ import {
   OnboardingCatalogUser,
   OnboardingProgress,
   OnboardingTemplate,
+  PublishTemplateRequest,
+  PublishTemplateResponse,
   TaskStatus,
   TeamJoinerSummary,
   TeamOnboardingStats,
+  TemplateBlock,
+  TemplateDraft,
+  TemplateValidationIssue,
 } from '../types';
 
 /**
@@ -66,4 +71,30 @@ export interface OnboardingApi {
   getMyBuddies(): Promise<TeamJoinerSummary[]>;
   /** Checks if the current user has template assigner permissions. */
   getIsAssigner(): Promise<{ isAssigner: boolean }>;
+  /** Loads the editable draft for a template, seeding from catalog if needed. */
+  getTemplateDraft(name: string): Promise<TemplateDraft>;
+  /** Persists an edited template draft after server-side validation. */
+  saveTemplateDraft(
+    name: string,
+    template: OnboardingTemplate,
+    sourceLocation?: string,
+  ): Promise<TemplateDraft>;
+  /** Creates a new empty template draft for the given role. */
+  createTemplateDraft(input: {
+    name: string;
+    role: string;
+    title: string;
+  }): Promise<TemplateDraft>;
+  /** Lists the reusable task and phase blocks available in the studio. */
+  listBlocks(): Promise<TemplateBlock[]>;
+  /** Validates a template without persisting it. */
+  validateTemplate(
+    name: string,
+    template: OnboardingTemplate,
+  ): Promise<TemplateValidationIssue[]>;
+  /** Publishes a template draft as a pull/merge request. */
+  publishTemplate(
+    name: string,
+    request: PublishTemplateRequest,
+  ): Promise<PublishTemplateResponse>;
 }

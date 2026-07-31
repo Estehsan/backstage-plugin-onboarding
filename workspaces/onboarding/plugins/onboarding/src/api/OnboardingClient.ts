@@ -21,9 +21,14 @@ import {
   OnboardingCatalogUser,
   OnboardingProgress,
   OnboardingTemplate,
+  PublishTemplateRequest,
+  PublishTemplateResponse,
   TaskStatus,
   TeamJoinerSummary,
   TeamOnboardingStats,
+  TemplateBlock,
+  TemplateDraft,
+  TemplateValidationIssue,
 } from '../types';
 
 /** @public */
@@ -114,6 +119,71 @@ export class OnboardingClient implements OnboardingApi {
 
   async getIsAssigner(): Promise<{ isAssigner: boolean }> {
     return this.request<{ isAssigner: boolean }>('/assigner/me');
+  }
+
+  async getTemplateDraft(name: string): Promise<TemplateDraft> {
+    return this.request<TemplateDraft>(
+      `/templates/${encodeURIComponent(name)}/draft`,
+    );
+  }
+
+  async saveTemplateDraft(
+    name: string,
+    template: OnboardingTemplate,
+    sourceLocation?: string,
+  ): Promise<TemplateDraft> {
+    return this.request<TemplateDraft>(
+      `/templates/${encodeURIComponent(name)}/draft`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template, sourceLocation }),
+      },
+    );
+  }
+
+  async createTemplateDraft(input: {
+    name: string;
+    role: string;
+    title: string;
+  }): Promise<TemplateDraft> {
+    return this.request<TemplateDraft>('/templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+  }
+
+  async listBlocks(): Promise<TemplateBlock[]> {
+    return this.request<TemplateBlock[]>('/blocks');
+  }
+
+  async validateTemplate(
+    name: string,
+    template: OnboardingTemplate,
+  ): Promise<TemplateValidationIssue[]> {
+    return this.request<TemplateValidationIssue[]>(
+      `/templates/${encodeURIComponent(name)}/validate`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template }),
+      },
+    );
+  }
+
+  async publishTemplate(
+    name: string,
+    request: PublishTemplateRequest,
+  ): Promise<PublishTemplateResponse> {
+    return this.request<PublishTemplateResponse>(
+      `/templates/${encodeURIComponent(name)}/publish`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      },
+    );
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
