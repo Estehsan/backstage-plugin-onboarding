@@ -180,3 +180,95 @@ export interface TeamOnboardingStats {
   /** Total number of blocked tasks across the team. */
   totalBlockedTasks: number;
 }
+
+/**
+ * A reusable fragment users can insert while editing a template in the
+ * Template Studio — either a single task or a whole phase of tasks.
+ * @public
+ */
+export interface TemplateBlock {
+  /** Unique identifier of the block within the library. */
+  id: string;
+  /** Whether the block inserts a single task or a full phase. */
+  kind: 'task' | 'phase';
+  /** Display label shown in the block library. */
+  title: string;
+  /** Optional longer description of what the block adds. */
+  description?: string;
+  /** Target phase for a `phase` block. */
+  phase?: Phase;
+  /** Task payload for a `task` block (id is assigned on insertion). */
+  task?: Omit<OnboardingTask, 'id'>;
+  /** Task payloads for a `phase` block (ids are assigned on insertion). */
+  tasks?: Omit<OnboardingTask, 'id'>[];
+}
+
+/**
+ * An in-progress edit of an OnboardingTemplate persisted in the backend before
+ * being published to a git repository.
+ * @public
+ */
+export interface TemplateDraft {
+  /** Template name (matches `metadata.name`). */
+  name: string;
+  /** The full template being edited. */
+  template: OnboardingTemplate;
+  /** Catalog location the template was seeded from, if any (used on publish). */
+  sourceLocation?: string;
+  /** Backstage user entity ref of the last editor, if known. */
+  updatedBy?: string;
+  /** ISO-8601 timestamp of the last edit. */
+  updatedAt: string;
+  /** Whether the draft is still being edited or has been published. */
+  status: 'draft' | 'published';
+}
+
+/**
+ * A single problem found when validating a template.
+ * @public
+ */
+export interface TemplateValidationIssue {
+  /**
+   * Locator for the offending field, e.g. `spec.phases[0].tasks[1].dependsOn`,
+   * used by the editor to navigate to the problem.
+   */
+  path: string;
+  /** Human-readable description of the problem. */
+  message: string;
+  /** Whether the issue blocks publishing or is only advisory. */
+  severity: 'error' | 'warning';
+}
+
+/**
+ * Request body for publishing a template draft as a pull/merge request.
+ * @public
+ */
+export interface PublishTemplateRequest {
+  /** Pull/merge request title. */
+  title: string;
+  /** Optional PR/MR description body. */
+  description?: string;
+  /** Optional commit message (defaults to the title). */
+  commitMessage?: string;
+  /** Branch to merge into (defaults to the repo's default branch). */
+  baseBranch?: string;
+  /** Open the PR/MR as a draft. */
+  draft?: boolean;
+  /** Usernames to request review from. */
+  reviewers?: string[];
+  /** Target repository URL — required when the draft has no source location. */
+  repoUrl?: string;
+  /** Target file path within the repo — required for new templates. */
+  filePath?: string;
+}
+
+/**
+ * Result of publishing a template draft.
+ * @public
+ */
+export interface PublishTemplateResponse {
+  /** Direct URL to the opened pull/merge request. */
+  url: string;
+  /** Provider-specific PR/MR number. */
+  number: number;
+}

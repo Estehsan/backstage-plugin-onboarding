@@ -14,35 +14,16 @@
  * limitations under the License.
  */
 
-/**
- * Shared types and permissions for the Backstage Onboarding plugin.
- *
- * @packageDocumentation
- */
-
-export type {
-  TaskStatus,
-  TaskType,
-  Phase,
-  ResourceType,
-  TaskResource,
-  OnboardingTask,
-  OnboardingTemplate,
-  OnboardingProgress,
-  TeamJoinerSummary,
-  TeamOnboardingStats,
-  TemplateBlock,
-  TemplateDraft,
-  TemplateValidationIssue,
-  PublishTemplateRequest,
-  PublishTemplateResponse,
-} from './types';
-
-export {
-  onboardingProgressReadPermission,
-  onboardingProgressUpdatePermission,
-  onboardingTeamReadPermission,
-  onboardingTemplateAssignPermission,
-  onboardingTemplateWritePermission,
+import {
   onboardingPermissions,
+  onboardingTemplateWritePermission,
 } from './permissions';
+
+describe('onboarding permissions', () => {
+  it('includes the template.write permission', () => {
+    expect(onboardingTemplateWritePermission.name).toBe(
+      'onboarding.template.write',
+    );
+    expect(onboardingPermissions).toContain(onboardingTemplateWritePermission);
+  });
+});

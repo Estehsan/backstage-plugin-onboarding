@@ -25,6 +25,11 @@ export type {
   OnboardingProgress,
   TeamJoinerSummary,
   TeamOnboardingStats,
+  TemplateBlock,
+  TemplateDraft,
+  TemplateValidationIssue,
+  PublishTemplateRequest,
+  PublishTemplateResponse,
 } from '@estehsaan/backstage-plugin-onboarding-common';
 
 /** Database row representation of onboarding progress */
@@ -36,4 +41,14 @@ export interface OnboardingProgressRow {
   tasks: string;
   updated_at: string;
   buddy_user_id: string | null;
+}
+
+/** Database row representation of a template draft */
+export interface TemplateDraftRow {
+  name: string;
+  spec_json: string;
+  source_location: string | null;
+  updated_by: string | null;
+  updated_at: string;
+  status: string;
 }
