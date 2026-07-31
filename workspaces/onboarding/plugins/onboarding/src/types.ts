@@ -25,6 +25,11 @@ export type {
   OnboardingProgress,
   TeamOnboardingStats,
   TeamJoinerSummary,
+  TemplateBlock,
+  TemplateDraft,
+  TemplateValidationIssue,
+  PublishTemplateRequest,
+  PublishTemplateResponse,
 } from '@estehsaan/backstage-plugin-onboarding-common';
 
 /**

@@ -255,4 +255,53 @@ describe('OnboardingClient', () => {
       expect(url).toBe(`${baseUrl}/buddies/mine`);
     });
   });
+
+  describe('Template Studio', () => {
+    const template = {
+      apiVersion: 'onboarding.backstage.io/v1',
+      kind: 'OnboardingTemplate',
+      metadata: { name: 'eng', title: 'Engineer' },
+      spec: { role: 'engineer', phases: [] },
+    } as any;
+
+    it('saves a draft with a PUT to the draft endpoint', async () => {
+      const draft = {
+        name: 'eng',
+        template,
+        updatedAt: '2026-08-01T00:00:00.000Z',
+        status: 'draft',
+      };
+      fetchApi.fetch.mockResolvedValue(okResponse(draft));
+
+      const result = await createClient().saveTemplateDraft('eng', template);
+
+      expect(result).toEqual(draft);
+      const [url, init] = fetchApi.fetch.mock.calls[0];
+      expect(url).toBe(`${baseUrl}/templates/eng/draft`);
+      expect(init?.method).toBe('PUT');
+      expect(JSON.parse(init?.body as string)).toEqual({
+        template,
+        sourceLocation: undefined,
+      });
+    });
+
+    it('lists blocks and publishes via POST', async () => {
+      fetchApi.fetch.mockResolvedValue(okResponse([]));
+      await createClient().listBlocks();
+      expect(fetchApi.fetch.mock.calls[0][0]).toBe(`${baseUrl}/blocks`);
+
+      fetchApi.fetch.mockResolvedValue(
+        okResponse({ url: 'http://pr/1', number: 1 }),
+      );
+      const res = await createClient().publishTemplate('eng', {
+        title: 'Update template',
+        repoUrl: 'https://github.com/o/r',
+        filePath: 'eng.yaml',
+      });
+      expect(res).toEqual({ url: 'http://pr/1', number: 1 });
+      const [url, init] = fetchApi.fetch.mock.calls[1];
+      expect(url).toBe(`${baseUrl}/templates/eng/publish`);
+      expect(init?.method).toBe('POST');
+    });
+  });
 });
