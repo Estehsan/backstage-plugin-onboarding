@@ -51,6 +51,12 @@ export interface TemplateStudioPageProps {
 
 type StudioView = 'editor' | 'yaml' | 'preview';
 
+const VIEW_LABELS: Record<StudioView, string> = {
+  editor: 'Editor',
+  yaml: 'YAML',
+  preview: 'Preview',
+};
+
 /**
  * Container for the Onboarding Template Studio: loads a draft, holds the
  * editable template in state, and coordinates the structured editor, the live
@@ -237,7 +243,7 @@ export function TemplateStudioPage(props: TemplateStudioPageProps) {
                 variant={view === v ? 'primary' : 'tertiary'}
                 onPress={() => setView(v)}
               >
-                {v === 'editor' ? 'Editor' : v === 'yaml' ? 'YAML' : 'Preview'}
+                {VIEW_LABELS[v]}
               </Button>
             ))}
           </div>

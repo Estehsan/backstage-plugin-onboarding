@@ -24,11 +24,16 @@ import { OnboardingProgress } from '@estehsaan/backstage-plugin-onboarding-commo
 import { OnboardingTemplate } from '@estehsaan/backstage-plugin-onboarding-common';
 import { OverridableExtensionDefinition } from '@backstage/frontend-plugin-api';
 import { OverridableFrontendPlugin } from '@backstage/frontend-plugin-api';
+import { PublishTemplateRequest } from '@estehsaan/backstage-plugin-onboarding-common';
+import { PublishTemplateResponse } from '@estehsaan/backstage-plugin-onboarding-common';
 import { RouteRef } from '@backstage/core-plugin-api';
 import { RouteRef as RouteRef_2 } from '@backstage/frontend-plugin-api';
 import { TaskStatus } from '@estehsaan/backstage-plugin-onboarding-common';
 import { TeamJoinerSummary } from '@estehsaan/backstage-plugin-onboarding-common';
 import { TeamOnboardingStats } from '@estehsaan/backstage-plugin-onboarding-common';
+import { TemplateBlock } from '@estehsaan/backstage-plugin-onboarding-common';
+import { TemplateDraft } from '@estehsaan/backstage-plugin-onboarding-common';
+import { TemplateValidationIssue } from '@estehsaan/backstage-plugin-onboarding-common';
 
 // @public
 export function EntityUserOnboardingCard(): JSX_3.Element;
@@ -105,6 +110,11 @@ export interface OnboardingApiType {
     userId: string,
     buddyUserId?: string,
   ): Promise<OnboardingProgress>;
+  createTemplateDraft(input: {
+    name: string;
+    role: string;
+    title: string;
+  }): Promise<TemplateDraft>;
   getIsAssigner(): Promise<{
     isAssigner: boolean;
   }>;
@@ -114,7 +124,18 @@ export interface OnboardingApiType {
   }>;
   getProgress(userId: string): Promise<OnboardingProgress>;
   getTeamStats(teamName: string): Promise<TeamOnboardingStats>;
+  getTemplateDraft(name: string): Promise<TemplateDraft>;
   getTemplates(): Promise<OnboardingTemplate[]>;
+  listBlocks(): Promise<TemplateBlock[]>;
+  publishTemplate(
+    name: string,
+    request: PublishTemplateRequest,
+  ): Promise<PublishTemplateResponse>;
+  saveTemplateDraft(
+    name: string,
+    template: OnboardingTemplate,
+    sourceLocation?: string,
+  ): Promise<TemplateDraft>;
   searchCatalogUsers(query: string): Promise<OnboardingCatalogUser[]>;
   setBuddy(userId: string, buddyUserId: string | undefined): Promise<void>;
   updateTaskStatus(
@@ -123,6 +144,10 @@ export interface OnboardingApiType {
     status: TaskStatus,
     blockedReason?: string,
   ): Promise<OnboardingProgress>;
+  validateTemplate(
+    name: string,
+    template: OnboardingTemplate,
+  ): Promise<TemplateValidationIssue[]>;
 }
 
 // @public
@@ -160,6 +185,9 @@ export const OnboardingNavItem: OverridableExtensionDefinition<{
 
 // @public
 export function OnboardingPage(): JSX.Element;
+
+// @public (undocumented)
+export function OnboardingPageContent(): JSX_3.Element;
 
 // @public
 export const OnboardingPageExtension: OverridableExtensionDefinition<{
@@ -243,6 +271,9 @@ export const OnboardingPageExtension: OverridableExtensionDefinition<{
 const onboardingPlugin: OverridableFrontendPlugin<
   {
     root: RouteRef<undefined>;
+    templateEditor: RouteRef<{
+      name: string;
+    }>;
   },
   {},
   {
@@ -328,6 +359,82 @@ const onboardingPlugin: OverridableFrontendPlugin<
     'page:onboarding': OverridableExtensionDefinition<{
       kind: 'page';
       name: undefined;
+      config: {
+        path: string | undefined;
+        title: string | undefined;
+      };
+      configInput: {
+        title?: string | undefined;
+        path?: string | undefined;
+      };
+      output:
+        | ExtensionDataRef<JSX_2.Element, 'core.reactElement', {}>
+        | ExtensionDataRef<string, 'core.routing.path', {}>
+        | ExtensionDataRef<
+            RouteRef_2<AnyRouteRefParams>,
+            'core.routing.ref',
+            {
+              optional: true;
+            }
+          >
+        | ExtensionDataRef<
+            string,
+            'core.title',
+            {
+              optional: true;
+            }
+          >
+        | ExtensionDataRef<
+            IconElement,
+            'core.icon',
+            {
+              optional: true;
+            }
+          >;
+      inputs: {
+        pages: ExtensionInput<
+          | ConfigurableExtensionDataRef<JSX_2.Element, 'core.reactElement', {}>
+          | ConfigurableExtensionDataRef<string, 'core.routing.path', {}>
+          | ConfigurableExtensionDataRef<
+              RouteRef_2<AnyRouteRefParams>,
+              'core.routing.ref',
+              {
+                optional: true;
+              }
+            >
+          | ConfigurableExtensionDataRef<
+              string,
+              'core.title',
+              {
+                optional: true;
+              }
+            >
+          | ConfigurableExtensionDataRef<
+              IconElement,
+              'core.icon',
+              {
+                optional: true;
+              }
+            >,
+          {
+            singleton: false;
+            optional: false;
+            internal: false;
+          }
+        >;
+      };
+      params: {
+        path: string;
+        title?: string | undefined;
+        icon?: IconElement | undefined;
+        loader?: (() => Promise<JSX_2.Element>) | undefined;
+        routeRef?: RouteRef_2<AnyRouteRefParams> | undefined;
+        noHeader?: boolean | undefined;
+      };
+    }>;
+    'page:onboarding/template-editor': OverridableExtensionDefinition<{
+      kind: 'page';
+      name: 'template-editor';
       config: {
         path: string | undefined;
         title: string | undefined;

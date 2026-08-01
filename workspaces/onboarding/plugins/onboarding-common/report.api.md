@@ -75,7 +75,28 @@ export interface OnboardingTemplate {
 export const onboardingTemplateAssignPermission: BasicPermission;
 
 // @public
+export const onboardingTemplateWritePermission: BasicPermission;
+
+// @public
 export type Phase = 'day1' | 'week1' | 'week2' | 'month1';
+
+// @public
+export interface PublishTemplateRequest {
+  baseBranch?: string;
+  commitMessage?: string;
+  description?: string;
+  draft?: boolean;
+  filePath?: string;
+  repoUrl?: string;
+  reviewers?: string[];
+  title: string;
+}
+
+// @public
+export interface PublishTemplateResponse {
+  number: number;
+  url: string;
+}
 
 // @public
 export type ResourceType =
@@ -118,5 +139,33 @@ export interface TeamOnboardingStats {
   avgCompletionPercent: number;
   teamName: string;
   totalBlockedTasks: number;
+}
+
+// @public
+export interface TemplateBlock {
+  description?: string;
+  id: string;
+  kind: 'task' | 'phase';
+  phase?: Phase;
+  task?: Omit<OnboardingTask, 'id'>;
+  tasks?: Omit<OnboardingTask, 'id'>[];
+  title: string;
+}
+
+// @public
+export interface TemplateDraft {
+  name: string;
+  sourceLocation?: string;
+  status: 'draft' | 'published';
+  template: OnboardingTemplate;
+  updatedAt: string;
+  updatedBy?: string;
+}
+
+// @public
+export interface TemplateValidationIssue {
+  message: string;
+  path: string;
+  severity: 'error' | 'warning';
 }
 ```
