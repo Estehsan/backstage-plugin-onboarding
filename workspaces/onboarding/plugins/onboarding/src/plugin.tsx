@@ -24,7 +24,7 @@ import {
 import { discoveryApiRef, fetchApiRef } from '@backstage/core-plugin-api';
 import { EntityCardBlueprint } from '@backstage/plugin-catalog-react/alpha';
 import SchoolIcon from '@material-ui/icons/School';
-import { rootRouteRef } from './routes';
+import { rootRouteRef, templateEditorRouteRef } from './routes';
 import { onboardingApiRef } from './api/OnboardingApi';
 import { OnboardingClient } from './api/OnboardingClient';
 
@@ -39,6 +39,22 @@ export const OnboardingPageExtension = PageBlueprint.make({
     loader: () =>
       import('./components/OnboardingPage/OnboardingPage').then(m => (
         <m.OnboardingPage />
+      )),
+  },
+});
+
+/**
+ * Page extension for the Template Studio editor.
+ * @public
+ */
+export const OnboardingTemplateEditorPageExtension = PageBlueprint.make({
+  name: 'template-editor',
+  params: {
+    path: '/onboarding/templates/:name/edit',
+    routeRef: templateEditorRouteRef,
+    loader: () =>
+      import('./components/TemplateStudio/TemplateStudioRoutePage').then(m => (
+        <m.TemplateStudioRoutePage />
       )),
   },
 });
@@ -80,9 +96,9 @@ export const EntityUserOnboardingCardExtension = EntityCardBlueprint.make({
   params: {
     filter: 'kind:user',
     loader: () =>
-      import('./components/EntityUserOnboardingCard/EntityUserOnboardingCard').then(
-        m => <m.EntityUserOnboardingCard />,
-      ),
+      import(
+        './components/EntityUserOnboardingCard/EntityUserOnboardingCard'
+      ).then(m => <m.EntityUserOnboardingCard />),
   },
 });
 
@@ -95,9 +111,11 @@ export const onboardingPlugin = createFrontendPlugin({
   info: { packageJson: () => import('../package.json') },
   routes: {
     root: rootRouteRef,
+    templateEditor: templateEditorRouteRef,
   },
   extensions: [
     OnboardingPageExtension,
+    OnboardingTemplateEditorPageExtension,
     OnboardingNavItem,
     OnboardingApi,
     EntityUserOnboardingCardExtension,

@@ -23,6 +23,7 @@
 export {
   onboardingPlugin as default,
   OnboardingPageExtension,
+  OnboardingTemplateEditorPageExtension,
   OnboardingNavItem,
   OnboardingApi,
   EntityUserOnboardingCardExtension,

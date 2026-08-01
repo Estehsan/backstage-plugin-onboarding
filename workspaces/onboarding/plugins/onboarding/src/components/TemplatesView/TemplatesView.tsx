@@ -16,6 +16,8 @@
 
 import { useEffect, useState } from 'react';
 import { Box, Text, Tag, TagGroup, Card, CardBody } from '@backstage/ui';
+import { Link } from '@backstage/core-components';
+import { useRouteRef } from '@backstage/core-plugin-api';
 import Button from '@material-ui/core/Button';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import Dialog from '@material-ui/core/Dialog';
@@ -26,17 +28,20 @@ import TextField from '@material-ui/core/TextField';
 import Autocomplete from '@material-ui/lab/Autocomplete';
 import { OnboardingApi } from '../../api/OnboardingApi';
 import { OnboardingCatalogUser, OnboardingTemplate } from '../../types';
+import { templateEditorRouteRef } from '../../routes';
 import styles from './TemplatesView.module.css';
 
 /** @public */
 export interface TemplatesViewProps {
   templates: OnboardingTemplate[];
   onboardingApi: OnboardingApi;
+  canEdit?: boolean;
 }
 
 /** @public */
 export function TemplatesView(props: TemplatesViewProps) {
-  const { templates, onboardingApi } = props;
+  const { templates, onboardingApi, canEdit = false } = props;
+  const editorLink = useRouteRef(templateEditorRouteRef);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
@@ -162,12 +167,36 @@ export function TemplatesView(props: TemplatesViewProps) {
         <Text variant="body-small">
           Register OnboardingTemplate entities in your catalog to get started.
         </Text>
+        {canEdit && (
+          <Button
+            component={Link}
+            to={editorLink({ name: 'new' })}
+            size="small"
+            color="primary"
+            variant="contained"
+          >
+            New template
+          </Button>
+        )}
       </Box>
     );
   }
 
   return (
     <>
+      {canEdit && (
+        <Box className={styles.toolbar}>
+          <Button
+            component={Link}
+            to={editorLink({ name: 'new' })}
+            size="small"
+            color="primary"
+            variant="contained"
+          >
+            New template
+          </Button>
+        </Box>
+      )}
       <div className={styles.grid}>
         {templates.map(template => {
           const taskCount = template.spec.phases.reduce(
@@ -212,6 +241,18 @@ export function TemplatesView(props: TemplatesViewProps) {
                   >
                     Use Template
                   </Button>
+                  {canEdit && (
+                    <Button
+                      fullWidth
+                      component={Link}
+                      to={editorLink({ name: template.metadata.name })}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    >
+                      Edit in Studio
+                    </Button>
+                  )}
                 </div>
               </Card>
             </div>
