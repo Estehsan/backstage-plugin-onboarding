@@ -32,3 +32,4 @@ export { onboardingApiRef } from './api/OnboardingApi';
 export type { OnboardingApi as OnboardingApiType } from './api/OnboardingApi';
 export type { OnboardingCatalogUser } from './types';
 export { EntityUserOnboardingCard } from './components/EntityUserOnboardingCard';
+export { OnboardingPage as OnboardingPageContent } from './components/OnboardingPage/OnboardingPage';

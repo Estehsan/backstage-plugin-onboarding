@@ -190,6 +190,9 @@ export const OnboardingPageExtension: OverridableExtensionDefinition<{
 const onboardingPlugin: OverridableFrontendPlugin<
   {
     root: RouteRef<undefined>;
+    templateEditor: RouteRef<{
+      name: string;
+    }>;
   },
   {},
   {
@@ -348,9 +351,163 @@ const onboardingPlugin: OverridableFrontendPlugin<
         noHeader?: boolean | undefined;
       };
     }>;
+    'page:onboarding/template-editor': OverridableExtensionDefinition<{
+      kind: 'page';
+      name: 'template-editor';
+      config: {
+        path: string | undefined;
+        title: string | undefined;
+      };
+      configInput: {
+        title?: string | undefined;
+        path?: string | undefined;
+      };
+      output:
+        | ExtensionDataRef<JSX_2.Element, 'core.reactElement', {}>
+        | ExtensionDataRef<string, 'core.routing.path', {}>
+        | ExtensionDataRef<
+            RouteRef_2<AnyRouteRefParams>,
+            'core.routing.ref',
+            {
+              optional: true;
+            }
+          >
+        | ExtensionDataRef<
+            string,
+            'core.title',
+            {
+              optional: true;
+            }
+          >
+        | ExtensionDataRef<
+            IconElement,
+            'core.icon',
+            {
+              optional: true;
+            }
+          >;
+      inputs: {
+        pages: ExtensionInput<
+          | ConfigurableExtensionDataRef<JSX_2.Element, 'core.reactElement', {}>
+          | ConfigurableExtensionDataRef<string, 'core.routing.path', {}>
+          | ConfigurableExtensionDataRef<
+              RouteRef_2<AnyRouteRefParams>,
+              'core.routing.ref',
+              {
+                optional: true;
+              }
+            >
+          | ConfigurableExtensionDataRef<
+              string,
+              'core.title',
+              {
+                optional: true;
+              }
+            >
+          | ConfigurableExtensionDataRef<
+              IconElement,
+              'core.icon',
+              {
+                optional: true;
+              }
+            >,
+          {
+            singleton: false;
+            optional: false;
+            internal: false;
+          }
+        >;
+      };
+      params: {
+        path: string;
+        title?: string | undefined;
+        icon?: IconElement | undefined;
+        loader?: (() => Promise<JSX_2.Element>) | undefined;
+        routeRef?: RouteRef_2<AnyRouteRefParams> | undefined;
+        noHeader?: boolean | undefined;
+      };
+    }>;
   }
 >;
 export default onboardingPlugin;
+
+// @public
+export const OnboardingTemplateEditorPageExtension: OverridableExtensionDefinition<{
+  kind: 'page';
+  name: 'template-editor';
+  config: {
+    path: string | undefined;
+    title: string | undefined;
+  };
+  configInput: {
+    title?: string | undefined;
+    path?: string | undefined;
+  };
+  output:
+    | ExtensionDataRef<JSX_2.Element, 'core.reactElement', {}>
+    | ExtensionDataRef<string, 'core.routing.path', {}>
+    | ExtensionDataRef<
+        RouteRef_2<AnyRouteRefParams>,
+        'core.routing.ref',
+        {
+          optional: true;
+        }
+      >
+    | ExtensionDataRef<
+        string,
+        'core.title',
+        {
+          optional: true;
+        }
+      >
+    | ExtensionDataRef<
+        IconElement,
+        'core.icon',
+        {
+          optional: true;
+        }
+      >;
+  inputs: {
+    pages: ExtensionInput<
+      | ConfigurableExtensionDataRef<JSX_2.Element, 'core.reactElement', {}>
+      | ConfigurableExtensionDataRef<string, 'core.routing.path', {}>
+      | ConfigurableExtensionDataRef<
+          RouteRef_2<AnyRouteRefParams>,
+          'core.routing.ref',
+          {
+            optional: true;
+          }
+        >
+      | ConfigurableExtensionDataRef<
+          string,
+          'core.title',
+          {
+            optional: true;
+          }
+        >
+      | ConfigurableExtensionDataRef<
+          IconElement,
+          'core.icon',
+          {
+            optional: true;
+          }
+        >,
+      {
+        singleton: false;
+        optional: false;
+        internal: false;
+      }
+    >;
+  };
+  params: {
+    path: string;
+    title?: string | undefined;
+    icon?: IconElement | undefined;
+    loader?: (() => Promise<JSX_2.Element>) | undefined;
+    routeRef?: RouteRef_2<AnyRouteRefParams> | undefined;
+    noHeader?: boolean | undefined;
+  };
+}>;
 
 // (No @packageDocumentation comment for this package)
 ```

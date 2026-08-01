@@ -96,9 +96,9 @@ export const EntityUserOnboardingCardExtension = EntityCardBlueprint.make({
   params: {
     filter: 'kind:user',
     loader: () =>
-      import(
-        './components/EntityUserOnboardingCard/EntityUserOnboardingCard'
-      ).then(m => <m.EntityUserOnboardingCard />),
+      import('./components/EntityUserOnboardingCard/EntityUserOnboardingCard').then(
+        m => <m.EntityUserOnboardingCard />,
+      ),
   },
 });
 

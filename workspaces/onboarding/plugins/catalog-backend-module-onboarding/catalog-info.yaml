@@ -15,10 +15,10 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: backstage-plugin-catalog-backend-module-onboarding
+  name: estehsaan-backstage-plugin-catalog-backend-module-onboarding
   title: "@estehsaan/backstage-plugin-catalog-backend-module-onboarding"
   description: Catalog backend module that adds the OnboardingTemplate entity kind
 spec:
-  type: backstage-plugin
+  type: backstage-backend-plugin-module
   lifecycle: production
-  owner: guests
+  owner: maintainers
