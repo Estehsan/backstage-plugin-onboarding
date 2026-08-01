@@ -20,6 +20,9 @@
 
   .cardFooter {
     padding: var(--bui-space-3) var(--bui-space-3) var(--bui-space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--bui-space-2);
   }
 
   .tagRow {
@@ -48,5 +51,11 @@
   .successText {
     color: var(--bui-fg-success);
     margin-top: var(--bui-space-2);
+  }
+
+  .toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: var(--bui-space-4);
   }
 }

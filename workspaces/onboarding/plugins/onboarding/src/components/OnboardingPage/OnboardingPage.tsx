@@ -307,6 +307,7 @@ export function OnboardingPage() {
               <TemplatesView
                 templates={templates}
                 onboardingApi={onboardingApi}
+                canEdit={isAssigner}
               />
             </TabPanel>
           )}

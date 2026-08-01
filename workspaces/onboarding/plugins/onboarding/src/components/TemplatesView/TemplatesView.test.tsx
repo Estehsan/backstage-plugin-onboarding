@@ -18,10 +18,11 @@
 
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { render } from '@testing-library/react';
+import { renderInTestApp } from '@backstage/test-utils';
 import { TemplatesView } from './TemplatesView';
 import { OnboardingApi } from '../../api/OnboardingApi';
 import { OnboardingTemplate } from '../../types';
+import { templateEditorRouteRef } from '../../routes';
 
 const template: OnboardingTemplate = {
   apiVersion: 'onboarding.backstage.io/v1',
@@ -104,8 +105,13 @@ describe('TemplatesView', () => {
       },
     ]);
 
-    render(
+    await renderInTestApp(
       <TemplatesView templates={[template]} onboardingApi={onboardingApi} />,
+      {
+        mountedRoutes: {
+          '/templates/:name/edit': templateEditorRouteRef,
+        },
+      },
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'Use Template' }));
@@ -128,8 +134,13 @@ describe('TemplatesView', () => {
   it('allows manual user entity ref fallback', async () => {
     const onboardingApi = createOnboardingApiMock();
 
-    render(
+    await renderInTestApp(
       <TemplatesView templates={[template]} onboardingApi={onboardingApi} />,
+      {
+        mountedRoutes: {
+          '/templates/:name/edit': templateEditorRouteRef,
+        },
+      },
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'Use Template' }));
@@ -188,8 +199,13 @@ describe('TemplatesView', () => {
       ];
     });
 
-    render(
+    await renderInTestApp(
       <TemplatesView templates={[template]} onboardingApi={onboardingApi} />,
+      {
+        mountedRoutes: {
+          '/templates/:name/edit': templateEditorRouteRef,
+        },
+      },
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'Use Template' }));

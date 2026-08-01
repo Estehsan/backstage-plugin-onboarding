@@ -14,19 +14,15 @@
  * limitations under the License.
  */
 
-import { createRouteRef } from '@backstage/core-plugin-api';
-
-/** @public */
-export const rootRouteRef = createRouteRef({
-  id: 'onboarding',
-});
+import { useRouteRefParams } from '@backstage/core-plugin-api';
+import { templateEditorRouteRef } from '../../routes';
+import { TemplateStudioPage } from './TemplateStudioPage';
 
 /**
- * Route for the Template Studio editor. The `name` param is the
- * `OnboardingTemplate` entity name, or the literal `new` to create one.
+ * Reads the `:name` route param and renders the Template Studio editor.
  * @public
  */
-export const templateEditorRouteRef = createRouteRef({
-  id: 'onboarding:template-editor',
-  params: ['name'],
-});
+export function TemplateStudioRoutePage(): JSX.Element {
+  const { name } = useRouteRefParams(templateEditorRouteRef);
+  return <TemplateStudioPage templateName={name} />;
+}

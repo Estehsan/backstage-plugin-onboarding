@@ -25,4 +25,9 @@ describe('onboardingPlugin', () => {
     const { OnboardingPageExtension } = await import('./plugin');
     expect(OnboardingPageExtension).toBeDefined();
   });
+
+  it('should export the OnboardingTemplateEditorPageExtension extension', async () => {
+    const { OnboardingTemplateEditorPageExtension } = await import('./plugin');
+    expect(OnboardingTemplateEditorPageExtension).toBeDefined();
+  });
 });
