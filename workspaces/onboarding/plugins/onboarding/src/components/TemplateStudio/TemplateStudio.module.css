@@ -1,0 +1,130 @@
+@layer components {
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--bui-space-4);
+    padding: var(--bui-space-4);
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--bui-space-2);
+    flex-wrap: wrap;
+  }
+
+  .viewSwitch {
+    display: flex;
+    gap: var(--bui-space-1);
+  }
+
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--bui-space-4);
+  }
+
+  .twoColumns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--bui-space-4);
+  }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--bui-space-3);
+  }
+
+  .row {
+    display: flex;
+    gap: var(--bui-space-2);
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .card {
+    border: 1px solid var(--bui-border-1);
+    border-radius: var(--bui-radius-2);
+    padding: var(--bui-space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--bui-space-2);
+  }
+
+  .taskCard {
+    border: 1px solid var(--bui-border-1);
+    border-radius: var(--bui-radius-2);
+    padding: var(--bui-space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--bui-space-2);
+    background: var(--bui-bg-surface-1);
+  }
+
+  .cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--bui-space-2);
+  }
+
+  .yaml {
+    width: 100%;
+    min-height: 420px;
+    font-family: var(--bui-font-mono, monospace);
+    font-size: 13px;
+    padding: var(--bui-space-2);
+    border: 1px solid var(--bui-border-1);
+    border-radius: var(--bui-radius-2);
+    background: var(--bui-bg-surface-1);
+    color: var(--bui-fg-primary);
+    resize: vertical;
+  }
+
+  .issue {
+    display: flex;
+    gap: var(--bui-space-2);
+    align-items: baseline;
+    cursor: pointer;
+    padding: var(--bui-space-1) var(--bui-space-2);
+    border-radius: var(--bui-radius-1);
+    text-align: left;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: inherit;
+  }
+
+  .issue:hover {
+    background: var(--bui-bg-surface-2);
+  }
+
+  .issuePath {
+    color: var(--bui-fg-secondary);
+    font-family: var(--bui-font-mono, monospace);
+    font-size: 12px;
+  }
+
+  .blockGrid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--bui-space-2);
+  }
+
+  .phasePreview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--bui-space-2);
+    border-left: 2px solid var(--bui-border-2);
+    padding-left: var(--bui-space-3);
+  }
+
+  .dialogBody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--bui-space-3);
+    min-width: 420px;
+  }
+}
