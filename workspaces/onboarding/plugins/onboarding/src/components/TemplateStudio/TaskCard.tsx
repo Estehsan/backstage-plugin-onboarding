@@ -16,7 +16,11 @@
 
 import { useState } from 'react';
 import { Button, ButtonIcon, Flex, Select, TextField } from '@backstage/ui';
-import { RiDeleteBinLine } from '@remixicon/react';
+import {
+  RiArrowDownLine,
+  RiArrowUpLine,
+  RiDeleteBinLine,
+} from '@remixicon/react';
 import { OnboardingTask, Phase } from '../../types';
 import { DocumentationField } from './DocumentationField';
 import { PHASES } from './templateOps';
@@ -28,6 +32,10 @@ export interface TaskCardProps {
   fieldPath: string;
   onChange: (patch: Partial<OnboardingTask>) => void;
   onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }
 
 const PHASE_OPTIONS = PHASES.map(p => ({ value: p, label: p }));
@@ -41,7 +49,16 @@ const TYPE_OPTIONS = [
  * documentation editor powered by the TechDocs Editor markdown component.
  */
 export function TaskCard(props: TaskCardProps) {
-  const { task, fieldPath, onChange, onRemove } = props;
+  const {
+    task,
+    fieldPath,
+    onChange,
+    onRemove,
+    onMoveUp,
+    onMoveDown,
+    canMoveUp,
+    canMoveDown,
+  } = props;
   const [showDocs, setShowDocs] = useState(false);
 
   return (
@@ -52,6 +69,20 @@ export function TaskCard(props: TaskCardProps) {
           label="Title"
           value={task.title}
           onChange={value => onChange({ title: value })}
+        />
+        <ButtonIcon
+          icon={<RiArrowUpLine />}
+          variant="tertiary"
+          aria-label="Move task up"
+          isDisabled={!canMoveUp}
+          onPress={() => onMoveUp()}
+        />
+        <ButtonIcon
+          icon={<RiArrowDownLine />}
+          variant="tertiary"
+          aria-label="Move task down"
+          isDisabled={!canMoveDown}
+          onPress={() => onMoveDown()}
         />
         <ButtonIcon
           icon={<RiDeleteBinLine />}

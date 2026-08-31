@@ -21,13 +21,12 @@ import userEvent from '@testing-library/user-event';
 import { ApiProvider } from '@backstage/core-app-api';
 import { TestApiRegistry } from '@backstage/test-utils';
 import { onboardingApiRef, OnboardingApi } from '../../api/OnboardingApi';
+import {
+  onboardingDocsEditorApiRef,
+  defaultOnboardingDocsEditorApi,
+} from '../../api';
 import { TemplateStudioPage } from './TemplateStudioPage';
 import { OnboardingTemplate, TemplateBlock, TemplateDraft } from '../../types';
-
-// The TechDocs markdown editor lazy-loads Toast UI which is unnecessary here.
-jest.mock('@estehsaan/backstage-plugin-techdocs-editor-react', () => ({
-  TechDocsMarkdownEditor: () => <div data-testid="markdown-editor" />,
-}));
 
 const template: OnboardingTemplate = {
   apiVersion: 'onboarding.backstage.io/v1',
@@ -102,7 +101,10 @@ function makeApi(): jest.Mocked<OnboardingApi> {
 }
 
 function renderStudio(api: OnboardingApi, name = 'eng') {
-  const apis = TestApiRegistry.from([onboardingApiRef, api]);
+  const apis = TestApiRegistry.from(
+    [onboardingApiRef, api],
+    [onboardingDocsEditorApiRef, defaultOnboardingDocsEditorApi],
+  );
   return render(
     <ApiProvider apis={apis}>
       <TemplateStudioPage templateName={name} />

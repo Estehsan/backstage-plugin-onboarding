@@ -25,11 +25,21 @@ export {
   OnboardingPageExtension,
   OnboardingNavItem,
   OnboardingApi,
+  OnboardingDocsEditorApiExtension,
   EntityUserOnboardingCardExtension,
   OnboardingPage,
 } from './plugin';
 export { onboardingApiRef } from './api/OnboardingApi';
 export type { OnboardingApi as OnboardingApiType } from './api/OnboardingApi';
+export {
+  onboardingDocsEditorApiRef,
+  defaultOnboardingDocsEditorApi,
+} from './api';
+export type {
+  OnboardingDocsEditorApi,
+  OnboardingDocsEditorCapabilities,
+  OnboardingDocumentationEditorProps,
+} from './api';
 export type { OnboardingCatalogUser } from './types';
 export { EntityUserOnboardingCard } from './components/EntityUserOnboardingCard';
 export { OnboardingPage as OnboardingPageContent } from './components/OnboardingPage/OnboardingPage';

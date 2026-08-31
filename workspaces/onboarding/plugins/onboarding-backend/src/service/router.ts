@@ -24,14 +24,19 @@ import {
   RootConfigService,
 } from '@backstage/backend-plugin-api';
 import { CatalogApi } from '@backstage/catalog-client';
-import { InputError, NotAllowedError, NotFoundError } from '@backstage/errors';
+import {
+  InputError,
+  NotAllowedError,
+  NotFoundError,
+  NotImplementedError,
+} from '@backstage/errors';
 import { AuthorizeResult } from '@backstage/plugin-permission-common';
 import { DatabaseOnboardingStore } from './OnboardingStore';
 import { DatabaseTemplateDraftStore } from './TemplateDraftStore';
 import { validateTemplate } from './templateValidation';
 import { templateToYaml } from './templateYaml';
 import { getBlockLibrary } from './blockLibrary';
-import type { TechDocsEditorVcs } from '@estehsaan/backstage-plugin-techdocs-editor-node';
+import type { OnboardingVcsProvider } from '@estehsaan/backstage-plugin-onboarding-common';
 import {
   assertUserAccess,
   getAssignerGroupRefs,
@@ -65,7 +70,14 @@ export interface RouterOptions {
   config: RootConfigService;
   store: DatabaseOnboardingStore;
   draftStore: DatabaseTemplateDraftStore;
-  vcs: TechDocsEditorVcs;
+  /**
+   * VCS provider for `POST /templates/:name/publish`. Injected via
+   * `onboardingVcsExtensionPoint` (or passed directly). A real
+   * techdocs-editor-node `VcsProvider` satisfies this interface, so it can be
+   * registered with no adapter. When omitted, `POST /templates/:name/publish`
+   * responds with 501 Not Implemented instead of crashing.
+   */
+  vcs?: OnboardingVcsProvider;
   permissions: PermissionsService;
   httpAuth: HttpAuthService;
   catalogApi: CatalogApi;
@@ -96,6 +108,42 @@ function getActiveJoinerWindowDays(config: RootConfigService): number {
 const MAX_CATALOG_USERS = 1000;
 const MAX_CATALOG_TEMPLATES = 1000;
 
+function decodeParam(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Resolves a user entity ref from a request that identifies the user either
+ * via separate `:kind/:namespace/:name` path segments, a combined
+ * `:userId(*)` path segment, or a `?userId=` query parameter.
+ *
+ * Entity refs contain a `/` (e.g. `user:default/jdoe`), so embedding one in a
+ * single URL path segment requires percent-encoding it (`%2F`). Some reverse
+ * proxies and API gateways normalize or reject encoded slashes in a path
+ * before the request ever reaches this service, which surfaces as a 404 that
+ * looks like a routing bug but is actually happening upstream of Node. The
+ * `kind/namespace/name` segment form sidesteps this entirely by never
+ * putting a `/` inside a single segment — the same pattern the core catalog
+ * backend uses for `/entities/by-name/:kind/:namespace/:name`. See the
+ * "Proxy compatibility" section of this package's README.
+ */
+function resolveUserRefParam(req: express.Request): string | undefined {
+  const { kind, namespace, name } = req.params;
+  if (kind && namespace && name) {
+    return stringifyEntityRef({
+      kind: decodeParam(kind),
+      namespace: decodeParam(namespace),
+      name: decodeParam(name),
+    });
+  }
+  const raw = req.params.userId ?? (req.query.userId as string | undefined);
+  return raw ? decodeParam(raw) : undefined;
+}
+
 /** @public */
 export async function createRouter(
   options: RouterOptions,
@@ -116,14 +164,44 @@ export async function createRouter(
   const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
   let cachedTemplates: OnboardingTemplate[] | null = null;
   let templateCacheExpiresAt = 0;
-  async function getTemplatesCached(): Promise<OnboardingTemplate[]> {
-    if (cachedTemplates !== null && Date.now() < templateCacheExpiresAt) {
+  async function getTemplatesCached(
+    forceRefresh = false,
+  ): Promise<OnboardingTemplate[]> {
+    if (
+      !forceRefresh &&
+      cachedTemplates !== null &&
+      Date.now() < templateCacheExpiresAt
+    ) {
       return cachedTemplates;
     }
     const result = await getAllTemplates(catalogApi, config, logger);
     cachedTemplates = result;
     templateCacheExpiresAt = Date.now() + TEMPLATE_CACHE_TTL_MS;
     return result;
+  }
+
+  async function findTemplateByName(
+    name: string,
+  ): Promise<OnboardingTemplate | undefined> {
+    const decodedName = decodeParam(name).trim();
+    let templates = await getTemplatesCached();
+    let template = templates.find(
+      t =>
+        t.metadata.name === decodedName ||
+        t.metadata.name.toLowerCase() === decodedName.toLowerCase(),
+    );
+
+    if (!template) {
+      // Force refresh cache in case the template was newly ingested or updated
+      templates = await getTemplatesCached(true);
+      template = templates.find(
+        t =>
+          t.metadata.name === decodedName ||
+          t.metadata.name.toLowerCase() === decodedName.toLowerCase(),
+      );
+    }
+
+    return template;
   }
 
   const router = Router();
@@ -133,146 +211,177 @@ export async function createRouter(
     res.status(200).json({ status: 'ok' });
   });
 
-  router.get('/progress/:userId(*)', async (req, res) => {
-    const { userId } = req.params;
-    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
-
-    await assertUserAccess({
-      credentials,
-      userId,
-      permissions,
-      ownerPermission: onboardingProgressReadPermission,
-      elevatedPermission: onboardingTeamReadPermission,
-    });
-
-    let progress = await store.getProgress(userId);
-
-    if (!progress) {
-      const template = await findTemplateForUser(catalogApi, userId, logger);
-      if (template) {
-        progress = initializeProgress(userId, template);
-        await store.upsertProgress(progress);
+  router.get(
+    [
+      '/progress',
+      '/progress/by-ref/:kind/:namespace/:name',
+      '/progress/:userId(*)',
+    ],
+    async (req, res) => {
+      const userId = resolveUserRefParam(req);
+      if (!userId) {
+        throw new InputError('userId is required');
       }
-    }
+      const credentials = await httpAuth.credentials(req, { allow: ['user'] });
 
-    if (!progress) {
-      throw new NotFoundError(
-        `No onboarding progress found for user ${userId}`,
-      );
-    }
+      await assertUserAccess({
+        credentials,
+        userId,
+        permissions,
+        ownerPermission: onboardingProgressReadPermission,
+        elevatedPermission: onboardingTeamReadPermission,
+      });
 
-    res.status(200).json(progress);
-  });
+      let progress = await store.getProgress(userId);
 
-  router.post('/progress/:userId(*)/tasks/:taskId', async (req, res) => {
-    const { userId, taskId } = req.params;
-    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+      if (!progress) {
+        const template = await findTemplateForUser(catalogApi, userId, logger);
+        if (template) {
+          progress = initializeProgress(userId, template);
+          await store.upsertProgress(progress);
+        }
+      }
 
-    await assertUserAccess({
-      credentials,
-      userId,
-      permissions,
-      ownerPermission: onboardingProgressUpdatePermission,
-      elevatedPermission: onboardingTeamReadPermission,
-    });
+      if (!progress) {
+        throw new NotFoundError(
+          `No onboarding progress found for user ${userId}`,
+        );
+      }
 
-    const { status, blockedReason } = req.body as {
-      status?: TaskStatus;
-      blockedReason?: string;
-    };
+      res.status(200).json(progress);
+    },
+  );
 
-    if (!status || !VALID_STATUSES.includes(status)) {
-      throw new InputError(
-        `Invalid status: ${status}. Must be one of: ${VALID_STATUSES.join(
-          ', ',
-        )}`,
-      );
-    }
+  router.post(
+    [
+      '/progress/by-ref/:kind/:namespace/:name/tasks/:taskId',
+      '/progress/:userId(*)/tasks/:taskId',
+    ],
+    async (req, res) => {
+      const userId = resolveUserRefParam(req);
+      if (!userId) {
+        throw new InputError('userId is required');
+      }
+      const taskId = decodeParam(req.params.taskId);
+      const credentials = await httpAuth.credentials(req, { allow: ['user'] });
 
-    if (blockedReason !== undefined && blockedReason.length > 500) {
-      throw new InputError('blockedReason must not exceed 500 characters');
-    }
+      await assertUserAccess({
+        credentials,
+        userId,
+        permissions,
+        ownerPermission: onboardingProgressUpdatePermission,
+        elevatedPermission: onboardingTeamReadPermission,
+      });
 
-    const progress = await store.getProgress(userId);
-    if (!progress) {
-      throw new NotFoundError(
-        `No onboarding progress found for user ${userId}`,
-      );
-    }
+      const { status, blockedReason } = req.body as {
+        status?: TaskStatus;
+        blockedReason?: string;
+      };
 
-    const taskIndex = progress.tasks.findIndex(t => t.taskId === taskId);
-    if (taskIndex === -1) {
-      throw new NotFoundError(`Task ${taskId} not found in progress`);
-    }
+      if (!status || !VALID_STATUSES.includes(status)) {
+        throw new InputError(
+          `Invalid status: ${status}. Must be one of: ${VALID_STATUSES.join(
+            ', ',
+          )}`,
+        );
+      }
 
-    if (status === 'done') {
-      const templates = await getTemplatesCached();
-      const template = templates.find(
-        t => t.metadata.name === progress.templateName,
-      );
+      if (blockedReason !== undefined && blockedReason.length > 500) {
+        throw new InputError('blockedReason must not exceed 500 characters');
+      }
 
-      if (template) {
-        const allTasks = template.spec.phases.flatMap(p => p.tasks);
-        const currentTask = allTasks.find(t => t.id === taskId);
+      const progress = await store.getProgress(userId);
+      if (!progress) {
+        throw new NotFoundError(
+          `No onboarding progress found for user ${userId}`,
+        );
+      }
 
-        if (currentTask?.dependsOn && currentTask.dependsOn.length > 0) {
-          const unmetDeps = currentTask.dependsOn.filter(depId => {
-            const depProgress = progress.tasks.find(t => t.taskId === depId);
-            return !depProgress || depProgress.status !== 'done';
-          });
+      const taskIndex = progress.tasks.findIndex(t => t.taskId === taskId);
+      if (taskIndex === -1) {
+        throw new NotFoundError(`Task ${taskId} not found in progress`);
+      }
 
-          if (unmetDeps.length > 0) {
-            throw new InputError(
-              `Cannot mark task ${taskId} as done. Unmet dependencies: ${unmetDeps.join(
-                ', ',
-              )}`,
-            );
+      if (status === 'done') {
+        const template = await findTemplateByName(progress.templateName);
+
+        if (template) {
+          const allTasks = template.spec.phases.flatMap(p => p.tasks);
+          const currentTask = allTasks.find(t => t.id === taskId);
+
+          if (currentTask?.dependsOn && currentTask.dependsOn.length > 0) {
+            const unmetDeps = currentTask.dependsOn.filter(depId => {
+              const depProgress = progress.tasks.find(t => t.taskId === depId);
+              return !depProgress || depProgress.status !== 'done';
+            });
+
+            if (unmetDeps.length > 0) {
+              throw new InputError(
+                `Cannot mark task ${taskId} as done. Unmet dependencies: ${unmetDeps.join(
+                  ', ',
+                )}`,
+              );
+            }
           }
         }
       }
-    }
 
-    progress.tasks[taskIndex] = {
-      ...progress.tasks[taskIndex],
-      status,
-      completedAt: status === 'done' ? new Date().toISOString() : undefined,
-      blockedReason: status === 'blocked' ? blockedReason : undefined,
-    };
+      progress.tasks[taskIndex] = {
+        ...progress.tasks[taskIndex],
+        status,
+        completedAt: status === 'done' ? new Date().toISOString() : undefined,
+        blockedReason: status === 'blocked' ? blockedReason : undefined,
+      };
 
-    await store.upsertProgress(progress);
-    logger.info(`Updated task ${taskId} for user ${userId} to ${status}`);
+      await store.upsertProgress(progress);
+      logger.info(`Updated task ${taskId} for user ${userId} to ${status}`);
 
-    res.status(200).json(progress);
-  });
+      res.status(200).json(progress);
+    },
+  );
 
-  router.post('/progress/:userId(*)/buddy', async (req, res) => {
-    const { userId } = req.params;
-    const { buddyUserId } = req.body as { buddyUserId?: string | null };
-    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+  router.post(
+    [
+      '/progress/by-ref/:kind/:namespace/:name/buddy',
+      '/progress/:userId(*)/buddy',
+    ],
+    async (req, res) => {
+      const userId = resolveUserRefParam(req);
+      if (!userId) {
+        throw new InputError('userId is required');
+      }
+      const { buddyUserId: rawBuddyUserId } = req.body as {
+        buddyUserId?: string | null;
+      };
+      const buddyUserId = rawBuddyUserId
+        ? decodeParam(rawBuddyUserId)
+        : rawBuddyUserId;
+      const credentials = await httpAuth.credentials(req, { allow: ['user'] });
 
-    const decision = (
-      await permissions.authorize(
-        [{ permission: onboardingTemplateAssignPermission }],
-        { credentials },
-      )
-    )[0];
-    if (decision.result === AuthorizeResult.DENY) {
-      throw new NotAllowedError('Not authorized to assign a buddy');
-    }
+      const decision = (
+        await permissions.authorize(
+          [{ permission: onboardingTemplateAssignPermission }],
+          { credentials },
+        )
+      )[0];
+      if (decision.result === AuthorizeResult.DENY) {
+        throw new NotAllowedError('Not authorized to assign a buddy');
+      }
 
-    const callerRef = credentials.principal.userEntityRef;
-    if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
-      throw new NotAllowedError(
-        'You are not a member of an authorized assigner group',
-      );
-    }
+      const callerRef = credentials.principal.userEntityRef;
+      if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
+        throw new NotAllowedError(
+          'You are not a member of an authorized assigner group',
+        );
+      }
 
-    const updated = await store.setBuddy(userId, buddyUserId ?? undefined);
-    if (!updated) {
-      throw new NotFoundError(`No onboarding progress found for ${userId}`);
-    }
-    res.status(200).json({ userId, buddyUserId: buddyUserId ?? undefined });
-  });
+      const updated = await store.setBuddy(userId, buddyUserId ?? undefined);
+      if (!updated) {
+        throw new NotFoundError(`No onboarding progress found for ${userId}`);
+      }
+      res.status(200).json({ userId, buddyUserId: buddyUserId ?? undefined });
+    },
+  );
 
   router.get('/teams/mine', async (req, res) => {
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
@@ -499,52 +608,71 @@ export async function createRouter(
     res.status(200).json(results);
   });
 
+  const handleAssign = async (req: express.Request, res: express.Response) => {
+    const templateName = decodeParam(req.params.templateName);
+    const body = req.body as
+      | { userId?: string; buddyUserId?: string }
+      | undefined;
+    const userId = body?.userId
+      ? decodeParam(body.userId)
+      : resolveUserRefParam(req);
+    if (!userId) {
+      throw new InputError('userId is required');
+    }
+    const buddyUserId = body?.buddyUserId
+      ? decodeParam(body.buddyUserId)
+      : undefined;
+    const credentials = await httpAuth.credentials(req, { allow: ['user'] });
+
+    const decision = (
+      await permissions.authorize(
+        [{ permission: onboardingTemplateAssignPermission }],
+        { credentials },
+      )
+    )[0];
+    if (decision.result === AuthorizeResult.DENY) {
+      throw new NotAllowedError('Unauthorized');
+    }
+
+    const callerRef = credentials.principal.userEntityRef;
+    if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
+      throw new NotAllowedError(
+        'You are not a member of an authorized assigner group',
+      );
+    }
+
+    const template = await findTemplateByName(templateName);
+
+    if (!template) {
+      throw new NotFoundError(`Template ${templateName} not found`);
+    }
+
+    const resolvedUserRef = await assertCatalogUserExists(catalogApi, userId);
+
+    validateTemplateDependencies(template);
+
+    const progress = initializeProgress(resolvedUserRef, template);
+    await store.upsertProgress(progress);
+
+    if (buddyUserId) {
+      const resolvedBuddyRef = await assertCatalogUserExists(
+        catalogApi,
+        buddyUserId,
+      );
+      await store.setBuddy(resolvedUserRef, resolvedBuddyRef);
+      progress.buddyUserId = resolvedBuddyRef;
+    }
+
+    logger.info(`Assigned template ${templateName} to user ${resolvedUserRef}`);
+    res.status(200).json(progress);
+  };
+
+  router.post('/templates/:templateName/assign', handleAssign);
   router.post(
-    '/templates/:templateName/assign/:userId(*)',
-    async (req, res) => {
-      const { templateName, userId } = req.params;
-      const { buddyUserId } = req.body as { buddyUserId?: string };
-      const credentials = await httpAuth.credentials(req, { allow: ['user'] });
-
-      const decision = (
-        await permissions.authorize(
-          [{ permission: onboardingTemplateAssignPermission }],
-          { credentials },
-        )
-      )[0];
-      if (decision.result === AuthorizeResult.DENY) {
-        throw new NotAllowedError('Unauthorized');
-      }
-
-      const callerRef = credentials.principal.userEntityRef;
-      if (!(await isMemberOfAssignerGroup(catalogApi, callerRef, config))) {
-        throw new NotAllowedError(
-          'You are not a member of an authorized assigner group',
-        );
-      }
-
-      const templates = await getTemplatesCached();
-      const template = templates.find(t => t.metadata.name === templateName);
-
-      if (!template) {
-        throw new NotFoundError(`Template ${templateName} not found`);
-      }
-
-      await assertCatalogUserExists(catalogApi, userId);
-
-      validateTemplateDependencies(template);
-
-      const progress = initializeProgress(userId, template);
-      await store.upsertProgress(progress);
-
-      if (buddyUserId) {
-        await store.setBuddy(userId, buddyUserId);
-      }
-
-      logger.info(`Assigned template ${templateName} to user ${userId}`);
-      res.status(200).json(progress);
-    },
+    '/templates/:templateName/assign/by-ref/:kind/:namespace/:name',
+    handleAssign,
   );
+  router.post('/templates/:templateName/assign/:userId(*)', handleAssign);
 
   async function authorizeTemplateWrite(req: express.Request) {
     const credentials = await httpAuth.credentials(req, { allow: ['user'] });
@@ -575,8 +703,7 @@ export async function createRouter(
       return;
     }
 
-    const templates = await getTemplatesCached();
-    const template = templates.find(t => t.metadata.name === name);
+    const template = await findTemplateByName(name);
     if (!template) {
       throw new NotFoundError(`Template ${name} not found`);
     }
@@ -672,6 +799,12 @@ export async function createRouter(
     if (issues.some(i => i.severity === 'error')) {
       res.status(400).json({ issues });
       return;
+    }
+
+    if (!vcs) {
+      throw new NotImplementedError(
+        'VCS provider is not configured for template publishing',
+      );
     }
 
     const target = resolvePublishTarget(body, draft.sourceLocation);
@@ -798,11 +931,56 @@ function toJoinerSummaries(
 async function assertCatalogUserExists(
   catalogApi: CatalogApi,
   userId: string,
-): Promise<void> {
-  const entity = await catalogApi.getEntityByRef(userId);
-  if (!entity || entity.kind !== 'User') {
-    throw new InputError(`User ${userId} was not found in the catalog`);
+): Promise<string> {
+  const normalizedUserId = decodeParam(userId).trim();
+  let entityRef: string;
+  try {
+    const parsed = parseEntityRef(normalizedUserId, {
+      defaultKind: 'User',
+      defaultNamespace: 'default',
+    });
+    entityRef = stringifyEntityRef(parsed);
+  } catch {
+    entityRef = normalizedUserId;
   }
+
+  const entity = await catalogApi.getEntityByRef(entityRef);
+  if (entity && entity.kind?.toLowerCase() === 'user') {
+    return stringifyEntityRef(entity);
+  }
+
+  // Fallback: search by name or email in catalog in case userId was provided as an email or alias
+  try {
+    const allUsers = await catalogApi.getEntities({
+      filter: { kind: 'User' },
+      fields: [
+        'kind',
+        'metadata.name',
+        'metadata.namespace',
+        'spec.profile.email',
+      ],
+      limit: MAX_CATALOG_USERS,
+    });
+    const lower = normalizedUserId.toLowerCase();
+    const matched = allUsers.items.find(u => {
+      const name = u.metadata.name?.toLowerCase();
+      const spec = u.spec as Record<string, unknown> | undefined;
+      const profile = spec?.profile as Record<string, unknown> | undefined;
+      const email = ((profile?.email as string) ?? '').toLowerCase();
+      return (
+        name === lower ||
+        email === lower ||
+        stringifyEntityRef(u).toLowerCase() === lower
+      );
+    });
+    if (matched) {
+      return stringifyEntityRef(matched);
+    }
+  } catch {
+    // ignore search failure, fall through to error
+  }
+
+  throw new InputError(`User ${userId} was not found in the catalog`);
 }
 
 function initializeProgress(

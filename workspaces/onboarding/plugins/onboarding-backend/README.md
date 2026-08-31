@@ -81,6 +81,46 @@ search index is unpopulated. An empty `query` returns the available users
 (sorted by display name) so the assignment picker can be browsed without typing.
 Requires the `onboarding.template.assign` permission.
 
+## Optional TechDocs Editor Integration (template publishing)
+
+`POST /templates/:templateName/publish` opens a pull/merge request with the
+generated `OnboardingTemplate` YAML. It needs a version-control provider, which is
+**injected** — the backend has **no compile-time dependency** on
+`@estehsaan/backstage-plugin-techdocs-editor-node`.
+
+- **No provider registered (default):** the endpoint returns `501 Not Implemented`
+  (`NotImplementedError`). Every other endpoint works normally.
+- **Provider registered:** the endpoint opens a PR/MR via the provider.
+
+Register a provider through the `onboardingVcsExtensionPoint`, exported from the
+`/alpha` sub-path:
+
+```ts
+import { createBackendModule } from '@backstage/backend-plugin-api';
+import { onboardingVcsExtensionPoint } from '@estehsaan/backstage-plugin-onboarding-backend/alpha';
+
+const onboardingVcsModule = createBackendModule({
+  pluginId: 'onboarding',
+  moduleId: 'vcs-provider',
+  register(reg) {
+    reg.registerInit({
+      deps: { vcs: onboardingVcsExtensionPoint },
+      async init({ vcs }) {
+        // A techdocs-editor-node `VcsProvider` satisfies `OnboardingVcsProvider`
+        // structurally, so it can be passed with no adapter. `setVcsProvider`
+        // throws if called more than once.
+        vcs.setVcsProvider(myVcsProvider);
+      },
+    });
+  },
+});
+```
+
+The injected surface is the minimal `OnboardingVcsProvider` interface from
+`@estehsaan/backstage-plugin-onboarding-common` (`getDefaultBranch` +
+`openPullRequest`). See the frontend plugin README's "Optional TechDocs Editor
+Integration" section for the matching editor wiring.
+
 ## License
 
 Apache-2.0

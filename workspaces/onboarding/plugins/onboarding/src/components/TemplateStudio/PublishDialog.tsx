@@ -24,7 +24,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTrigger,
-  Flex,
   Link,
   TextField,
 } from '@backstage/ui';
@@ -131,10 +130,7 @@ export function PublishDialog(props: PublishDialogProps) {
                     />
                   </>
                 )}
-                <Checkbox
-                  checked={draft}
-                  onChange={value => setDraft(Boolean(value))}
-                >
+                <Checkbox isSelected={draft} onChange={setDraft}>
                   Open as draft pull request
                 </Checkbox>
                 {error && <Alert status="danger">{error}</Alert>}

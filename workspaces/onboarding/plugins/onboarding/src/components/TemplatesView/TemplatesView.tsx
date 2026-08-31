@@ -167,16 +167,12 @@ export function TemplatesView(props: TemplatesViewProps) {
         <Text variant="body-small">
           Register OnboardingTemplate entities in your catalog to get started.
         </Text>
-        {canEdit && (
-          <Button
-            component={Link}
-            to={editorLink({ name: 'new' })}
-            size="small"
-            color="primary"
-            variant="contained"
-          >
-            New template
-          </Button>
+        {canEdit && editorLink && (
+          <Link to={editorLink({ name: 'new' })}>
+            <Button size="small" color="primary" variant="contained">
+              New template
+            </Button>
+          </Link>
         )}
       </Box>
     );
@@ -184,17 +180,13 @@ export function TemplatesView(props: TemplatesViewProps) {
 
   return (
     <>
-      {canEdit && (
+      {canEdit && editorLink && (
         <Box className={styles.toolbar}>
-          <Button
-            component={Link}
-            to={editorLink({ name: 'new' })}
-            size="small"
-            color="primary"
-            variant="contained"
-          >
-            New template
-          </Button>
+          <Link to={editorLink({ name: 'new' })}>
+            <Button size="small" color="primary" variant="contained">
+              New template
+            </Button>
+          </Link>
         </Box>
       )}
       <div className={styles.grid}>
@@ -241,17 +233,20 @@ export function TemplatesView(props: TemplatesViewProps) {
                   >
                     Use Template
                   </Button>
-                  {canEdit && (
-                    <Button
-                      fullWidth
-                      component={Link}
+                  {canEdit && editorLink && (
+                    <Link
                       to={editorLink({ name: template.metadata.name })}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
+                      underline="none"
                     >
-                      Edit in Studio
-                    </Button>
+                      <Button
+                        fullWidth
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      >
+                        Edit in Studio
+                      </Button>
+                    </Link>
                   )}
                 </div>
               </Card>

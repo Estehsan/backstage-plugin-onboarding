@@ -111,6 +111,113 @@ backend.add(
 );
 ```
 
+## Optional TechDocs Editor Integration
+
+The Template Studio documentation field and the `POST /templates/:name/publish`
+endpoint can optionally be backed by the sibling
+[`@estehsaan/backstage-plugin-techdocs-editor`](https://github.com/Estehsan/backstage-plugin-techdocs-editor)
+plugin. The integration is **entirely optional** — onboarding ships and runs in
+two supported configurations:
+
+|                                              | Documentation editor                                                                  | `POST /templates/:name/publish`             |
+| -------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **Config #2 — Onboarding alone (default)**   | Plain-text multiline Markdown `TextField` with a hint pointing to the TechDocs Editor | Returns `501 Not Implemented`               |
+| **Config #1 — Onboarding + TechDocs Editor** | Rich WYSIWYG Markdown editor (`TechDocsMarkdownEditor`)                               | Opens a PR/MR via the injected VCS provider |
+
+In the default configuration **nothing in the plugin's main code path imports the
+`@estehsaan/backstage-plugin-techdocs-editor-*` packages**, so you do not need to
+install them and your app bundler/type-checker will not fail when they are absent.
+The rich editor lives behind a separate opt-in entry point
+(`@estehsaan/backstage-plugin-onboarding/techdocs-editor`), and both techdocs-editor
+packages are declared as **optional peer / dev dependencies only** — never runtime
+`dependencies`.
+
+To enable config #1, install the optional packages:
+
+```bash
+yarn --cwd packages/app add @estehsaan/backstage-plugin-techdocs-editor-react
+yarn --cwd packages/backend add @estehsaan/backstage-plugin-techdocs-editor-node
+```
+
+### Frontend — New Frontend System (Backstage ≥ 1.30)
+
+Add the opt-in module to your app's `features` array. It overrides the default
+plain-text editor extension (`api:onboarding/docs-editor`) with the TechDocs-backed
+one:
+
+```tsx
+import onboardingPlugin from '@estehsaan/backstage-plugin-onboarding/alpha';
+import { onboardingTechDocsEditorModule } from '@estehsaan/backstage-plugin-onboarding/techdocs-editor';
+
+export const app = createApp({
+  features: [
+    // ...other plugins
+    onboardingPlugin,
+    // Opt-in: replaces the plain-text editor with the TechDocs WYSIWYG editor
+    onboardingTechDocsEditorModule,
+  ],
+});
+```
+
+### Frontend — Legacy Frontend System (Backstage < 1.30)
+
+Register the opt-in API factory in your app's `apis` array. It overrides the
+default `onboardingDocsEditorApiRef` binding:
+
+```tsx
+import { techDocsOnboardingDocsEditorApiFactory } from '@estehsaan/backstage-plugin-onboarding/techdocs-editor';
+
+const app = createApp({
+  apis: [
+    // ...other factories
+    techDocsOnboardingDocsEditorApiFactory,
+  ],
+});
+```
+
+When neither is installed, the plugin falls back to the built-in
+`defaultOnboardingDocsEditorApi` (plain text) automatically.
+
+### Backend — supplying a VCS provider for publishing
+
+`POST /templates/:name/publish` needs a version-control provider to open the pull
+request. Inject one through the backend plugin's `onboardingVcsExtensionPoint`
+(exported from `@estehsaan/backstage-plugin-onboarding-backend/alpha`). A
+`@estehsaan/backstage-plugin-techdocs-editor-node` `VcsProvider` satisfies the
+`OnboardingVcsProvider` interface structurally, so it can be registered with no
+adapter. Add a small backend module to `packages/backend/src/index.ts`:
+
+```ts
+import {
+  createBackendModule,
+  coreServices,
+} from '@backstage/backend-plugin-api';
+import { onboardingVcsExtensionPoint } from '@estehsaan/backstage-plugin-onboarding-backend/alpha';
+
+const onboardingVcsModule = createBackendModule({
+  pluginId: 'onboarding',
+  moduleId: 'vcs-provider',
+  register(reg) {
+    reg.registerInit({
+      deps: { vcs: onboardingVcsExtensionPoint /* + any core services */ },
+      async init({ vcs }) {
+        // `myVcsProvider` may be a techdocs-editor-node VcsProvider or any
+        // object implementing OnboardingVcsProvider
+        // (getDefaultBranch + openPullRequest).
+        vcs.setVcsProvider(myVcsProvider);
+      },
+    });
+  },
+});
+
+backend.add(import('@estehsaan/backstage-plugin-onboarding-backend'));
+backend.add(onboardingVcsModule);
+```
+
+When no provider is registered, `POST /templates/:name/publish` responds with
+`501 Not Implemented` (`NotImplementedError`) — every other onboarding endpoint
+works normally.
+
 ## Configuration
 
 This section belongs to backend setup even though it is shown here for convenience: the `onboarding` block in `app-config.yaml` is read by `@estehsaan/backstage-plugin-onboarding-backend`.

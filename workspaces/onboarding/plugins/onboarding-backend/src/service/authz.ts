@@ -36,7 +36,13 @@ import {
  * of each ref is compared so that the two forms resolve to the same user.
  */
 export function isSameUser(callerRef: string, userId: string): boolean {
-  const normalize = (value: string) => value.trim().toLowerCase();
+  const normalize = (value: string) => {
+    try {
+      return decodeURIComponent(value).trim().toLowerCase();
+    } catch {
+      return value.trim().toLowerCase();
+    }
+  };
   const namePart = (value: string) => {
     const normalized = normalize(value);
     const slashIndex = normalized.lastIndexOf('/');

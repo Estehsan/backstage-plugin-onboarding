@@ -16,6 +16,7 @@
 
 import express from 'express';
 import request from 'supertest';
+import { parseEntityRef } from '@backstage/catalog-model';
 import { ConfigReader } from '@backstage/config';
 import { AuthorizeResult } from '@backstage/plugin-permission-common';
 import {
@@ -76,6 +77,7 @@ const mockPermissions = {
 async function createApp(
   callerRef = 'user:default/jane.doe',
   configOverrides?: Record<string, unknown>,
+  options?: { vcs?: unknown },
 ) {
   const baseDefaults = { activeJoinerWindowDays: 90 };
   const overrideOnboarding = configOverrides?.onboarding as
@@ -92,7 +94,7 @@ async function createApp(
     config: new ConfigReader(mergedConfig),
     store: mockStore,
     draftStore: mockDraftStore as any,
-    vcs: mockVcs as any,
+    vcs: (options ? options.vcs : mockVcs) as any,
     permissions: mockPermissions,
     httpAuth: mockServices.httpAuth.mock({
       credentials: async () => mockCredentials.user(callerRef),
@@ -150,6 +152,26 @@ describe('createRouter', () => {
       expect(res.body.userId).toBe('user:default/jane.doe');
       expect(res.body.tasks).toHaveLength(2);
       expect(res.body.tasks[0].status).toBe('done');
+    });
+
+    it('returns stored progress for a user via the proxy-safe by-ref/:kind/:namespace/:name route', async () => {
+      const progress = {
+        userId: 'user:default/jane.doe',
+        templateName: 'backend-engineer-platform',
+        startDate: '2026-03-01T00:00:00.000Z',
+        tasks: [{ taskId: 'meet-buddy', status: 'pending' }],
+      };
+      mockStore.getProgress.mockResolvedValue(progress);
+
+      const res = await request(app)
+        .get('/progress/by-ref/user/default/jane.doe')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(mockStore.getProgress).toHaveBeenCalledWith(
+        'user:default/jane.doe',
+      );
+      expect(res.body.userId).toBe('user:default/jane.doe');
     });
 
     it('initializes progress from catalog template when not found', async () => {
@@ -285,6 +307,21 @@ describe('createRouter', () => {
       expect(mockStore.upsertProgress).toHaveBeenCalled();
     });
 
+    it('updates a task status via the proxy-safe by-ref/:kind/:namespace/:name route', async () => {
+      mockStore.getProgress.mockResolvedValue({ ...existingProgress });
+
+      const res = await request(app)
+        .post('/progress/by-ref/user/default/jane.doe/tasks/setup-laptop')
+        .set('Authorization', '******')
+        .send({ status: 'blocked', blockedReason: 'waiting on IT' });
+
+      expect(res.status).toBe(200);
+      expect(mockStore.getProgress).toHaveBeenCalledWith(
+        'user:default/jane.doe',
+      );
+      expect(res.body.tasks[0].status).toBe('blocked');
+    });
+
     it('rejects invalid status', async () => {
       mockStore.getProgress.mockResolvedValue({ ...existingProgress });
 
@@ -392,6 +429,21 @@ describe('createRouter', () => {
         userId: 'user:default/new-joiner',
         buddyUserId: 'user:default/mentor',
       });
+      expect(mockStore.setBuddy).toHaveBeenCalledWith(
+        'user:default/new-joiner',
+        'user:default/mentor',
+      );
+    });
+
+    it('allows setting a buddy via the proxy-safe by-ref/:kind/:namespace/:name route', async () => {
+      mockStore.setBuddy.mockResolvedValue(true);
+
+      const res = await request(app)
+        .post('/progress/by-ref/user/default/new-joiner/buddy')
+        .set('Authorization', '******')
+        .send({ buddyUserId: 'user:default/mentor' });
+
+      expect(res.status).toBe(200);
       expect(mockStore.setBuddy).toHaveBeenCalledWith(
         'user:default/new-joiner',
         'user:default/mentor',
@@ -1174,6 +1226,49 @@ describe('createRouter', () => {
       expect(res.body.tasks[0].status).toBe('pending');
     });
 
+    it('assigns a template via the proxy-safe by-ref/:kind/:namespace/:name route', async () => {
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'be-template', title: 'BE', description: '' },
+            spec: {
+              role: 'backend-engineer',
+              phases: [
+                {
+                  id: 'day1',
+                  tasks: [
+                    {
+                      id: 'task-1',
+                      phase: 'day1',
+                      title: 'Task 1',
+                      description: '',
+                      type: 'manual',
+                      assignee: 'self',
+                      duePhase: 'day1',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        kind: 'User',
+        metadata: { name: 'new-joiner' },
+      });
+      mockStore.upsertProgress.mockResolvedValue(undefined);
+
+      const res = await request(app)
+        .post('/templates/be-template/assign/by-ref/user/default/new-joiner')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body.templateName).toBe('be-template');
+      expect(res.body.tasks).toHaveLength(1);
+      expect(res.body.tasks[0].status).toBe('pending');
+    });
+
     it('returns 400 when user does not exist in catalog', async () => {
       mockCatalogApi.getEntities.mockResolvedValue({
         items: [
@@ -1264,10 +1359,10 @@ describe('createRouter', () => {
           },
         ],
       });
-      mockCatalogApi.getEntityByRef.mockResolvedValue({
+      mockCatalogApi.getEntityByRef.mockImplementation(async (ref: string) => ({
         kind: 'User',
-        metadata: { name: 'new-joiner' },
-      });
+        metadata: { name: parseEntityRef(ref).name },
+      }));
       mockStore.upsertProgress.mockResolvedValue(undefined);
       mockStore.setBuddy.mockResolvedValue(true);
 
@@ -1378,6 +1473,161 @@ describe('createRouter', () => {
         .set('Authorization', '******');
 
       expect(res.status).toBe(200);
+    });
+
+    it('assigns a template to a user when userId is provided in request body (POST /templates/:templateName/assign)', async () => {
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          {
+            metadata: {
+              name: 'sas-developer-onboarding',
+              title: 'SAS Developer Onboarding',
+              description: '',
+            },
+            spec: {
+              role: 'software-engineer',
+              phases: [
+                {
+                  id: 'day1',
+                  tasks: [
+                    {
+                      id: 'task-1',
+                      phase: 'day1',
+                      title: 'Task 1',
+                      description: '',
+                      type: 'manual',
+                      assignee: 'self',
+                      duePhase: 'day1',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        kind: 'User',
+        metadata: { name: 'estehsan.tariq_sas.se' },
+      });
+      mockStore.upsertProgress.mockResolvedValue(undefined);
+
+      const res = await request(app)
+        .post('/templates/sas-developer-onboarding/assign')
+        .set('Authorization', '******')
+        .send({
+          userId: 'user:default/estehsan.tariq_sas.se',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.templateName).toBe('sas-developer-onboarding');
+      expect(res.body.userId).toBe('user:default/estehsan.tariq_sas.se');
+      expect(res.body.tasks).toHaveLength(1);
+      expect(res.body.tasks[0].status).toBe('pending');
+    });
+
+    it('assigns a template and buddy when both are provided in request body', async () => {
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          {
+            metadata: {
+              name: 'sas-developer-onboarding',
+              title: 'SAS Developer Onboarding',
+              description: '',
+            },
+            spec: {
+              role: 'software-engineer',
+              phases: [
+                {
+                  id: 'day1',
+                  tasks: [
+                    {
+                      id: 'task-1',
+                      phase: 'day1',
+                      title: 'Task 1',
+                      description: '',
+                      type: 'manual',
+                      assignee: 'self',
+                      duePhase: 'day1',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      });
+      mockCatalogApi.getEntityByRef.mockImplementation(async (ref: string) => {
+        if (ref === 'user:default/estehsan.tariq_sas.se') {
+          return { kind: 'User', metadata: { name: 'estehsan.tariq_sas.se' } };
+        }
+        if (ref === 'user:default/mentor_sas.se') {
+          return { kind: 'User', metadata: { name: 'mentor_sas.se' } };
+        }
+        return undefined;
+      });
+      mockStore.upsertProgress.mockResolvedValue(undefined);
+      mockStore.setBuddy.mockResolvedValue(true);
+
+      const res = await request(app)
+        .post('/templates/sas-developer-onboarding/assign')
+        .set('Authorization', '******')
+        .send({
+          userId: 'user:default/estehsan.tariq_sas.se',
+          buddyUserId: 'user:default/mentor_sas.se',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.buddyUserId).toBe('user:default/mentor_sas.se');
+      expect(mockStore.setBuddy).toHaveBeenCalledWith(
+        'user:default/estehsan.tariq_sas.se',
+        'user:default/mentor_sas.se',
+      );
+    });
+
+    it('resolves a user by email when direct ref lookup misses', async () => {
+      mockCatalogApi.getEntities.mockImplementation(async (opts: any) => {
+        if (opts?.filter?.kind === 'User') {
+          return {
+            items: [
+              {
+                kind: 'User',
+                metadata: {
+                  name: 'estehsan.tariq_sas.se',
+                  namespace: 'default',
+                },
+                spec: { profile: { email: 'estehsan.tariq@sas.se' } },
+              },
+            ],
+          };
+        }
+        return {
+          items: [
+            {
+              metadata: {
+                name: 'sas-developer-onboarding',
+                title: 'SAS Developer Onboarding',
+              },
+              spec: {
+                role: 'software-engineer',
+                phases: [{ id: 'day1', tasks: [] }],
+              },
+            },
+          ],
+        };
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue(undefined);
+      mockStore.upsertProgress.mockResolvedValue(undefined);
+
+      const res = await request(app)
+        .post('/templates/sas-developer-onboarding/assign')
+        .set('Authorization', '******')
+        .send({
+          userId: 'estehsan.tariq@sas.se',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.userId).toBe('user:default/estehsan.tariq_sas.se');
     });
 
     it('denies the assignment when caller is not a member of a configured assigner group', async () => {
@@ -1600,6 +1850,75 @@ describe('createRouter', () => {
         expect.objectContaining({ repoUrl: 'https://github.com/o/r' }),
       );
       expect(mockDraftStore.markPublished).toHaveBeenCalledWith('eng');
+    });
+
+    describe('without a VCS provider (config #2)', () => {
+      it('returns 501 when publishing a valid draft', async () => {
+        const noVcsApp = await createApp('user:default/jane.doe', undefined, {
+          vcs: undefined,
+        });
+        mockDraftStore.getDraft.mockResolvedValue({
+          name: 'eng',
+          template: validTemplate,
+          sourceLocation: undefined,
+          updatedAt: '2026-08-01T00:00:00.000Z',
+          status: 'draft',
+        });
+
+        const res = await request(noVcsApp)
+          .post('/templates/eng/publish')
+          .set('Authorization', '******')
+          .send({
+            title: 'Update onboarding template',
+            repoUrl: 'https://github.com/o/r',
+            filePath: 'catalog/onboarding/eng.yaml',
+          });
+
+        expect(res.status).toBe(501);
+        expect(res.body.error.name).toBe('NotImplementedError');
+        expect(res.body.error.message).toBe(
+          'VCS provider is not configured for template publishing',
+        );
+      });
+
+      it('still 404s a missing draft without a provider', async () => {
+        const noVcsApp = await createApp('user:default/jane.doe', undefined, {
+          vcs: undefined,
+        });
+        mockDraftStore.getDraft.mockResolvedValue(undefined);
+
+        const res = await request(noVcsApp)
+          .post('/templates/eng/publish')
+          .set('Authorization', '******')
+          .send({ title: 'x', repoUrl: 'https://github.com/o/r' });
+
+        expect(res.status).toBe(404);
+      });
+
+      it('still 400s an invalid draft without a provider', async () => {
+        const noVcsApp = await createApp('user:default/jane.doe', undefined, {
+          vcs: undefined,
+        });
+        mockDraftStore.getDraft.mockResolvedValue({
+          name: 'eng',
+          template: {
+            ...validTemplate,
+            metadata: { name: '', title: '' },
+            spec: { role: '', phases: [] },
+          },
+          sourceLocation: undefined,
+          updatedAt: '2026-08-01T00:00:00.000Z',
+          status: 'draft',
+        });
+
+        const res = await request(noVcsApp)
+          .post('/templates/eng/publish')
+          .set('Authorization', '******')
+          .send({ title: 'x', repoUrl: 'https://github.com/o/r' });
+
+        expect(res.status).toBe(400);
+        expect(res.body.issues.length).toBeGreaterThan(0);
+      });
     });
 
     it('denies template writes without permission', async () => {

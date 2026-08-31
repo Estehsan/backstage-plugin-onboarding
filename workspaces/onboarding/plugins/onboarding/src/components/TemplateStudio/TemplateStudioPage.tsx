@@ -36,6 +36,7 @@ import {
   PHASES,
   addTask,
   insertBlock,
+  moveTask,
   removeTask,
   updateMetadata,
   updateSpecField,
@@ -312,12 +313,15 @@ export function TemplateStudioPage(props: TemplateStudioPageProps) {
                 onRemoveTask={(index: number) =>
                   mutate(removeTask(template, phase.id, index))
                 }
+                onMoveTask={(index: number, direction: 'up' | 'down') =>
+                  mutate(moveTask(template, phase.id, index, direction))
+                }
                 onAddTask={() => mutate(addTask(template, phase.id))}
               />
             ))}
 
             {missingPhases.length > 0 && (
-              <Flex gap="2" wrap="wrap">
+              <Flex gap="2" style={{ flexWrap: 'wrap' }}>
                 {missingPhases.map(phase => (
                   <Button
                     key={phase}

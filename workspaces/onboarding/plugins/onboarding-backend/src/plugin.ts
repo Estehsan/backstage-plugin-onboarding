@@ -18,12 +18,13 @@ import {
   coreServices,
   createBackendPlugin,
 } from '@backstage/backend-plugin-api';
-import { techDocsEditorVcsServiceRef } from '@estehsaan/backstage-plugin-techdocs-editor-node';
 import { CatalogClient } from '@backstage/catalog-client';
+import { OnboardingVcsProvider } from '@estehsaan/backstage-plugin-onboarding-common';
 import { createRouter } from './service/router';
 import { DatabaseOnboardingStore } from './service/OnboardingStore';
 import { DatabaseTemplateDraftStore } from './service/TemplateDraftStore';
 import { seedDemoData } from './service/seedDemoData';
+import { onboardingVcsExtensionPoint } from './extensions';
 
 /**
  * Backstage backend plugin for the onboarding checklist.
@@ -34,6 +35,19 @@ import { seedDemoData } from './service/seedDemoData';
 export const onboardingPlugin = createBackendPlugin({
   pluginId: 'onboarding',
   register(env) {
+    let vcsProvider: OnboardingVcsProvider | undefined;
+
+    env.registerExtensionPoint(onboardingVcsExtensionPoint, {
+      setVcsProvider(provider) {
+        if (vcsProvider) {
+          throw new Error(
+            'onboardingVcsExtensionPoint: a VCS provider was already set',
+          );
+        }
+        vcsProvider = provider;
+      },
+    });
+
     env.registerInit({
       deps: {
         config: coreServices.rootConfig,
@@ -44,7 +58,6 @@ export const onboardingPlugin = createBackendPlugin({
         httpAuth: coreServices.httpAuth,
         auth: coreServices.auth,
         discovery: coreServices.discovery,
-        vcs: techDocsEditorVcsServiceRef,
       },
       async init({
         config,
@@ -55,7 +68,6 @@ export const onboardingPlugin = createBackendPlugin({
         httpAuth,
         auth,
         discovery,
-        vcs,
       }) {
         const store = await DatabaseOnboardingStore.create({
           database,
@@ -86,10 +98,10 @@ export const onboardingPlugin = createBackendPlugin({
             config,
             store,
             draftStore,
-            vcs,
             permissions,
             httpAuth,
             catalogApi,
+            vcs: vcsProvider,
           }),
         );
 

@@ -26,6 +26,7 @@ export interface PhaseCardProps {
   tasks: OnboardingTask[];
   onChangeTask: (index: number, patch: Partial<OnboardingTask>) => void;
   onRemoveTask: (index: number) => void;
+  onMoveTask: (index: number, direction: 'up' | 'down') => void;
   onAddTask: () => void;
 }
 
@@ -34,8 +35,15 @@ export interface PhaseCardProps {
  * within it.
  */
 export function PhaseCard(props: PhaseCardProps) {
-  const { phase, phaseIndex, tasks, onChangeTask, onRemoveTask, onAddTask } =
-    props;
+  const {
+    phase,
+    phaseIndex,
+    tasks,
+    onChangeTask,
+    onRemoveTask,
+    onMoveTask,
+    onAddTask,
+  } = props;
 
   return (
     <div className={styles.card}>
@@ -53,6 +61,10 @@ export function PhaseCard(props: PhaseCardProps) {
             fieldPath={`spec.phases[${phaseIndex}].tasks[${index}]`}
             onChange={patch => onChangeTask(index, patch)}
             onRemove={() => onRemoveTask(index)}
+            onMoveUp={() => onMoveTask(index, 'up')}
+            onMoveDown={() => onMoveTask(index, 'down')}
+            canMoveUp={index > 0}
+            canMoveDown={index < tasks.length - 1}
           />
         ))}
         {tasks.length === 0 && (
