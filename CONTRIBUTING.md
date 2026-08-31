@@ -107,6 +107,10 @@ Every merge to `main` triggers the `Release` workflow which:
    ```
    This tells semantic-release where versioning starts from.
 
+> **Note:** if no `NPM_TOKEN` secret is configured, the release job still runs and
+> creates the changelog, version bump, git tag and GitHub release — only the npm
+> publish step is skipped.
+
 ---
 
 - **PR title** must follow the same Conventional Commits format as commit messages.
