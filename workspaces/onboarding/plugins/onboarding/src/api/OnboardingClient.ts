@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { parseEntityRef } from '@backstage/catalog-model';
 import { DiscoveryApi, FetchApi } from '@backstage/core-plugin-api';
 import { ResponseError, type ConsumedResponse } from '@backstage/errors';
 import { OnboardingApi } from './OnboardingApi';
@@ -31,6 +32,31 @@ import {
   TemplateValidationIssue,
 } from '../types';
 
+/**
+ * Builds the `by-ref/:kind/:namespace/:name` path segment for a user entity
+ * ref. Entity refs contain a `/` (e.g. `user:default/jdoe`), so a single
+ * `encodeURIComponent`-encoded path segment relies on every reverse
+ * proxy/gateway between the browser and this backend forwarding `%2F`
+ * unmodified. Some proxies normalize or reject encoded slashes in a path,
+ * producing a 404 that looks like a routing bug in this plugin but is
+ * actually happening upstream of the request ever reaching Node. Splitting
+ * the ref into three plain segments avoids the ambiguity entirely — the
+ * same approach the core catalog backend uses for
+ * `/entities/by-name/:kind/:namespace/:name`. Falls back to the legacy
+ * combined-segment form (still supported by the backend) if `userId` isn't
+ * a well-formed entity ref.
+ */
+function userRefPathSegment(userId: string): string {
+  try {
+    const { kind, namespace, name } = parseEntityRef(userId);
+    return `by-ref/${encodeURIComponent(kind)}/${encodeURIComponent(
+      namespace,
+    )}/${encodeURIComponent(name)}`;
+  } catch {
+    return encodeURIComponent(userId);
+  }
+}
+
 /** @public */
 export class OnboardingClient implements OnboardingApi {
   private readonly discoveryApi: DiscoveryApi;
@@ -43,7 +69,7 @@ export class OnboardingClient implements OnboardingApi {
 
   async getProgress(userId: string): Promise<OnboardingProgress> {
     return this.request<OnboardingProgress>(
-      `/progress/${encodeURIComponent(userId)}`,
+      `/progress/${userRefPathSegment(userId)}`,
     );
   }
 
@@ -54,7 +80,7 @@ export class OnboardingClient implements OnboardingApi {
     blockedReason?: string,
   ): Promise<OnboardingProgress> {
     return this.request<OnboardingProgress>(
-      `/progress/${encodeURIComponent(userId)}/tasks/${encodeURIComponent(
+      `/progress/${userRefPathSegment(userId)}/tasks/${encodeURIComponent(
         taskId,
       )}`,
       {
@@ -81,13 +107,14 @@ export class OnboardingClient implements OnboardingApi {
     buddyUserId?: string,
   ): Promise<OnboardingProgress> {
     return this.request<OnboardingProgress>(
-      `/templates/${encodeURIComponent(
-        templateName,
-      )}/assign/${encodeURIComponent(userId)}`,
+      `/templates/${encodeURIComponent(templateName)}/assign`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buddyUserId ? { buddyUserId } : {}),
+        body: JSON.stringify({
+          userId,
+          ...(buddyUserId ? { buddyUserId } : {}),
+        }),
       },
     );
   }
@@ -102,7 +129,7 @@ export class OnboardingClient implements OnboardingApi {
     userId: string,
     buddyUserId: string | undefined,
   ): Promise<void> {
-    await this.request<void>(`/progress/${encodeURIComponent(userId)}/buddy`, {
+    await this.request<void>(`/progress/${userRefPathSegment(userId)}/buddy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ buddyUserId: buddyUserId ?? null }),

@@ -26,5 +26,6 @@ export {
   OnboardingTemplateEditorPageExtension,
   OnboardingNavItem,
   OnboardingApi,
+  OnboardingDocsEditorApiExtension,
   EntityUserOnboardingCardExtension,
 } from '../plugin';

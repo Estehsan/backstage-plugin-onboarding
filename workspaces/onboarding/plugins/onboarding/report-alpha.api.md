@@ -69,7 +69,26 @@ export const EntityUserOnboardingCardExtension: OverridableExtensionDefinition<{
 // @public
 export const OnboardingApi: OverridableExtensionDefinition<{
   kind: 'api';
-  name: undefined;
+  name: 'onboarding';
+  config: {};
+  configInput: {};
+  output: ExtensionDataRef<AnyApiFactory, 'core.api.factory', {}>;
+  inputs: {};
+  params: <
+    TApi,
+    TImpl extends TApi,
+    TDeps extends {
+      [x: string]: unknown;
+    },
+  >(
+    params: ApiFactory<TApi, TImpl, TDeps>,
+  ) => ExtensionBlueprintParams<AnyApiFactory>;
+}>;
+
+// @public
+export const OnboardingDocsEditorApiExtension: OverridableExtensionDefinition<{
+  kind: 'api';
+  name: 'docs-editor';
   config: {};
   configInput: {};
   output: ExtensionDataRef<AnyApiFactory, 'core.api.factory', {}>;
@@ -196,9 +215,26 @@ const onboardingPlugin: OverridableFrontendPlugin<
   },
   {},
   {
-    'api:onboarding': OverridableExtensionDefinition<{
+    'api:onboarding/docs-editor': OverridableExtensionDefinition<{
       kind: 'api';
-      name: undefined;
+      name: 'docs-editor';
+      config: {};
+      configInput: {};
+      output: ExtensionDataRef<AnyApiFactory, 'core.api.factory', {}>;
+      inputs: {};
+      params: <
+        TApi,
+        TImpl extends TApi,
+        TDeps extends {
+          [x: string]: unknown;
+        },
+      >(
+        params: ApiFactory<TApi, TImpl, TDeps>,
+      ) => ExtensionBlueprintParams<AnyApiFactory>;
+    }>;
+    'api:onboarding/onboarding': OverridableExtensionDefinition<{
+      kind: 'api';
+      name: 'onboarding';
       config: {};
       configInput: {};
       output: ExtensionDataRef<AnyApiFactory, 'core.api.factory', {}>;

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-export { onboardingApiRef } from './OnboardingApi';
-export type { OnboardingApi } from './OnboardingApi';
-export { OnboardingClient } from './OnboardingClient';
-export { onboardingDocsEditorApiRef } from './OnboardingDocsEditorApi';
-export type {
-  OnboardingDocsEditorApi,
-  OnboardingDocsEditorCapabilities,
-  OnboardingDocumentationEditorProps,
-} from './OnboardingDocsEditorApi';
-export { defaultOnboardingDocsEditorApi } from './DefaultOnboardingDocsEditorApi';
+/**
+ * Alpha (unstable) entry point for the Backstage onboarding backend plugin.
+ *
+ * @packageDocumentation
+ */
+
+export {
+  onboardingVcsExtensionPoint,
+  type OnboardingVcsExtensionPoint,
+} from './extensions';

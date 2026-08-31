@@ -6,6 +6,39 @@
 import { BasicPermission } from '@backstage/plugin-permission-common';
 
 // @public
+export interface OnboardingOpenPrOptions {
+  // (undocumented)
+  authorEmail: string;
+  // (undocumented)
+  authorName: string;
+  // (undocumented)
+  baseBranch: string;
+  // (undocumented)
+  commitMessage: string;
+  // (undocumented)
+  description?: string;
+  // (undocumented)
+  draft?: boolean;
+  files: Map<string, OnboardingVcsWriteFile | null>;
+  // (undocumented)
+  headBranch: string;
+  // (undocumented)
+  repoUrl: string;
+  // (undocumented)
+  reviewers?: string[];
+  // (undocumented)
+  title: string;
+}
+
+// @public
+export interface OnboardingOpenPrResult {
+  // (undocumented)
+  number: number;
+  // (undocumented)
+  url: string;
+}
+
+// @public
 export const onboardingPermissions: BasicPermission[];
 
 // @public
@@ -76,6 +109,24 @@ export const onboardingTemplateAssignPermission: BasicPermission;
 
 // @public
 export const onboardingTemplateWritePermission: BasicPermission;
+
+// @public
+export interface OnboardingVcsProvider {
+  getDefaultBranch(repoUrl: string): Promise<string>;
+  openPullRequest(
+    opts: OnboardingOpenPrOptions,
+  ): Promise<OnboardingOpenPrResult>;
+}
+
+// @public
+export interface OnboardingVcsWriteFile {
+  // (undocumented)
+  content: string;
+  // (undocumented)
+  encoding?: 'utf8' | 'base64';
+  // (undocumented)
+  mimeType?: string;
+}
 
 // @public
 export type Phase = 'day1' | 'week1' | 'week2' | 'month1';

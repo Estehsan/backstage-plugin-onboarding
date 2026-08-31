@@ -36,6 +36,10 @@ export type {
   TemplateValidationIssue,
   PublishTemplateRequest,
   PublishTemplateResponse,
+  OnboardingVcsWriteFile,
+  OnboardingOpenPrOptions,
+  OnboardingOpenPrResult,
+  OnboardingVcsProvider,
 } from './types';
 
 export {

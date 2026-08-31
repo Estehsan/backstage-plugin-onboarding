@@ -59,9 +59,23 @@ describe('OnboardingClient', () => {
     expect(discoveryApi.getBaseUrl).toHaveBeenCalledWith('onboarding');
     expect(fetchApi.fetch).toHaveBeenCalledTimes(1);
     const [url] = fetchApi.fetch.mock.calls[0];
-    expect(url).toBe(
-      `${baseUrl}/progress/${encodeURIComponent('user:default/jane.doe')}`,
+    expect(url).toBe(`${baseUrl}/progress/by-ref/user/default/jane.doe`);
+  });
+
+  it('falls back to a single encoded path segment when userId is not a parsable entity ref', async () => {
+    fetchApi.fetch.mockResolvedValue(
+      okResponse({
+        userId: 'not-a-ref',
+        templateName: 'backend-template',
+        startDate: '2026-01-01T00:00:00.000Z',
+        tasks: [],
+      }),
     );
+
+    await createClient().getProgress('not-a-ref');
+
+    const [url] = fetchApi.fetch.mock.calls[0];
+    expect(url).toBe(`${baseUrl}/progress/${encodeURIComponent('not-a-ref')}`);
   });
 
   it('encodes userId and taskId segments in the request path', async () => {
@@ -82,9 +96,9 @@ describe('OnboardingClient', () => {
 
     const [url, init] = fetchApi.fetch.mock.calls[0];
     expect(url).toBe(
-      `${baseUrl}/progress/${encodeURIComponent(
-        'user:default/jane.doe',
-      )}/tasks/${encodeURIComponent('task/with space')}`,
+      `${baseUrl}/progress/by-ref/user/default/jane.doe/tasks/${encodeURIComponent(
+        'task/with space',
+      )}`,
     );
     expect(init).toMatchObject({ method: 'POST' });
   });
@@ -113,7 +127,7 @@ describe('OnboardingClient', () => {
   });
 
   describe('assignTemplate', () => {
-    it('includes buddyUserId in POST body when provided', async () => {
+    it('includes userId and buddyUserId in POST body when provided', async () => {
       const progress: OnboardingProgress = {
         userId: 'user:default/alice',
         templateName: 'backend-template',
@@ -130,20 +144,19 @@ describe('OnboardingClient', () => {
 
       const [url, init] = fetchApi.fetch.mock.calls[0];
       expect(url).toBe(
-        `${baseUrl}/templates/${encodeURIComponent(
-          'backend-template',
-        )}/assign/${encodeURIComponent('user:default/alice')}`,
+        `${baseUrl}/templates/${encodeURIComponent('backend-template')}/assign`,
       );
       expect(init).toMatchObject({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
       expect(JSON.parse(init?.body as string)).toEqual({
+        userId: 'user:default/alice',
         buddyUserId: 'user:default/bob',
       });
     });
 
-    it('sends empty object in POST body when buddyUserId is undefined', async () => {
+    it('sends userId in POST body when buddyUserId is undefined', async () => {
       const progress: OnboardingProgress = {
         userId: 'user:default/alice',
         templateName: 'backend-template',
@@ -157,8 +170,13 @@ describe('OnboardingClient', () => {
         'user:default/alice',
       );
 
-      const [, init] = fetchApi.fetch.mock.calls[0];
-      expect(JSON.parse(init?.body as string)).toEqual({});
+      const [url, init] = fetchApi.fetch.mock.calls[0];
+      expect(url).toBe(
+        `${baseUrl}/templates/${encodeURIComponent('backend-template')}/assign`,
+      );
+      expect(JSON.parse(init?.body as string)).toEqual({
+        userId: 'user:default/alice',
+      });
     });
   });
 
@@ -174,9 +192,7 @@ describe('OnboardingClient', () => {
       await createClient().setBuddy('user:default/alice', 'user:default/bob');
 
       const [url, init] = fetchApi.fetch.mock.calls[0];
-      expect(url).toBe(
-        `${baseUrl}/progress/${encodeURIComponent('user:default/alice')}/buddy`,
-      );
+      expect(url).toBe(`${baseUrl}/progress/by-ref/user/default/alice/buddy`);
       expect(init).toMatchObject({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

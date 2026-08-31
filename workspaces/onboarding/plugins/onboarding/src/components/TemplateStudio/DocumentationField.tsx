@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-import { TechDocsMarkdownEditor } from '@estehsaan/backstage-plugin-techdocs-editor-react';
+import { useApi } from '@backstage/core-plugin-api';
+import { Text } from '@backstage/ui';
+import { onboardingDocsEditorApiRef } from '../../api/OnboardingDocsEditorApi';
 
 /** @public */
 export interface DocumentationFieldProps {
@@ -23,17 +25,22 @@ export interface DocumentationFieldProps {
 }
 
 /**
- * Rich markdown editor for a task's long-form documentation, reusing the
- * TechDocs Editor's WYSIWYG markdown component so authors edit the doc inline
- * instead of maintaining it separately.
+ * Task documentation editor. Renders whatever editor the
+ * `onboardingDocsEditorApiRef` implementation supplies (plain-text by default,
+ * TechDocs WYSIWYG when that opt-in module is installed).
  */
 export function DocumentationField(props: DocumentationFieldProps) {
   const { value, onChange } = props;
+  const editor = useApi(onboardingDocsEditorApiRef);
+  const Editor = editor.DocumentationEditor;
   return (
-    <TechDocsMarkdownEditor
-      initialContent={value}
-      onChange={onChange}
-      sourceMode={false}
-    />
+    <>
+      <Editor value={value} onChange={onChange} />
+      {!editor.capabilities.richTextEditing && (
+        <Text variant="body-small">
+          Rich Markdown editing requires the TechDocs Editor plugin.
+        </Text>
+      )}
+    </>
   );
 }

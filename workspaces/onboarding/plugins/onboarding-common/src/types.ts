@@ -272,3 +272,62 @@ export interface PublishTemplateResponse {
   /** Provider-specific PR/MR number. */
   number: number;
 }
+
+/**
+ * Content payload for a single file change in a publish operation.
+ * Field-compatible with techdocs-editor-node's VcsWriteFile.
+ * @public
+ */
+export interface OnboardingVcsWriteFile {
+  content: string;
+  encoding?: 'utf8' | 'base64';
+  mimeType?: string;
+}
+
+/**
+ * Options for opening a pull/merge request when publishing a template draft.
+ * Field-compatible with techdocs-editor-node's OpenPrOptions.
+ * @public
+ */
+export interface OnboardingOpenPrOptions {
+  repoUrl: string;
+  headBranch: string;
+  baseBranch: string;
+  title: string;
+  description?: string;
+  /** Map of file path to new content (null = delete). */
+  files: Map<string, OnboardingVcsWriteFile | null>;
+  commitMessage: string;
+  authorName: string;
+  authorEmail: string;
+  draft?: boolean;
+  reviewers?: string[];
+}
+
+/**
+ * Result of opening a pull/merge request.
+ * Field-compatible with techdocs-editor-node's OpenPrResult.
+ * @public
+ */
+export interface OnboardingOpenPrResult {
+  url: string;
+  number: number;
+}
+
+/**
+ * The minimal version-control surface the onboarding publish endpoint needs.
+ *
+ * Deliberately a structural subset of techdocs-editor-node's `VcsProvider`, so an
+ * app can register a real `VcsProvider` instance directly (it satisfies this
+ * interface). Defined here — not in `-backend` — so both the router type and any
+ * companion backend module can share it without a `-backend` import.
+ * @public
+ */
+export interface OnboardingVcsProvider {
+  /** Returns the default branch name (e.g. 'main'). */
+  getDefaultBranch(repoUrl: string): Promise<string>;
+  /** Opens a pull/merge request with the given file changes. */
+  openPullRequest(
+    opts: OnboardingOpenPrOptions,
+  ): Promise<OnboardingOpenPrResult>;
+}

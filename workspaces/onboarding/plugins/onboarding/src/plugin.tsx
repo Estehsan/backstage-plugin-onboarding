@@ -27,6 +27,8 @@ import SchoolIcon from '@material-ui/icons/School';
 import { rootRouteRef, templateEditorRouteRef } from './routes';
 import { onboardingApiRef } from './api/OnboardingApi';
 import { OnboardingClient } from './api/OnboardingClient';
+import { onboardingDocsEditorApiRef } from './api/OnboardingDocsEditorApi';
+import { defaultOnboardingDocsEditorApi } from './api/DefaultOnboardingDocsEditorApi';
 
 /**
  * Page extension for the Onboarding plugin.
@@ -76,6 +78,7 @@ export const OnboardingNavItem = NavItemBlueprint.make({
  * @public
  */
 export const OnboardingApi = ApiBlueprint.make({
+  name: 'onboarding',
   params: defineParams =>
     defineParams(
       createApiFactory({
@@ -83,6 +86,23 @@ export const OnboardingApi = ApiBlueprint.make({
         deps: { discoveryApi: discoveryApiRef, fetchApi: fetchApiRef },
         factory: ({ discoveryApi, fetchApi }) =>
           new OnboardingClient({ discoveryApi, fetchApi }),
+      }),
+    ),
+});
+
+/**
+ * Default (plain-text) documentation editor API extension.
+ * Override by installing `@estehsaan/backstage-plugin-onboarding/techdocs-editor`.
+ * @public
+ */
+export const OnboardingDocsEditorApiExtension = ApiBlueprint.make({
+  name: 'docs-editor',
+  params: defineParams =>
+    defineParams(
+      createApiFactory({
+        api: onboardingDocsEditorApiRef,
+        deps: {},
+        factory: () => defaultOnboardingDocsEditorApi,
       }),
     ),
 });
@@ -118,6 +138,7 @@ export const onboardingPlugin = createFrontendPlugin({
     OnboardingTemplateEditorPageExtension,
     OnboardingNavItem,
     OnboardingApi,
+    OnboardingDocsEditorApiExtension,
     EntityUserOnboardingCardExtension,
   ],
 });
@@ -143,6 +164,11 @@ export const legacyOnboardingPlugin = createPlugin({
       deps: { discoveryApi: discoveryApiRef, fetchApi: fetchApiRef },
       factory: ({ discoveryApi, fetchApi }) =>
         new OnboardingClient({ discoveryApi, fetchApi }),
+    }),
+    createCoreApiFactory({
+      api: onboardingDocsEditorApiRef,
+      deps: {},
+      factory: () => defaultOnboardingDocsEditorApi,
     }),
   ],
 });

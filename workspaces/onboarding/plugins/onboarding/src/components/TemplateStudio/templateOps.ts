@@ -105,6 +105,35 @@ export function updateTask(
   };
 }
 
+/** Immutably moves a task one position up or down within its phase. */
+export function moveTask(
+  template: OnboardingTemplate,
+  phase: Phase,
+  index: number,
+  direction: 'up' | 'down',
+): OnboardingTemplate {
+  const targetIndex = direction === 'up' ? index - 1 : index + 1;
+  return {
+    ...template,
+    spec: {
+      ...template.spec,
+      phases: template.spec.phases.map(p => {
+        if (p.id !== phase) {
+          return p;
+        }
+        if (targetIndex < 0 || targetIndex >= p.tasks.length) {
+          return p;
+        }
+        const tasks = [...p.tasks];
+        const temp = tasks[index];
+        tasks[index] = tasks[targetIndex];
+        tasks[targetIndex] = temp;
+        return { ...p, tasks };
+      }),
+    },
+  };
+}
+
 /** Immutably removes a task at the given phase/index. */
 export function removeTask(
   template: OnboardingTemplate,
