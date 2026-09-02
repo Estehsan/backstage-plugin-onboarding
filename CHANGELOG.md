@@ -1,3 +1,22 @@
+# [1.4.0](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.3.1...v1.4.0) (2026-09-02)
+
+
+### Bug Fixes
+
+* **onboarding:** remove nested ternary in TemplateStudioPage ([929e928](https://github.com/Estehsan/backstage-plugin-onboarding/commit/929e928f1a54b8efd3ea8dfc0e523f24d1a4310d))
+
+
+### Features
+
+* **onboarding-backend:** template draft store and migration ([903d089](https://github.com/Estehsan/backstage-plugin-onboarding/commit/903d089beffe689748c51f67753d6f8ba55634c1))
+* **onboarding-backend:** template studio routes and publish flow ([9013151](https://github.com/Estehsan/backstage-plugin-onboarding/commit/9013151a926e92d75477d9e997998492eec2cce3))
+* **onboarding-backend:** template validation, yaml, block library ([e422bbc](https://github.com/Estehsan/backstage-plugin-onboarding/commit/e422bbc4614a8a27066e2a991fcb094a1e5b9165))
+* **onboarding-common:** template studio types and write permission ([f34f36a](https://github.com/Estehsan/backstage-plugin-onboarding/commit/f34f36a492414113492f7d37be135335338e7cce))
+* **onboarding:** make TechDocs Editor an optional integration ([bb6f3f1](https://github.com/Estehsan/backstage-plugin-onboarding/commit/bb6f3f1d6b064da7ef23737dce75c94dbe618f91))
+* **onboarding:** template studio api client ([221eabf](https://github.com/Estehsan/backstage-plugin-onboarding/commit/221eabf06926e4b8df1b32155364b0071f612375))
+* **onboarding:** template studio editor components ([3e9cbd4](https://github.com/Estehsan/backstage-plugin-onboarding/commit/3e9cbd44a9f414faec0d5f9d1a28596ce5b4640c))
+* **onboarding:** template studio route, page extension, and entry points ([92e51b7](https://github.com/Estehsan/backstage-plugin-onboarding/commit/92e51b7a1abba9e38008318011c01fe264883366))
+
 ## [1.3.1](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.3.0...v1.3.1) (2026-07-27)
 
 
