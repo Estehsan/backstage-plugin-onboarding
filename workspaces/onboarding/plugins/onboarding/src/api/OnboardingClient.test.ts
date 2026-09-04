@@ -44,18 +44,21 @@ describe('OnboardingClient', () => {
     discoveryApi.getBaseUrl.mockResolvedValue(baseUrl);
   });
 
-  it('returns parsed JSON from a successful GET against the discovery base url', async () => {
+  it('returns parsed JSON array from a successful GET against the discovery base url', async () => {
     const progress: OnboardingProgress = {
       userId: 'user:default/jane.doe',
       templateName: 'backend-template',
       startDate: '2026-01-01T00:00:00.000Z',
       tasks: [{ taskId: 'setup-env', status: 'pending' }],
     };
-    fetchApi.fetch.mockResolvedValue(okResponse(progress));
+    // Spec 001 FR-002: the endpoint now returns an array of progress records.
+    fetchApi.fetch.mockResolvedValue(okResponse([progress]));
 
-    const result = await createClient().getProgress('user:default/jane.doe');
+    const result = await createClient().getProgressList(
+      'user:default/jane.doe',
+    );
 
-    expect(result).toEqual(progress);
+    expect(result).toEqual([progress]);
     expect(discoveryApi.getBaseUrl).toHaveBeenCalledWith('onboarding');
     expect(fetchApi.fetch).toHaveBeenCalledTimes(1);
     const [url] = fetchApi.fetch.mock.calls[0];
@@ -63,22 +66,15 @@ describe('OnboardingClient', () => {
   });
 
   it('falls back to a single encoded path segment when userId is not a parsable entity ref', async () => {
-    fetchApi.fetch.mockResolvedValue(
-      okResponse({
-        userId: 'not-a-ref',
-        templateName: 'backend-template',
-        startDate: '2026-01-01T00:00:00.000Z',
-        tasks: [],
-      }),
-    );
+    fetchApi.fetch.mockResolvedValue(okResponse([]));
 
-    await createClient().getProgress('not-a-ref');
+    await createClient().getProgressList('not-a-ref');
 
     const [url] = fetchApi.fetch.mock.calls[0];
     expect(url).toBe(`${baseUrl}/progress/${encodeURIComponent('not-a-ref')}`);
   });
 
-  it('encodes userId and taskId segments in the request path', async () => {
+  it('encodes userId and taskId segments and sends templateName in the task-update body', async () => {
     fetchApi.fetch.mockResolvedValue(
       okResponse({
         userId: 'user:default/jane.doe',
@@ -90,6 +86,7 @@ describe('OnboardingClient', () => {
 
     await createClient().updateTaskStatus(
       'user:default/jane.doe',
+      'backend-template',
       'task/with space',
       'done',
     );
@@ -101,6 +98,11 @@ describe('OnboardingClient', () => {
       )}`,
     );
     expect(init).toMatchObject({ method: 'POST' });
+    // Spec 001 FR-004: templateName travels in the request body.
+    expect(JSON.parse(init?.body as string)).toEqual({
+      templateName: 'backend-template',
+      status: 'done',
+    });
   });
 
   it('throws a ResponseError carrying the 404 status when the backend responds with 404', async () => {
@@ -117,7 +119,7 @@ describe('OnboardingClient', () => {
         }),
     } as unknown as Response);
 
-    const promise = createClient().getProgress('user:default/missing');
+    const promise = createClient().getProgressList('user:default/missing');
 
     await expect(promise).rejects.toBeInstanceOf(ResponseError);
     await expect(promise).rejects.toMatchObject({
@@ -247,6 +249,7 @@ describe('OnboardingClient', () => {
           userId: 'user:default/alice',
           displayName: 'Alice Smith',
           role: 'backend-engineer',
+          templateName: 'backend-engineer',
           startDate: '2026-01-01',
           completionPercent: 45,
           blockedTaskCount: 1,
@@ -257,6 +260,7 @@ describe('OnboardingClient', () => {
           userId: 'user:default/bob',
           displayName: 'Bob Jones',
           role: 'frontend-engineer',
+          templateName: 'frontend-engineer',
           startDate: '2026-01-15',
           completionPercent: 20,
           blockedTaskCount: 0,

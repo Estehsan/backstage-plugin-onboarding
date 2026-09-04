@@ -140,9 +140,14 @@ export async function seedDemoData(options: {
   const { store, logger } = options;
 
   for (const record of demoProgressRecords) {
-    const existing = await store.getProgress(record.userId);
+    // Spec 001 FR-003: seed idempotently per (user, template) so demo data survives
+    // restarts and never overwrites progress a developer has already advanced.
+    const existing = await store.getProgress(
+      record.userId,
+      record.templateName,
+    );
     if (!existing) {
-      await store.upsertProgress(record);
+      await store.createProgressIfAbsent(record);
       logger.info(
         `Seeded demo onboarding progress for ${record.userId} (template: ${record.templateName})`,
       );

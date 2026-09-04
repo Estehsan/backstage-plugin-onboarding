@@ -232,23 +232,25 @@ export async function createRouter(
         elevatedPermission: onboardingTeamReadPermission,
       });
 
-      let progress = await store.getProgress(userId);
+      // Spec 001 FR-002: return all of the user's progress records, not just one.
+      let list = await store.listProgress(userId);
 
-      if (!progress) {
+      if (list.length === 0) {
         const template = await findTemplateForUser(catalogApi, userId, logger);
         if (template) {
-          progress = initializeProgress(userId, template);
-          await store.upsertProgress(progress);
+          // Spec 001 FR-003: seed via create-if-absent (idempotent) rather than
+          // upsert, so a concurrent seed does not overwrite an existing row.
+          const created = await store.createProgressIfAbsent(
+            initializeProgress(userId, template),
+          );
+          list = [created];
         }
       }
 
-      if (!progress) {
-        throw new NotFoundError(
-          `No onboarding progress found for user ${userId}`,
-        );
-      }
-
-      res.status(200).json(progress);
+      // Spec 001 FR-002 / SC-003: an empty roster is a 200 [] empty state (was 404). A
+      // single-template user still gets exactly one element, preserving today's
+      // behavior.
+      res.status(200).json(list);
     },
   );
 
@@ -273,9 +275,10 @@ export async function createRouter(
         elevatedPermission: onboardingTeamReadPermission,
       });
 
-      const { status, blockedReason } = req.body as {
+      const { status, blockedReason, templateName } = req.body as {
         status?: TaskStatus;
         blockedReason?: string;
+        templateName?: string;
       };
 
       if (!status || !VALID_STATUSES.includes(status)) {
@@ -290,10 +293,31 @@ export async function createRouter(
         throw new InputError('blockedReason must not exceed 500 characters');
       }
 
-      const progress = await store.getProgress(userId);
+      // Spec 001 FR-004: a task ID is only unique within its own template, so resolve
+      // which template's record to update. Prefer an explicit templateName; fall back
+      // to the sole template when the user has exactly one (SC-003 — old
+      // single-template clients keep working without sending templateName).
+      let targetTemplate = templateName?.trim();
+      if (!targetTemplate) {
+        const all = await store.listProgress(userId);
+        if (all.length === 1) {
+          targetTemplate = all[0].templateName;
+        } else if (all.length === 0) {
+          throw new NotFoundError(
+            `No onboarding progress found for user ${userId}`,
+          );
+        } else {
+          // Spec 001 FR-004: with >1 assigned template the request is ambiguous.
+          throw new InputError(
+            'templateName is required when the user has multiple assigned templates',
+          );
+        }
+      }
+
+      const progress = await store.getProgress(userId, targetTemplate);
       if (!progress) {
         throw new NotFoundError(
-          `No onboarding progress found for user ${userId}`,
+          `No onboarding progress found for user ${userId} and template ${targetTemplate}`,
         );
       }
 
@@ -651,8 +675,12 @@ export async function createRouter(
 
     validateTemplateDependencies(template);
 
-    const progress = initializeProgress(resolvedUserRef, template);
-    await store.upsertProgress(progress);
+    // Spec 001 FR-003 / User Story 2 (P2): create a new record for (user, template) if
+    // absent; must NOT modify or delete the user's other templates. Re-assigning the
+    // same template returns the existing record unchanged (SC-002).
+    const progress = await store.createProgressIfAbsent(
+      initializeProgress(resolvedUserRef, template),
+    );
 
     if (buddyUserId) {
       const resolvedBuddyRef = await assertCatalogUserExists(
@@ -914,6 +942,9 @@ function toJoinerSummaries(
       userId: progress.userId,
       displayName: displayNames.get(progress.userId) ?? progress.userId,
       role: progress.templateName,
+      // Spec 001 FR-006: emit one summary per (user, template); templateName keeps
+      // otherwise-identical userId roster rows distinct.
+      templateName: progress.templateName,
       startDate: progress.startDate,
       completionPercent:
         progress.tasks.length === 0

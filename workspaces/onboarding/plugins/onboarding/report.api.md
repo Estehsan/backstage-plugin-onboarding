@@ -126,7 +126,7 @@ export interface OnboardingApiType {
   getMyTeams(): Promise<{
     teams: string[];
   }>;
-  getProgress(userId: string): Promise<OnboardingProgress>;
+  getProgressList(userId: string): Promise<OnboardingProgress[]>;
   getTeamStats(teamName: string): Promise<TeamOnboardingStats>;
   getTemplateDraft(name: string): Promise<TemplateDraft>;
   getTemplates(): Promise<OnboardingTemplate[]>;
@@ -144,6 +144,7 @@ export interface OnboardingApiType {
   setBuddy(userId: string, buddyUserId: string | undefined): Promise<void>;
   updateTaskStatus(
     userId: string,
+    templateName: string,
     taskId: string,
     status: TaskStatus,
     blockedReason?: string,

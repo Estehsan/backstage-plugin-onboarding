@@ -63,9 +63,9 @@ const progress = {
 
 function createOnboardingApiMock(): jest.Mocked<OnboardingApi> {
   return {
-    getProgress: jest.fn<
-      ReturnType<OnboardingApi['getProgress']>,
-      Parameters<OnboardingApi['getProgress']>
+    getProgressList: jest.fn<
+      ReturnType<OnboardingApi['getProgressList']>,
+      Parameters<OnboardingApi['getProgressList']>
     >(),
     updateTaskStatus: jest.fn<
       ReturnType<OnboardingApi['updateTaskStatus']>,

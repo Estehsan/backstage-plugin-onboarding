@@ -26,6 +26,8 @@ import {
 import { identityApiRef, useApi } from '@backstage/core-plugin-api';
 import { ResponseError } from '@backstage/errors';
 import { Tabs, TabList, TabPanel, Tab } from '@backstage/ui';
+import MenuItem from '@material-ui/core/MenuItem';
+import TextField from '@material-ui/core/TextField';
 import { onboardingApiRef } from '../../api/OnboardingApi';
 import {
   OnboardingProgress,
@@ -62,7 +64,10 @@ export function OnboardingPage() {
   const onboardingApi = useApi(onboardingApiRef);
   const identityApi = useApi(identityApiRef);
 
-  const [progress, setProgress] = useState<OnboardingProgress | undefined>();
+  // Spec 001 FR-002: hold all assigned templates' progress records rather than
+  // a single record, and track which one is currently displayed (FR-005).
+  const [progressList, setProgressList] = useState<OnboardingProgress[]>([]);
+  const [selectedTemplateName, setSelectedTemplateName] = useState<string>('');
   const [templates, setTemplates] = useState<OnboardingTemplate[]>([]);
   const [isAssigner, setIsAssigner] = useState(false);
   const [myBuddies, setMyBuddies] = useState<TeamJoinerSummary[]>([]);
@@ -75,8 +80,10 @@ export function OnboardingPage() {
   const reloadProgress = useCallback(async () => {
     if (!userId) return;
     try {
-      const updated = await onboardingApi.getProgress(userId);
-      setProgress(updated);
+      // Spec 001 FR-002: reload the full list and preserve the current
+      // selection so a background update never collapses the list to one record.
+      const updated = await onboardingApi.getProgressList(userId);
+      setProgressList(updated);
     } catch {
       // A reload failure should not wipe the currently displayed progress;
       // keep the existing state so the user doesn't lose their checklist.
@@ -85,6 +92,8 @@ export function OnboardingPage() {
 
   const { triggerAutomatedTask } = useAutomatedTask({
     userId,
+    // Spec 001 FR-004: the automated task belongs to the selected template.
+    templateName: selectedTemplateName,
     onProgressUpdate: reloadProgress,
   });
 
@@ -103,7 +112,7 @@ export function OnboardingPage() {
           isAssignerResult,
           myBuddiesResult,
         ] = await Promise.allSettled([
-          onboardingApi.getProgress(userEntityRef),
+          onboardingApi.getProgressList(userEntityRef),
           onboardingApi.getTemplates(),
           onboardingApi.getIsAssigner(),
           onboardingApi.getMyBuddies(),
@@ -111,7 +120,7 @@ export function OnboardingPage() {
 
         if (cancelled) return;
 
-        let progressData: OnboardingProgress | undefined;
+        let progressData: OnboardingProgress[] = [];
         let templateData: OnboardingTemplate[] = [];
         let isAssignerData = false;
         let myBuddiesData: TeamJoinerSummary[] = [];
@@ -120,8 +129,8 @@ export function OnboardingPage() {
         if (progressResult.status === 'fulfilled') {
           progressData = progressResult.value;
         } else if (!isNotFound(progressResult.reason)) {
-          // A missing progress record simply means no checklist has been
-          // assigned yet — that is the empty state, not an error.
+          // Spec 001 FR-002 / SC-003: no assigned templates is the empty state,
+          // now signalled by an empty array (a defensive 404 is still tolerated).
           warnings.push(asError(progressResult.reason));
         }
 
@@ -156,7 +165,14 @@ export function OnboardingPage() {
           );
         }
 
-        setProgress(progressData);
+        setProgressList(progressData);
+        // Spec 001 FR-005: default the selection to the first assigned template
+        // (or keep the current one if it is still present after a reload).
+        setSelectedTemplateName(prev =>
+          progressData.some(p => p.templateName === prev)
+            ? prev
+            : (progressData[0]?.templateName ?? ''),
+        );
         setTemplates(templateData);
         setIsAssigner(isAssignerData);
         setMyBuddies(myBuddiesData);
@@ -178,9 +194,15 @@ export function OnboardingPage() {
     };
   }, [identityApi, onboardingApi]);
 
+  // Spec 001 FR-002 / FR-005: derive the active record + template from the
+  // current selection instead of holding a single progress object.
+  const progress = useMemo(
+    () => progressList.find(p => p.templateName === selectedTemplateName),
+    [progressList, selectedTemplateName],
+  );
   const currentTemplate = useMemo(
-    () => templates.find(t => t.metadata.name === progress?.templateName),
-    [templates, progress?.templateName],
+    () => templates.find(t => t.metadata.name === selectedTemplateName),
+    [templates, selectedTemplateName],
   );
 
   const handleToggle = useCallback(
@@ -208,15 +230,29 @@ export function OnboardingPage() {
       try {
         const updated = await onboardingApi.updateTaskStatus(
           userId,
+          selectedTemplateName, // Spec 001 FR-004
           taskId,
           newStatus,
         );
-        setProgress(updated);
+        // Spec 001 FR-002: merge the updated record back by templateName instead
+        // of replacing the whole list, so the other templates stay intact.
+        setProgressList(prev =>
+          prev.map(p =>
+            p.templateName === updated.templateName ? updated : p,
+          ),
+        );
       } catch (e) {
         setError(e instanceof Error ? e : new Error(String(e)));
       }
     },
-    [onboardingApi, progress, userId, currentTemplate, triggerAutomatedTask],
+    [
+      onboardingApi,
+      progress,
+      userId,
+      selectedTemplateName,
+      currentTemplate,
+      triggerAutomatedTask,
+    ],
   );
 
   const handleTabChange = useCallback((key: string | number) => {
@@ -281,6 +317,30 @@ export function OnboardingPage() {
           <TabPanel id="tasks">
             {progress && currentTemplate ? (
               <>
+                {/* Spec 001 FR-005: only show the selector when >1 template is
+                    assigned; a single assigned template renders with zero extra
+                    chrome (SC-003). */}
+                {progressList.length > 1 && (
+                  <TextField
+                    select
+                    size="small"
+                    variant="outlined"
+                    label="Checklist"
+                    value={selectedTemplateName}
+                    onChange={e => setSelectedTemplateName(e.target.value)}
+                  >
+                    {progressList.map(p => {
+                      const tpl = templates.find(
+                        t => t.metadata.name === p.templateName,
+                      );
+                      return (
+                        <MenuItem key={p.templateName} value={p.templateName}>
+                          {tpl?.metadata.title ?? p.templateName}
+                        </MenuItem>
+                      );
+                    })}
+                  </TextField>
+                )}
                 <ProgressBar completed={completedCount} total={totalCount} />
                 <TaskList
                   phases={currentTemplate.spec.phases}

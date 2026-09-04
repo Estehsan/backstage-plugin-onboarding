@@ -57,11 +57,14 @@ export function EntityUserOnboardingCard() {
   const userId = `user:default/${entity.metadata.name}`;
 
   const { value, loading, error } = useAsync(async () => {
-    const [prog, templates] = await Promise.all([
-      onboardingApi.getProgress(userId),
+    const [progressList, templates] = await Promise.all([
+      onboardingApi.getProgressList(userId),
       onboardingApi.getTemplates(),
     ]);
-    return { progress: prog, templates };
+    // Spec 001 FR-002: progress is now a list (one record per assigned
+    // template). This summary card surfaces the user's first assigned template;
+    // an empty list falls through to the existing "no progress" empty state.
+    return { progress: progressList[0], templates };
   }, [userId]);
 
   const progress = value?.progress;

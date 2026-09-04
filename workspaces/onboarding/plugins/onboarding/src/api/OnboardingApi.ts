@@ -42,11 +42,19 @@ export const onboardingApiRef = createApiRef<OnboardingApi>({
  * @public
  */
 export interface OnboardingApi {
-  /** Retrieves the onboarding progress for a given user. */
-  getProgress(userId: string): Promise<OnboardingProgress>;
+  /**
+   * Retrieves all onboarding progress records for a given user.
+   *
+   * Spec 001 FR-002: a user may have multiple assigned templates, so this
+   * returns one record per assigned template (an empty array when none).
+   */
+  getProgressList(userId: string): Promise<OnboardingProgress[]>;
   /** Updates the status of a specific onboarding task for a user. */
   updateTaskStatus(
     userId: string,
+    // Spec 001 FR-004: templateName selects which template's record to update,
+    // because a task ID is only unique within its own template.
+    templateName: string,
     taskId: string,
     status: TaskStatus,
     blockedReason?: string,

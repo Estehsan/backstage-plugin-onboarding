@@ -67,14 +67,17 @@ export class OnboardingClient implements OnboardingApi {
     this.fetchApi = options.fetchApi;
   }
 
-  async getProgress(userId: string): Promise<OnboardingProgress> {
-    return this.request<OnboardingProgress>(
+  // Spec 001 FR-002: backend now returns an array of progress records (one per
+  // assigned template).
+  async getProgressList(userId: string): Promise<OnboardingProgress[]> {
+    return this.request<OnboardingProgress[]>(
       `/progress/${userRefPathSegment(userId)}`,
     );
   }
 
   async updateTaskStatus(
     userId: string,
+    templateName: string,
     taskId: string,
     status: TaskStatus,
     blockedReason?: string,
@@ -85,7 +88,10 @@ export class OnboardingClient implements OnboardingApi {
       )}`,
       {
         method: 'POST',
-        body: JSON.stringify({ status, blockedReason }),
+        // Spec 001 FR-004: send templateName in the body so the backend updates
+        // the correct template's record (task IDs are only unique within a
+        // template).
+        body: JSON.stringify({ templateName, status, blockedReason }),
         headers: { 'Content-Type': 'application/json' },
       },
     );

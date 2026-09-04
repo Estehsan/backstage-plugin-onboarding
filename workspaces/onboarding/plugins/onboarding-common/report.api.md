@@ -181,6 +181,7 @@ export interface TeamJoinerSummary {
   displayName: string;
   role: string;
   startDate: string;
+  templateName: string;
   userId: string;
 }
 

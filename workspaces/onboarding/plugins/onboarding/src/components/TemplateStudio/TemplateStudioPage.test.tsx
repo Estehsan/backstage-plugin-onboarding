@@ -79,7 +79,7 @@ const blocks: TemplateBlock[] = [
 
 function makeApi(): jest.Mocked<OnboardingApi> {
   return {
-    getProgress: jest.fn(),
+    getProgressList: jest.fn(),
     updateTaskStatus: jest.fn(),
     getTeamStats: jest.fn(),
     getTemplates: jest.fn(),
