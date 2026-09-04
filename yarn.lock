@@ -3945,7 +3945,7 @@ __metadata:
     "@backstage/config": "npm:^1.3.6"
     "@backstage/errors": "npm:^1.2.7"
     "@backstage/plugin-permission-common": "npm:^0.9.6"
-    "@estehsaan/backstage-plugin-onboarding-common": "npm:^1.3.1"
+    "@estehsaan/backstage-plugin-onboarding-common": "npm:^1.4.0"
     "@estehsaan/backstage-plugin-techdocs-editor-node": "npm:^2.0.0"
     "@types/express": "npm:^4.17.6"
     "@types/supertest": "npm:^6.0.0"
@@ -3959,7 +3959,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@estehsaan/backstage-plugin-onboarding-common@npm:^1.3.1, @estehsaan/backstage-plugin-onboarding-common@workspace:workspaces/onboarding/plugins/onboarding-common":
+"@estehsaan/backstage-plugin-onboarding-common@npm:^1.4.0, @estehsaan/backstage-plugin-onboarding-common@workspace:workspaces/onboarding/plugins/onboarding-common":
   version: 0.0.0-use.local
   resolution: "@estehsaan/backstage-plugin-onboarding-common@workspace:workspaces/onboarding/plugins/onboarding-common"
   dependencies:
@@ -3985,7 +3985,7 @@ __metadata:
     "@backstage/test-utils": "npm:^1.7.16"
     "@backstage/theme": "npm:^0.7.2"
     "@backstage/ui": "npm:^0.16.0"
-    "@estehsaan/backstage-plugin-onboarding-common": "npm:^1.3.1"
+    "@estehsaan/backstage-plugin-onboarding-common": "npm:^1.4.0"
     "@estehsaan/backstage-plugin-techdocs-editor-react": "npm:^2.0.0"
     "@material-ui/core": "npm:^4.12.2"
     "@material-ui/icons": "npm:^4.9.1"
