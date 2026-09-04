@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.4.0...v1.5.0) (2026-09-04)
+
+
+### Features
+
+* **onboarding:** support multiple concurrent onboarding templates ([a5ec95f](https://github.com/Estehsan/backstage-plugin-onboarding/commit/a5ec95f379fc76a8fbeef3dc37d2d6cf1ebc5bf3))
+
 # [1.4.0](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.3.1...v1.4.0) (2026-09-02)
 
 
