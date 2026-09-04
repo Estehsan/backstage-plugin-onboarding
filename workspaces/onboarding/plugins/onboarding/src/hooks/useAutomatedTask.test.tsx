@@ -22,10 +22,11 @@ import { onboardingApiRef } from '../api/OnboardingApi';
 import { useAutomatedTask } from './useAutomatedTask';
 
 const userId = 'user:default/testuser';
+const templateName = 'backend-engineer-platform';
 
 function createOnboardingApiMock() {
   return {
-    getProgress: jest.fn(),
+    getProgressList: jest.fn(),
     updateTaskStatus: jest.fn().mockResolvedValue(undefined),
     getTeamStats: jest.fn(),
     getTemplates: jest.fn(),
@@ -64,9 +65,12 @@ function renderUseAutomatedTask(
     </TestApiProvider>
   );
 
-  return renderHook(() => useAutomatedTask({ userId, onProgressUpdate }), {
-    wrapper,
-  });
+  return renderHook(
+    () => useAutomatedTask({ userId, templateName, onProgressUpdate }),
+    {
+      wrapper,
+    },
+  );
 }
 
 describe('useAutomatedTask', () => {
@@ -99,6 +103,7 @@ describe('useAutomatedTask', () => {
 
     expect(onboardingApi.updateTaskStatus).toHaveBeenCalledWith(
       userId,
+      templateName,
       'task-1',
       'in-progress',
     );
@@ -109,6 +114,7 @@ describe('useAutomatedTask', () => {
     });
     expect(onboardingApi.updateTaskStatus).not.toHaveBeenCalledWith(
       userId,
+      templateName,
       'task-1',
       'done',
     );
@@ -120,6 +126,7 @@ describe('useAutomatedTask', () => {
 
     expect(onboardingApi.updateTaskStatus).toHaveBeenCalledWith(
       userId,
+      templateName,
       'task-1',
       'done',
     );
@@ -154,6 +161,7 @@ describe('useAutomatedTask', () => {
 
     expect(onboardingApi.updateTaskStatus).toHaveBeenCalledWith(
       userId,
+      templateName,
       'task-1',
       'blocked',
       expect.stringContaining('failed'),
@@ -189,6 +197,7 @@ describe('useAutomatedTask', () => {
 
     expect(onboardingApi.updateTaskStatus).toHaveBeenCalledWith(
       userId,
+      templateName,
       'task-1',
       'blocked',
       expect.stringContaining('timed out'),

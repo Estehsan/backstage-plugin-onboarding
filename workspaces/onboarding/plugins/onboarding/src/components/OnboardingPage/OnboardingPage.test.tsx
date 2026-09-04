@@ -128,8 +128,47 @@ const mockProgress: OnboardingProgress = {
   ],
 };
 
+// Spec 001 FR-002/FR-005: a second concurrently-assigned template used to
+// exercise the multiple-template selector.
+const mockTemplate2: OnboardingTemplate = {
+  apiVersion: 'onboarding.backstage.io/v1',
+  kind: 'OnboardingTemplate',
+  metadata: {
+    name: 'security-champion',
+    title: 'Security Champion',
+    description: 'Cross-team security onboarding',
+  },
+  spec: {
+    role: 'security-champion',
+    team: 'platform',
+    phases: [
+      {
+        id: 'week1',
+        tasks: [
+          {
+            id: 'threat-model-101',
+            phase: 'week1',
+            title: 'Complete threat modeling 101',
+            description: 'Intro to threat modeling.',
+            type: 'manual',
+            assignee: 'self',
+            duePhase: 'week1',
+          },
+        ],
+      },
+    ],
+  },
+};
+
+const mockProgress2: OnboardingProgress = {
+  userId: 'user:default/testuser',
+  templateName: 'security-champion',
+  startDate: new Date().toISOString(),
+  tasks: [{ taskId: 'threat-model-101', status: 'pending' }],
+};
+
 const mockOnboardingApi: jest.Mocked<OnboardingApi> = {
-  getProgress: jest.fn(),
+  getProgressList: jest.fn(),
   updateTaskStatus: jest.fn(),
   getTeamStats: jest.fn(),
   getTemplates: jest.fn(),
@@ -187,7 +226,7 @@ describe('OnboardingPage', () => {
       userEntityRef: 'user:default/testuser',
       ownershipEntityRefs: [],
     });
-    mockOnboardingApi.getProgress.mockResolvedValue(mockProgress);
+    mockOnboardingApi.getProgressList.mockResolvedValue([mockProgress]);
     mockOnboardingApi.getTemplates.mockResolvedValue([mockTemplate]);
     // Default to assigner state to keep existing tests passing
     mockOnboardingApi.getIsAssigner.mockResolvedValue({ isAssigner: true });
@@ -254,6 +293,7 @@ describe('OnboardingPage', () => {
 
     expect(mockOnboardingApi.updateTaskStatus).toHaveBeenCalledWith(
       'user:default/testuser',
+      'backend-engineer-platform',
       'security-training',
       'done',
     );
@@ -274,8 +314,61 @@ describe('OnboardingPage', () => {
     expect(oncallCheckbox).toBeDisabled();
   });
 
+  it('renders no checklist selector when only one template is assigned', async () => {
+    // Spec 001 FR-005 / SC-003: a single assigned template renders with zero
+    // extra chrome — the default beforeEach assigns exactly one template.
+    renderPage();
+
+    expect(
+      await screen.findByText('Set up laptop & dev environment'),
+    ).toBeInTheDocument();
+    // The template title only ever appears as a selector option label, so its
+    // absence proves no selector was rendered.
+    expect(
+      screen.queryByText('Backend Engineer — Platform Team'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows a checklist selector and swaps tasks when multiple templates are assigned', async () => {
+    // Spec 001 FR-002/FR-005 (User Story P1): two concurrent templates.
+    mockOnboardingApi.getProgressList.mockResolvedValue([
+      mockProgress,
+      mockProgress2,
+    ]);
+    mockOnboardingApi.getTemplates.mockResolvedValue([
+      mockTemplate,
+      mockTemplate2,
+    ]);
+
+    renderPage();
+
+    // The first assigned template's checklist is shown by default.
+    expect(
+      await screen.findByText('Set up laptop & dev environment'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Complete threat modeling 101'),
+    ).not.toBeInTheDocument();
+
+    // Switching the selector swaps the visible checklist to the second template.
+    const selector = screen.getByRole('button', { name: /Backend Engineer/ });
+    await userEvent.click(selector);
+    const option = await screen.findByRole('option', {
+      name: 'Security Champion',
+    });
+    await userEvent.click(option);
+
+    expect(
+      await screen.findByText('Complete threat modeling 101'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Set up laptop & dev environment'),
+    ).not.toBeInTheDocument();
+  });
+
   it('shows empty state when no progress exists', async () => {
-    mockOnboardingApi.getProgress.mockRejectedValue(new Error('Not found'));
+    // Spec 001 FR-002: no assigned templates is now an empty array, not a 404.
+    mockOnboardingApi.getProgressList.mockResolvedValue([]);
     mockOnboardingApi.getTemplates.mockResolvedValue([]);
 
     renderPage();
@@ -313,6 +406,7 @@ describe('OnboardingPage', () => {
       userId: 'user:default/newjoiner',
       displayName: 'New Joiner',
       role: 'backend-engineer',
+      templateName: 'backend-engineer',
       startDate: '2026-07-01T00:00:00Z',
       completionPercent: 25,
       blockedTaskCount: 0,

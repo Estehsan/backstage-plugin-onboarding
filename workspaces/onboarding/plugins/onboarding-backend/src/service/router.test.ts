@@ -48,6 +48,8 @@ const mockCatalogApi = {
 
 const mockStore: jest.Mocked<DatabaseOnboardingStore> = {
   getProgress: jest.fn(),
+  listProgress: jest.fn(),
+  createProgressIfAbsent: jest.fn(),
   upsertProgress: jest.fn(),
   getTeamProgress: jest.fn(),
   setBuddy: jest.fn().mockResolvedValue(true),
@@ -116,6 +118,9 @@ describe('createRouter', () => {
     mockPermissions.authorize.mockResolvedValue([
       { result: AuthorizeResult.ALLOW },
     ]);
+    // Spec 001 FR-003: create-if-absent returns the persisted record; default the mock
+    // to echo the initialized progress so assign handlers respond with it.
+    mockStore.createProgressIfAbsent.mockImplementation(async p => p);
   });
 
   describe('GET /health', () => {
@@ -128,7 +133,7 @@ describe('createRouter', () => {
   });
 
   describe('GET /progress/:userId', () => {
-    it('returns stored progress for a user', async () => {
+    it('returns stored progress for a user as an array', async () => {
       const progress = {
         userId: 'user:default/jane.doe',
         templateName: 'backend-engineer-platform',
@@ -142,16 +147,47 @@ describe('createRouter', () => {
           { taskId: 'meet-buddy', status: 'pending' },
         ],
       };
-      mockStore.getProgress.mockResolvedValue(progress);
+      // Spec 001 FR-002: GET now returns the full list of a user's progress records.
+      mockStore.listProgress.mockResolvedValue([progress]);
 
       const res = await request(app)
         .get(`/progress/${enc('user:default/jane.doe')}`)
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(200);
-      expect(res.body.userId).toBe('user:default/jane.doe');
-      expect(res.body.tasks).toHaveLength(2);
-      expect(res.body.tasks[0].status).toBe('done');
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0].userId).toBe('user:default/jane.doe');
+      expect(res.body[0].tasks).toHaveLength(2);
+      expect(res.body[0].tasks[0].status).toBe('done');
+    });
+
+    it('returns every assigned template for a user (FR-002)', async () => {
+      // Spec 001 FR-002 / SC-001: a user with two templates gets two records.
+      mockStore.listProgress.mockResolvedValue([
+        {
+          userId: 'user:default/jane.doe',
+          templateName: 'backend-engineer-platform',
+          startDate: '2026-03-01T00:00:00.000Z',
+          tasks: [{ taskId: 'a', status: 'pending' }],
+        },
+        {
+          userId: 'user:default/jane.doe',
+          templateName: 'manager-onboarding',
+          startDate: '2026-03-02T00:00:00.000Z',
+          tasks: [{ taskId: 'b', status: 'pending' }],
+        },
+      ]);
+
+      const res2 = await request(app)
+        .get(`/progress/${enc('user:default/jane.doe')}`)
+        .set('Authorization', '******');
+
+      expect(res2.status).toBe(200);
+      expect(res2.body).toHaveLength(2);
+      expect(
+        res2.body.map((p: { templateName: string }) => p.templateName),
+      ).toEqual(['backend-engineer-platform', 'manager-onboarding']);
     });
 
     it('returns stored progress for a user via the proxy-safe by-ref/:kind/:namespace/:name route', async () => {
@@ -161,21 +197,23 @@ describe('createRouter', () => {
         startDate: '2026-03-01T00:00:00.000Z',
         tasks: [{ taskId: 'meet-buddy', status: 'pending' }],
       };
-      mockStore.getProgress.mockResolvedValue(progress);
+      mockStore.listProgress.mockResolvedValue([progress]);
 
       const res = await request(app)
         .get('/progress/by-ref/user/default/jane.doe')
         .set('Authorization', '******');
 
       expect(res.status).toBe(200);
-      expect(mockStore.getProgress).toHaveBeenCalledWith(
+      expect(mockStore.listProgress).toHaveBeenCalledWith(
         'user:default/jane.doe',
       );
-      expect(res.body.userId).toBe('user:default/jane.doe');
+      expect(res.body[0].userId).toBe('user:default/jane.doe');
     });
 
     it('initializes progress from catalog template when not found', async () => {
-      mockStore.getProgress.mockResolvedValue(undefined);
+      mockStore.listProgress.mockResolvedValue([]);
+      // Spec 001 FR-003: seeding uses create-if-absent, returning the persisted record.
+      mockStore.createProgressIfAbsent.mockImplementation(async p => p);
       mockCatalogApi.getEntityByRef.mockResolvedValue({
         metadata: { name: 'jane.doe' },
         spec: { profile: { role: 'backend-engineer' } },
@@ -216,21 +254,24 @@ describe('createRouter', () => {
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(200);
-      expect(res.body.templateName).toBe('backend-engineer-platform');
-      expect(res.body.tasks).toHaveLength(1);
-      expect(res.body.tasks[0].status).toBe('pending');
-      expect(mockStore.upsertProgress).toHaveBeenCalledTimes(1);
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0].templateName).toBe('backend-engineer-platform');
+      expect(res.body[0].tasks).toHaveLength(1);
+      expect(res.body[0].tasks[0].status).toBe('pending');
+      expect(mockStore.createProgressIfAbsent).toHaveBeenCalledTimes(1);
     });
 
-    it('returns 404 when no progress and no matching template', async () => {
-      mockStore.getProgress.mockResolvedValue(undefined);
+    it('returns 200 with an empty array when no progress and no matching template (FR-002)', async () => {
+      // Spec 001 FR-002 / SC-003: empty roster is a 200 [] empty state (was 404).
+      mockStore.listProgress.mockResolvedValue([]);
       mockCatalogApi.getEntityByRef.mockResolvedValue(undefined);
 
       const res = await request(app)
         .get(`/progress/${enc('user:default/unknown')}`)
         .set('Authorization', 'Bearer mock-token');
 
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([]);
     });
 
     it('returns 403 when permission is denied', async () => {
@@ -256,6 +297,12 @@ describe('createRouter', () => {
         { taskId: 'meet-buddy', status: 'pending' },
       ],
     };
+
+    beforeEach(() => {
+      // Spec 001 FR-004: default single-template resolution — with exactly one
+      // assigned template the backend resolves it without an explicit templateName.
+      mockStore.listProgress.mockResolvedValue([{ ...existingProgress }]);
+    });
 
     it('updates a task status to done', async () => {
       mockStore.getProgress.mockResolvedValue({ ...existingProgress });
@@ -318,6 +365,7 @@ describe('createRouter', () => {
       expect(res.status).toBe(200);
       expect(mockStore.getProgress).toHaveBeenCalledWith(
         'user:default/jane.doe',
+        'backend-engineer-platform',
       );
       expect(res.body.tasks[0].status).toBe('blocked');
     });
@@ -399,6 +447,79 @@ describe('createRouter', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error.message).toContain('Unmet dependencies');
+    });
+
+    it('updates only the record named by templateName (FR-004)', async () => {
+      // Spec 001 FR-004: an explicit templateName selects which template's record to
+      // update when the user has more than one assigned template.
+      mockStore.listProgress.mockResolvedValue([
+        { ...existingProgress, templateName: 'backend-engineer-platform' },
+        { ...existingProgress, templateName: 'manager-onboarding' },
+      ]);
+      mockStore.getProgress.mockResolvedValue({
+        ...existingProgress,
+        templateName: 'manager-onboarding',
+      });
+
+      const res = await request(app)
+        .post(`/progress/${enc('user:default/jane.doe')}/tasks/setup-laptop`)
+        .set('Authorization', '******')
+        .send({ status: 'blocked', templateName: 'manager-onboarding' });
+
+      expect(res.status).toBe(200);
+      // getProgress is resolved by the explicit (user, template) composite key.
+      expect(mockStore.getProgress).toHaveBeenCalledWith(
+        'user:default/jane.doe',
+        'manager-onboarding',
+      );
+      expect(res.body.templateName).toBe('manager-onboarding');
+    });
+
+    it('returns 400 when templateName omitted and user has multiple templates (FR-004)', async () => {
+      // Spec 001 FR-004: with >1 assigned template and no templateName the request is
+      // ambiguous and must be rejected.
+      mockStore.listProgress.mockResolvedValue([
+        { ...existingProgress, templateName: 'backend-engineer-platform' },
+        { ...existingProgress, templateName: 'manager-onboarding' },
+      ]);
+
+      const res = await request(app)
+        .post(`/progress/${enc('user:default/jane.doe')}/tasks/setup-laptop`)
+        .set('Authorization', '******')
+        .send({ status: 'done' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.message).toContain('templateName is required');
+    });
+
+    it('succeeds without templateName when user has a single template (SC-003)', async () => {
+      // Spec 001 SC-003: old single-template clients keep working without templateName.
+      mockStore.listProgress.mockResolvedValue([{ ...existingProgress }]);
+      mockStore.getProgress.mockResolvedValue({ ...existingProgress });
+
+      const res = await request(app)
+        .post(`/progress/${enc('user:default/jane.doe')}/tasks/setup-laptop`)
+        .set('Authorization', '******')
+        .send({ status: 'blocked' });
+
+      expect(res.status).toBe(200);
+      expect(mockStore.getProgress).toHaveBeenCalledWith(
+        'user:default/jane.doe',
+        'backend-engineer-platform',
+      );
+      expect(res.body.tasks[0].status).toBe('blocked');
+    });
+
+    it('returns 404 when templateName omitted and user has no templates', async () => {
+      // Spec 001 FR-004: no assigned templates → nothing to update.
+      mockStore.listProgress.mockResolvedValue([]);
+
+      const res = await request(app)
+        .post(`/progress/${enc('user:default/jane.doe')}/tasks/setup-laptop`)
+        .set('Authorization', '******')
+        .send({ status: 'done' });
+
+      expect(res.status).toBe(404);
     });
 
     it('returns 403 when permission is denied', async () => {
@@ -829,6 +950,58 @@ describe('createRouter', () => {
       expect(res.body.totalBlockedTasks).toBe(1);
     });
 
+    it('emits one roster row per (user, template) for multi-template joiners (FR-006)', async () => {
+      const now = new Date();
+      const recentDate = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
+
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'jane.doe' },
+            spec: { profile: { displayName: 'Jane Doe' } },
+          },
+        ],
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        metadata: { name: 'jane.doe' },
+        relations: [{ type: 'memberOf', targetRef: 'group:default/platform' }],
+      });
+
+      // Spec 001 FR-006: one joiner with two templates yields two summary rows.
+      mockStore.getTeamProgress.mockResolvedValue([
+        {
+          userId: 'user:default/jane.doe',
+          templateName: 'backend-engineer-platform',
+          startDate: recentDate.toISOString(),
+          tasks: [{ taskId: 'a', status: 'pending' }],
+        },
+        {
+          userId: 'user:default/jane.doe',
+          templateName: 'manager-onboarding',
+          startDate: recentDate.toISOString(),
+          tasks: [{ taskId: 'b', status: 'pending' }],
+        },
+      ]);
+
+      const res = await request(app)
+        .get('/team/platform/stats')
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body.activeJoiners).toHaveLength(2);
+      // Both rows share the same userId but carry distinct templateName keys.
+      expect(
+        res.body.activeJoiners.map(
+          (j: { templateName: string }) => j.templateName,
+        ),
+      ).toEqual(['backend-engineer-platform', 'manager-onboarding']);
+      expect(
+        res.body.activeJoiners.every(
+          (j: { userId: string }) => j.userId === 'user:default/jane.doe',
+        ),
+      ).toBe(true);
+    });
+
     it('returns 403 when caller is not a member of the team', async () => {
       // Mock caller is NOT a member of the team
       mockCatalogApi.getEntityByRef.mockResolvedValue({
@@ -1178,7 +1351,59 @@ describe('createRouter', () => {
       expect(res.body.tasks[0].status).toBe('pending');
     });
 
-    // Regression test: some reverse proxies/gateways (e.g. those fronting
+    it('creates progress if absent and does not overwrite existing records (FR-003/SC-002)', async () => {
+      // Spec 001 FR-003 / SC-002: assign must use create-if-absent semantics so
+      // re-assigning a template never clobbers the user's other templates or progress.
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          {
+            metadata: { name: 'be-template', title: 'BE', description: '' },
+            spec: {
+              role: 'backend-engineer',
+              phases: [
+                {
+                  id: 'day1',
+                  tasks: [
+                    {
+                      id: 'task-1',
+                      phase: 'day1',
+                      title: 'Task 1',
+                      description: '',
+                      type: 'manual',
+                      assignee: 'self',
+                      duePhase: 'day1',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      });
+      mockCatalogApi.getEntityByRef.mockResolvedValue({
+        kind: 'User',
+        metadata: { name: 'new-joiner' },
+      });
+      // Simulate an already-existing record whose completed task must be preserved.
+      const existing = {
+        userId: 'user:default/new-joiner',
+        templateName: 'be-template',
+        startDate: '2026-01-01T00:00:00.000Z',
+        tasks: [{ taskId: 'task-1', status: 'done' }],
+      };
+      mockStore.createProgressIfAbsent.mockResolvedValue(existing);
+
+      const res = await request(app)
+        .post(`/templates/be-template/assign/${enc('user:default/new-joiner')}`)
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      // The store's create-if-absent path is used, not the merging upsert.
+      expect(mockStore.createProgressIfAbsent).toHaveBeenCalledTimes(1);
+      expect(mockStore.upsertProgress).not.toHaveBeenCalled();
+      // The pre-existing completed task survives re-assignment.
+      expect(res.body.tasks[0].status).toBe('done');
+    });
     // Entra ID-integrated deployments) normalize request URLs and decode
     // "%2F" to a literal "/" before forwarding to the backend. Since every
     // user entity ref contains a "/" (kind:namespace/name), the userId path
@@ -1712,18 +1937,19 @@ describe('createRouter', () => {
 
     it('allows an owner to read their own progress', async () => {
       const ownerApp = await createApp('user:default/jane.doe');
-      mockStore.getProgress.mockResolvedValue({ ...janeProgress });
+      mockStore.listProgress.mockResolvedValue([{ ...janeProgress }]);
 
       const res = await request(ownerApp)
         .get(`/progress/${enc('user:default/jane.doe')}`)
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(200);
-      expect(res.body.userId).toBe('user:default/jane.doe');
+      expect(res.body[0].userId).toBe('user:default/jane.doe');
     });
 
     it('allows an owner to update their own progress (short-name owner ref)', async () => {
       const ownerApp = await createApp('user:default/jane.doe');
+      mockStore.listProgress.mockResolvedValue([{ ...janeProgress }]);
       mockStore.getProgress.mockResolvedValue({ ...janeProgress });
       mockStore.upsertProgress.mockResolvedValue(undefined);
 
@@ -1767,14 +1993,14 @@ describe('createRouter', () => {
       // Default authorize mock ALLOWs all permissions, simulating a
       // manager/buddy/admin who holds the elevated team-read permission.
       const managerApp = await createApp('user:default/manager');
-      mockStore.getProgress.mockResolvedValue({ ...janeProgress });
+      mockStore.listProgress.mockResolvedValue([{ ...janeProgress }]);
 
       const res = await request(managerApp)
         .get(`/progress/${enc('user:default/jane.doe')}`)
         .set('Authorization', 'Bearer mock-token');
 
       expect(res.status).toBe(200);
-      expect(res.body.userId).toBe('user:default/jane.doe');
+      expect(res.body[0].userId).toBe('user:default/jane.doe');
     });
   });
 

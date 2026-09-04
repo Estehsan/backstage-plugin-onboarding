@@ -154,6 +154,11 @@ export interface TeamJoinerSummary {
   displayName: string;
   /** Role/template name assigned to the joiner. */
   role: string;
+  // Spec 001 FR-006: a joiner can have several concurrent templates, so summaries are
+  // emitted one-per-(user, template); templateName disambiguates otherwise-identical
+  // userId rows in the roster.
+  /** Name of the assigned OnboardingTemplate this summary row is for. */
+  templateName: string;
   /** ISO-8601 timestamp when onboarding started. */
   startDate: string;
   /** Percentage of tasks completed (0-100). */

@@ -48,8 +48,12 @@ export function JoinerTable(props: JoinerTableProps) {
   const { joiners, showBuddyColumn = false, onAssignBuddy } = props;
   const [expandedRow, setExpandedRow] = useState<string | undefined>();
 
-  const handleRowExpand = (userId: string) => {
-    setExpandedRow(expandedRow === userId ? undefined : userId);
+  // Spec 001 FR-006: userId is no longer unique in the roster (one row per
+  // template), so key rows and expansion state by (userId, templateName).
+  const rowKey = (j: TeamJoinerSummary) => `${j.userId}::${j.templateName}`;
+
+  const handleRowExpand = (key: string) => {
+    setExpandedRow(expandedRow === key ? undefined : key);
   };
 
   const totalColumns = showBuddyColumn ? 8 : 6;
@@ -75,15 +79,15 @@ export function JoinerTable(props: JoinerTableProps) {
         </TableHead>
         <TableBody>
           {joiners.map(joiner => (
-            <Fragment key={joiner.userId}>
+            <Fragment key={rowKey(joiner)}>
               <TableRow hover>
                 <TableCell
                   padding="checkbox"
-                  onClick={() => handleRowExpand(joiner.userId)}
+                  onClick={() => handleRowExpand(rowKey(joiner))}
                   style={{ cursor: 'pointer' }}
                 >
                   <ButtonIcon size="small" variant="tertiary">
-                    {expandedRow === joiner.userId ? (
+                    {expandedRow === rowKey(joiner) ? (
                       <RiArrowUpSLine size={18} />
                     ) : (
                       <RiArrowDownSLine size={18} />
@@ -91,25 +95,25 @@ export function JoinerTable(props: JoinerTableProps) {
                   </ButtonIcon>
                 </TableCell>
                 <TableCell
-                  onClick={() => handleRowExpand(joiner.userId)}
+                  onClick={() => handleRowExpand(rowKey(joiner))}
                   style={{ cursor: 'pointer' }}
                 >
                   {joiner.displayName}
                 </TableCell>
                 <TableCell
-                  onClick={() => handleRowExpand(joiner.userId)}
+                  onClick={() => handleRowExpand(rowKey(joiner))}
                   style={{ cursor: 'pointer' }}
                 >
                   {joiner.role}
                 </TableCell>
                 <TableCell
-                  onClick={() => handleRowExpand(joiner.userId)}
+                  onClick={() => handleRowExpand(rowKey(joiner))}
                   style={{ cursor: 'pointer' }}
                 >
                   {daysSince(joiner.startDate)} days
                 </TableCell>
                 <TableCell
-                  onClick={() => handleRowExpand(joiner.userId)}
+                  onClick={() => handleRowExpand(rowKey(joiner))}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className={styles.progressCell}>
@@ -124,7 +128,7 @@ export function JoinerTable(props: JoinerTableProps) {
                   </div>
                 </TableCell>
                 <TableCell
-                  onClick={() => handleRowExpand(joiner.userId)}
+                  onClick={() => handleRowExpand(rowKey(joiner))}
                   style={{ cursor: 'pointer' }}
                 >
                   {joiner.blockedTaskCount > 0 ? (
@@ -158,7 +162,7 @@ export function JoinerTable(props: JoinerTableProps) {
                   style={{ paddingBottom: 0, paddingTop: 0 }}
                 >
                   <Collapse
-                    in={expandedRow === joiner.userId}
+                    in={expandedRow === rowKey(joiner)}
                     timeout="auto"
                     unmountOnExit
                   >

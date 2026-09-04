@@ -28,9 +28,13 @@ const MAX_POLL_ATTEMPTS = 100; // ~5 minutes at 3s intervals
  */
 export function useAutomatedTask(options: {
   userId: string;
+  // Spec 001 FR-004: the automated task belongs to the currently-selected
+  // template; thread it through so status updates target that template's
+  // record. Polling stays keyed by taskId (unique within one template).
+  templateName: string;
   onProgressUpdate: () => void;
 }) {
-  const { userId, onProgressUpdate } = options;
+  const { userId, templateName, onProgressUpdate } = options;
   const scaffolderApi = useApi(scaffolderApiRef);
   const onboardingApi = useApi(onboardingApiRef);
 
@@ -72,7 +76,13 @@ export function useAutomatedTask(options: {
     async (taskId: string, automationRef: string) => {
       try {
         // Mark as in-progress in the onboarding backend
-        await onboardingApi.updateTaskStatus(userId, taskId, 'in-progress');
+        // Spec 001 FR-004: target the selected template's record.
+        await onboardingApi.updateTaskStatus(
+          userId,
+          templateName,
+          taskId,
+          'in-progress',
+        );
 
         // Trigger the scaffolder template
         const { taskId: scaffolderTaskId } = await scaffolderApi.scaffold({
@@ -102,6 +112,7 @@ export function useAutomatedTask(options: {
             await onboardingApi
               .updateTaskStatus(
                 userId,
+                templateName, // Spec 001 FR-004
                 taskId,
                 'blocked',
                 `Automation timed out after ${Math.round(
@@ -130,7 +141,12 @@ export function useAutomatedTask(options: {
             if (scaffolderTask.status === 'completed') {
               clearTaskTimer(taskId);
 
-              await onboardingApi.updateTaskStatus(userId, taskId, 'done');
+              await onboardingApi.updateTaskStatus(
+                userId,
+                templateName, // Spec 001 FR-004
+                taskId,
+                'done',
+              );
 
               if (!mountedRef.current) return;
               setRunningTasks(prev => {
@@ -147,6 +163,7 @@ export function useAutomatedTask(options: {
 
               await onboardingApi.updateTaskStatus(
                 userId,
+                templateName, // Spec 001 FR-004
                 taskId,
                 'blocked',
                 `Scaffolder task ${scaffolderTask.status}: ${scaffolderTaskId}`,
@@ -179,6 +196,7 @@ export function useAutomatedTask(options: {
         await onboardingApi
           .updateTaskStatus(
             userId,
+            templateName, // Spec 001 FR-004
             taskId,
             'blocked',
             error instanceof Error
@@ -192,7 +210,14 @@ export function useAutomatedTask(options: {
         }
       }
     },
-    [scaffolderApi, onboardingApi, userId, onProgressUpdate, clearTaskTimer],
+    [
+      scaffolderApi,
+      onboardingApi,
+      userId,
+      templateName,
+      onProgressUpdate,
+      clearTaskTimer,
+    ],
   );
 
   const getAutomatedTaskStatus = useCallback(
