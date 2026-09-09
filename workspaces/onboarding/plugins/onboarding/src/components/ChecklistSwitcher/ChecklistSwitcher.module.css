@@ -1,0 +1,45 @@
+@layer components {
+  .root {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: var(--bui-space-4);
+  }
+
+  .card {
+    min-width: 220px;
+    max-width: 320px;
+    flex: 1 1 240px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .cardSelected {
+    border-color: var(--bui-border-success);
+    background-color: var(--bui-bg-neutral-2);
+  }
+
+  .cardBody {
+    padding: var(--bui-space-1);
+  }
+
+  .cardTitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .miniTrack {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background-color: var(--bui-bg-neutral-2);
+    overflow: hidden;
+  }
+
+  .miniFill {
+    height: 100%;
+    border-radius: 3px;
+    background-color: #1d9e75;
+  }
+}

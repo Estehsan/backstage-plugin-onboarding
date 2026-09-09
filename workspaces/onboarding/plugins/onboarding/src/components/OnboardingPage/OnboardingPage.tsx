@@ -26,8 +26,6 @@ import {
 import { identityApiRef, useApi } from '@backstage/core-plugin-api';
 import { ResponseError } from '@backstage/errors';
 import { Tabs, TabList, TabPanel, Tab } from '@backstage/ui';
-import MenuItem from '@material-ui/core/MenuItem';
-import TextField from '@material-ui/core/TextField';
 import { onboardingApiRef } from '../../api/OnboardingApi';
 import {
   OnboardingProgress,
@@ -35,6 +33,7 @@ import {
   TaskStatus,
   TeamJoinerSummary,
 } from '../../types';
+import { ChecklistSwitcher } from '../ChecklistSwitcher';
 import { ProgressBar } from '../ProgressBar';
 import { TaskList } from '../TaskList';
 import { TeamView } from '../TeamView/TeamView';
@@ -171,7 +170,7 @@ export function OnboardingPage() {
         setSelectedTemplateName(prev =>
           progressData.some(p => p.templateName === prev)
             ? prev
-            : (progressData[0]?.templateName ?? ''),
+            : progressData[0]?.templateName ?? '',
         );
         setTemplates(templateData);
         setIsAssigner(isAssignerData);
@@ -317,29 +316,17 @@ export function OnboardingPage() {
           <TabPanel id="tasks">
             {progress && currentTemplate ? (
               <>
-                {/* Spec 001 FR-005: only show the selector when >1 template is
+                {/* Spec 001 FR-005: only show the switcher when >1 template is
                     assigned; a single assigned template renders with zero extra
-                    chrome (SC-003). */}
+                    chrome (SC-003). Each template is shown as its own card with
+                    independent progress, rather than a merged checklist. */}
                 {progressList.length > 1 && (
-                  <TextField
-                    select
-                    size="small"
-                    variant="outlined"
-                    label="Checklist"
-                    value={selectedTemplateName}
-                    onChange={e => setSelectedTemplateName(e.target.value)}
-                  >
-                    {progressList.map(p => {
-                      const tpl = templates.find(
-                        t => t.metadata.name === p.templateName,
-                      );
-                      return (
-                        <MenuItem key={p.templateName} value={p.templateName}>
-                          {tpl?.metadata.title ?? p.templateName}
-                        </MenuItem>
-                      );
-                    })}
-                  </TextField>
+                  <ChecklistSwitcher
+                    progressList={progressList}
+                    templates={templates}
+                    selectedTemplateName={selectedTemplateName}
+                    onSelect={setSelectedTemplateName}
+                  />
                 )}
                 <ProgressBar completed={completedCount} total={totalCount} />
                 <TaskList

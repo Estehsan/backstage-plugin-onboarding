@@ -350,13 +350,12 @@ describe('OnboardingPage', () => {
       screen.queryByText('Complete threat modeling 101'),
     ).not.toBeInTheDocument();
 
-    // Switching the selector swaps the visible checklist to the second template.
-    const selector = screen.getByRole('button', { name: /Backend Engineer/ });
-    await userEvent.click(selector);
-    const option = await screen.findByRole('option', {
-      name: 'Security Champion',
+    // Each assigned template renders as its own checklist card; clicking the
+    // second one swaps the visible checklist without touching the first.
+    const secondCard = screen.getByRole('button', {
+      name: /Switch to Security Champion checklist/,
     });
-    await userEvent.click(option);
+    await userEvent.click(secondCard);
 
     expect(
       await screen.findByText('Complete threat modeling 101'),
