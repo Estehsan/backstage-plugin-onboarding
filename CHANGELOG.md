@@ -1,3 +1,15 @@
+# [1.6.0](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.5.0...v1.6.0) (2026-09-09)
+
+
+### Bug Fixes
+
+* **onboarding:** repair stale jsx-runtime jest mapping, add multi-template regression test ([0517b62](https://github.com/Estehsan/backstage-plugin-onboarding/commit/0517b62b17e4d99a0f3207c0e11bd5baa2942009))
+
+
+### Features
+
+* **onboarding:** show each assigned template as its own checklist card ([f4fd6c0](https://github.com/Estehsan/backstage-plugin-onboarding/commit/f4fd6c0795d5bb6eb60476396644930e257e796e))
+
 # [1.5.0](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.4.0...v1.5.0) (2026-09-04)
 
 

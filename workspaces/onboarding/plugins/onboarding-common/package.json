@@ -1,6 +1,6 @@
 {
   "name": "@estehsaan/backstage-plugin-onboarding-common",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "description": "Shared types and permissions for the Backstage onboarding plugin",
   "backstage": {
     "role": "common-library",
