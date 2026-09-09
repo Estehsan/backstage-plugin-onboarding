@@ -170,7 +170,7 @@ export function OnboardingPage() {
         setSelectedTemplateName(prev =>
           progressData.some(p => p.templateName === prev)
             ? prev
-            : progressData[0]?.templateName ?? '',
+            : (progressData[0]?.templateName ?? ''),
         );
         setTemplates(templateData);
         setIsAssigner(isAssignerData);
