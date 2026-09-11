@@ -1250,6 +1250,135 @@ describe('createRouter', () => {
       ).toEqual(['Alice Cooper', 'Jane Doe', 'John Smith']);
     });
 
+    it('searches all 1996 users and sorts before limiting results', async () => {
+      const users = Array.from({ length: 1996 }, (_, index) => ({
+        kind: 'User',
+        metadata: { name: `person-${index}`, namespace: 'default' },
+        spec: { profile: { displayName: `Person ${index}` } },
+      }));
+      const lastUser = {
+        kind: 'User',
+        metadata: {
+          name: 'z-last-user',
+          namespace: 'custom',
+          title: 'Unique title',
+        },
+        spec: {
+          profile: { displayName: 'AAA Match', email: 'target@example.com' },
+        },
+      };
+      users[1995] = lastUser;
+      mockCatalogApi.getEntities.mockImplementation(async options => ({
+        items: users.slice(
+          options.offset ?? 0,
+          (options.offset ?? 0) + options.limit,
+        ),
+      }));
+
+      for (const query of [
+        'Z-LAST-USER',
+        'unique title',
+        'aaa match',
+        'target@',
+      ]) {
+        mockCatalogApi.getEntities.mockClear();
+        const res = await request(app)
+          .get('/users/search')
+          .query({ query })
+          .set('Authorization', 'Bearer mock-token');
+
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual([
+          {
+            entityRef: 'user:custom/z-last-user',
+            displayName: 'AAA Match',
+            email: 'target@example.com',
+          },
+        ]);
+        expect(mockCatalogApi.getEntities).toHaveBeenCalledTimes(2);
+        expect(mockCatalogApi.getEntities).toHaveBeenNthCalledWith(
+          1,
+          expect.objectContaining({
+            filter: { kind: 'User' },
+            offset: 0,
+            limit: 1000,
+          }),
+        );
+        expect(mockCatalogApi.getEntities).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({
+            filter: { kind: 'User' },
+            offset: 1000,
+            limit: 1000,
+          }),
+        );
+      }
+
+      const browse = await request(app)
+        .get('/users/search?query=')
+        .set('Authorization', 'Bearer mock-token');
+      expect(browse.status).toBe(200);
+      expect(browse.body).toHaveLength(50);
+      expect(browse.body[0].entityRef).toBe('user:custom/z-last-user');
+      expect(
+        browse.body.map((user: { displayName: string }) => user.displayName),
+      ).toEqual(
+        users
+          .map(user => user.spec.profile.displayName)
+          .sort((left, right) => left.localeCompare(right))
+          .slice(0, 50),
+      );
+      expect(mockCatalogApi.queryEntities).not.toHaveBeenCalled();
+    });
+
+    it('stops on an empty page after an exact page and handles empty catalogs', async () => {
+      mockCatalogApi.getEntities
+        .mockResolvedValueOnce({
+          items: Array.from({ length: 1000 }, () => catalogUsers[0]),
+        })
+        .mockResolvedValue({ items: [] });
+
+      const res = await request(app)
+        .get('/users/search?query=jane')
+        .set('Authorization', 'Bearer mock-token');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveLength(50);
+      expect(mockCatalogApi.getEntities).toHaveBeenCalledTimes(2);
+
+      mockCatalogApi.getEntities.mockClear();
+      const empty = await request(app)
+        .get('/users/search?query=')
+        .set('Authorization', 'Bearer mock-token');
+      expect(empty.status).toBe(200);
+      expect(empty.body).toEqual([]);
+      expect(mockCatalogApi.getEntities).toHaveBeenCalledTimes(1);
+    });
+
+    it('bounds catalog requests and does not return partial results on page failure', async () => {
+      const page = Array.from({ length: 1000 }, () => catalogUsers[0]);
+      mockCatalogApi.getEntities.mockResolvedValue({ items: page });
+
+      const res = await request(app)
+        .get('/users/search?query=jane')
+        .set('Authorization', 'Bearer mock-token');
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveLength(50);
+      expect(mockCatalogApi.getEntities).toHaveBeenCalledTimes(20);
+      expect(mockCatalogApi.getEntities).toHaveBeenLastCalledWith(
+        expect.objectContaining({ offset: 19000, limit: 1000 }),
+      );
+
+      mockCatalogApi.getEntities.mockReset();
+      mockCatalogApi.getEntities
+        .mockResolvedValueOnce({ items: page })
+        .mockRejectedValueOnce(new Error('Catalog unavailable'));
+      const failed = await request(app)
+        .get('/users/search?query=jane')
+        .set('Authorization', 'Bearer mock-token');
+      expect(failed.status).toBe(500);
+      expect(failed.body.error.message).toContain('Catalog unavailable');
+    });
+
     it('rejects a query that exceeds 100 characters', async () => {
       const res = await request(app)
         .get(`/users/search?query=${'a'.repeat(101)}`)
