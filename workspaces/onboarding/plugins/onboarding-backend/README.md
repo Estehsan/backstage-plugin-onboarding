@@ -79,7 +79,11 @@ them in memory across `metadata.name`, `metadata.title`,
 not depend on the catalog full-text index, so results are reliable even when the
 search index is unpopulated. An empty `query` returns the available users
 (sorted by display name) so the assignment picker can be browsed without typing.
-Requires the `onboarding.template.assign` permission.
+The scan uses 1,000-user pages, up to 20,000 users per request, and returns at
+most 50 matches. Type a name or email to find users outside the initial list.
+If the scan limit is reached, the backend logs a warning because results may
+be incomplete. Requires the `onboarding.template.assign` permission and,
+when configured, membership in an `onboarding.defaults.assignerGroups` group.
 
 ## Optional TechDocs Editor Integration (template publishing)
 

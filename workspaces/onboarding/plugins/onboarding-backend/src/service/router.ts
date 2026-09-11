@@ -16,6 +16,7 @@
 
 import express from 'express';
 import Router from 'express-promise-router';
+import type { Entity } from '@backstage/catalog-model';
 import { parseEntityRef, stringifyEntityRef } from '@backstage/catalog-model';
 import {
   HttpAuthService,
@@ -107,6 +108,7 @@ function getActiveJoinerWindowDays(config: RootConfigService): number {
  */
 const MAX_CATALOG_USERS = 1000;
 const MAX_CATALOG_TEMPLATES = 1000;
+const MAX_CATALOG_USER_SEARCH = 20000;
 
 function decodeParam(value: string): string {
   try {
@@ -583,26 +585,40 @@ export async function createRouter(
       throw new InputError('Search query must not exceed 100 characters');
     }
 
-    // Read all User entities (capped) and filter in memory rather than relying
-    // on the catalog full-text index, which may be unpopulated or stale and
-    // would otherwise cause matching users to be silently missed. An empty
-    // query lists users so the assign picker can be browsed without typing.
-    const allUsers = await catalogApi.getEntities({
-      filter: { kind: 'User' },
-      fields: [
-        'kind',
-        'metadata.name',
-        'metadata.namespace',
-        'metadata.title',
-        'spec.profile.displayName',
-        'spec.profile.email',
-      ],
-      limit: MAX_CATALOG_USERS,
-    });
+    // Paginate raw entities because catalog full-text indexing may be unavailable.
+    const allUsers: Entity[] = [];
+    for (
+      let offset = 0;
+      offset < MAX_CATALOG_USER_SEARCH;
+      offset += MAX_CATALOG_USERS
+    ) {
+      const page = await catalogApi.getEntities({
+        filter: { kind: 'User' },
+        fields: [
+          'kind',
+          'metadata.name',
+          'metadata.namespace',
+          'metadata.title',
+          'spec.profile.displayName',
+          'spec.profile.email',
+        ],
+        limit: MAX_CATALOG_USERS,
+        offset,
+      });
+      allUsers.push(...page.items);
+      if (page.items.length < MAX_CATALOG_USERS) {
+        break;
+      }
+    }
+    if (allUsers.length >= MAX_CATALOG_USER_SEARCH) {
+      logger.warn(
+        `Onboarding user search reached the ${MAX_CATALOG_USER_SEARCH}-user scan limit; results may be incomplete`,
+      );
+    }
 
     const lowerQuery = query.toLowerCase();
     const matched = query
-      ? allUsers.items.filter(entity => {
+      ? allUsers.filter(entity => {
           const name = entity.metadata.name?.toLowerCase() ?? '';
           const title = (entity.metadata.title ?? '').toLowerCase();
           const spec = entity.spec as Record<string, unknown> | undefined;
@@ -618,7 +634,7 @@ export async function createRouter(
             email.includes(lowerQuery)
           );
         })
-      : allUsers.items;
+      : allUsers;
 
     const results = matched
       .map(entity => ({
