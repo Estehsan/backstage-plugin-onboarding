@@ -26,6 +26,11 @@ import {
 } from '@backstage/backend-test-utils';
 import { createRouter } from './router';
 import { DatabaseOnboardingStore } from './OnboardingStore';
+import {
+  OnboardingProgress,
+  OnboardingTask,
+  OnboardingTemplate,
+} from '../types';
 
 const enc = encodeURIComponent;
 
@@ -111,6 +116,36 @@ async function createApp(
 
 describe('createRouter', () => {
   let app: express.Express;
+
+  function makeTemplate(
+    taskIds: string[],
+    name = 'backend-engineer-platform',
+  ): OnboardingTemplate {
+    return {
+      apiVersion: 'onboarding.backstage.io/v1',
+      kind: 'OnboardingTemplate',
+      metadata: { name, title: name },
+      spec: {
+        role: 'backend-engineer',
+        phases: [
+          {
+            id: 'day1',
+            tasks: taskIds.map(
+              (id): OnboardingTask => ({
+                id,
+                phase: 'day1',
+                title: id,
+                description: '',
+                type: 'manual',
+                assignee: 'self',
+                duePhase: 'day1',
+              }),
+            ),
+          },
+        ],
+      },
+    };
+  }
 
   beforeEach(async () => {
     app = await createApp();
@@ -261,6 +296,171 @@ describe('createRouter', () => {
       expect(mockStore.createProgressIfAbsent).toHaveBeenCalledTimes(1);
     });
 
+    it('backfills template tasks missing from a stored record without writing', async () => {
+      const progress: OnboardingProgress = {
+        userId: 'user:default/jane.doe',
+        templateName: 'backend-engineer-platform',
+        startDate: '2026-03-01T00:00:00.000Z',
+        tasks: [
+          {
+            taskId: 'setup-laptop',
+            status: 'done',
+            completedAt: '2026-03-02T10:00:00.000Z',
+          },
+          {
+            taskId: 'meet-buddy',
+            status: 'blocked',
+            blockedReason: 'waiting on IT',
+          },
+          { taskId: 'removed-task', status: 'done' },
+        ],
+      };
+      mockStore.listProgress.mockResolvedValue([progress]);
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          makeTemplate(['setup-laptop', 'meet-buddy', 'devex-kt-sessions']),
+        ],
+      });
+
+      const res = await request(app)
+        .get(`/progress/${enc('user:default/jane.doe')}`)
+        .set('Authorization', '******');
+
+      expect(res.status).toBe(200);
+      expect(res.body[0].tasks).toEqual([
+        {
+          taskId: 'setup-laptop',
+          status: 'done',
+          completedAt: '2026-03-02T10:00:00.000Z',
+        },
+        {
+          taskId: 'meet-buddy',
+          status: 'blocked',
+          blockedReason: 'waiting on IT',
+        },
+        { taskId: 'devex-kt-sessions', status: 'pending' },
+      ]);
+      expect(progress.tasks[2]).toEqual({
+        taskId: 'removed-task',
+        status: 'done',
+      });
+      expect(mockStore.upsertProgress).not.toHaveBeenCalled();
+      expect(mockStore.createProgressIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it.each(['missing', 'empty', 'unavailable'])(
+      'preserves stored history when the template is %s without refreshes or writes',
+      async state => {
+        const progress: OnboardingProgress = {
+          userId: 'user:default/jane.doe',
+          templateName: 'backend-engineer-platform',
+          startDate: '2026-03-01T00:00:00.000Z',
+          tasks: [
+            {
+              taskId: 'old-task',
+              status: 'done',
+              completedAt: '2026-03-02T10:00:00.000Z',
+            },
+          ],
+        };
+        mockStore.listProgress.mockResolvedValue([progress]);
+        mockCatalogApi.getEntities.mockResolvedValue({
+          items: state === 'empty' ? [makeTemplate([])] : [],
+        });
+        if (state === 'unavailable') {
+          mockCatalogApi.getEntities.mockRejectedValueOnce(
+            new Error('Catalog unavailable'),
+          );
+        }
+
+        for (let i = 0; i < 2; i++) {
+          const res = await request(app).get(
+            '/progress/by-ref/user/default/jane.doe',
+          );
+          expect(res.status).toBe(200);
+          expect(res.body).toEqual([progress]);
+        }
+        expect(mockCatalogApi.getEntities).toHaveBeenCalledTimes(1);
+        expect(mockStore.upsertProgress).not.toHaveBeenCalled();
+        expect(mockStore.createProgressIfAbsent).not.toHaveBeenCalled();
+      },
+    );
+
+    it('reconciles each assigned template using one cached lookup, including missing templates', async () => {
+      const base = {
+        userId: 'user:default/jane.doe',
+        startDate: '2026-03-01T00:00:00.000Z',
+      };
+      const records: OnboardingProgress[] = [
+        {
+          ...base,
+          templateName: 'BACKEND-ENGINEER-PLATFORM',
+          tasks: [
+            {
+              taskId: 'shared-task',
+              status: 'done',
+              completedAt: '2026-03-02T10:00:00.000Z',
+            },
+          ],
+        },
+        { ...base, templateName: 'manager-onboarding', tasks: [] },
+        {
+          ...base,
+          templateName: 'missing-template',
+          tasks: [{ taskId: 'shared-task', status: 'pending' }],
+        },
+        {
+          ...base,
+          templateName: 'another-missing-template',
+          tasks: [
+            { taskId: 'old-task', status: 'blocked', blockedReason: 'IT' },
+          ],
+        },
+      ];
+      mockStore.listProgress.mockResolvedValue(records);
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          makeTemplate(['setup-laptop', 'shared-task']),
+          makeTemplate(['shared-task', 'manager-task'], 'manager-onboarding'),
+        ],
+      });
+
+      // Missing template names must not force a refresh on this or later GETs.
+      for (let i = 0; i < 2; i++) {
+        const res = await request(app).get(
+          '/progress/by-ref/user/default/jane.doe',
+        );
+
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual([
+          {
+            ...records[0],
+            tasks: [
+              { taskId: 'setup-laptop', status: 'pending' },
+              {
+                taskId: 'shared-task',
+                status: 'done',
+                completedAt: '2026-03-02T10:00:00.000Z',
+              },
+            ],
+          },
+          {
+            ...records[1],
+            tasks: [
+              { taskId: 'shared-task', status: 'pending' },
+              { taskId: 'manager-task', status: 'pending' },
+            ],
+          },
+          records[2],
+          records[3],
+        ]);
+      }
+      expect(records[1].tasks).toEqual([]);
+      expect(mockCatalogApi.getEntities).toHaveBeenCalledTimes(1);
+      expect(mockStore.upsertProgress).not.toHaveBeenCalled();
+      expect(mockStore.createProgressIfAbsent).not.toHaveBeenCalled();
+    });
+
     it('returns 200 with an empty array when no progress and no matching template (FR-002)', async () => {
       // Spec 001 FR-002 / SC-003: empty roster is a 200 [] empty state (was 404).
       mockStore.listProgress.mockResolvedValue([]);
@@ -272,6 +472,9 @@ describe('createRouter', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual([]);
+      expect(mockCatalogApi.getEntities).not.toHaveBeenCalled();
+      expect(mockStore.upsertProgress).not.toHaveBeenCalled();
+      expect(mockStore.createProgressIfAbsent).not.toHaveBeenCalled();
     });
 
     it('returns 403 when permission is denied', async () => {
@@ -288,7 +491,7 @@ describe('createRouter', () => {
   });
 
   describe('POST /progress/:userId/tasks/:taskId', () => {
-    const existingProgress = {
+    const existingProgress: OnboardingProgress = {
       userId: 'user:default/jane.doe',
       templateName: 'backend-engineer-platform',
       startDate: '2026-03-01T00:00:00.000Z',
@@ -302,6 +505,10 @@ describe('createRouter', () => {
       // Spec 001 FR-004: default single-template resolution — with exactly one
       // assigned template the backend resolves it without an explicit templateName.
       mockStore.listProgress.mockResolvedValue([{ ...existingProgress }]);
+      // Default to the assigned template; drift tests supply its edited version.
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [makeTemplate(['setup-laptop', 'meet-buddy'])],
+      });
     });
 
     it('updates a task status to done', async () => {
@@ -392,73 +599,235 @@ describe('createRouter', () => {
         .send({ status: 'done' });
 
       expect(res.status).toBe(404);
+      expect(res.body.error.message).toBe(
+        'Task nonexistent-task not found in progress',
+      );
+      expect(mockStore.upsertProgress).not.toHaveBeenCalled();
     });
 
-    it('rejects done status when dependencies are unmet', async () => {
-      const progressWithDeps = {
-        ...existingProgress,
-        tasks: [
-          { taskId: 'security-training', status: 'pending' },
-          { taskId: 'oncall-shadow', status: 'pending' },
-        ],
-      };
-      mockStore.getProgress.mockResolvedValue({ ...progressWithDeps });
-      mockCatalogApi.getEntities.mockResolvedValue({
-        items: [
-          {
-            metadata: { name: 'backend-engineer-platform', title: 'BE' },
-            spec: {
-              role: 'backend-engineer',
-              phases: [
+    it.each([
+      {
+        path: '/progress/by-ref/user/default/estehsan.tariq_sas.se/tasks/devex-kt-sessions',
+        empty: false,
+      },
+      {
+        path: `/progress/${enc(
+          'user:default/estehsan.tariq_sas.se',
+        )}/tasks/devex-kt-sessions`,
+        empty: false,
+      },
+      {
+        path: '/progress/by-ref/user/default/estehsan.tariq_sas.se/tasks/devex-kt-sessions',
+        empty: true,
+      },
+    ])(
+      'completes a newly added task via $path (empty snapshot: $empty)',
+      async ({ path, empty }) => {
+        const userId = 'user:default/estehsan.tariq_sas.se';
+        app = await createApp(userId);
+        const progress: OnboardingProgress = {
+          ...existingProgress,
+          userId,
+          tasks: empty
+            ? []
+            : [
                 {
-                  id: 'week1',
-                  tasks: [
-                    {
-                      id: 'security-training',
-                      phase: 'week1',
-                      title: 'Security',
-                      description: '',
-                      type: 'manual',
-                      assignee: 'self',
-                      duePhase: 'week1',
-                    },
-                    {
-                      id: 'oncall-shadow',
-                      phase: 'week1',
-                      title: 'Shadow',
-                      description: '',
-                      type: 'manual',
-                      assignee: 'buddy',
-                      dependsOn: ['security-training'],
-                      duePhase: 'week1',
-                    },
-                  ],
+                  taskId: 'setup-laptop',
+                  status: 'done',
+                  completedAt: '2026-03-02T10:00:00.000Z',
+                },
+                {
+                  taskId: 'meet-buddy',
+                  status: 'blocked',
+                  blockedReason: 'waiting on IT',
                 },
               ],
-            },
+        };
+        mockStore.listProgress.mockResolvedValue([progress]);
+        mockStore.getProgress.mockResolvedValue(progress);
+        mockCatalogApi.getEntities.mockResolvedValue({
+          items: [
+            makeTemplate(['setup-laptop', 'meet-buddy', 'devex-kt-sessions']),
+          ],
+        });
+
+        const res = await request(app).post(path).send({ status: 'done' });
+
+        expect(res.status).toBe(200);
+        expect(mockStore.getProgress).toHaveBeenCalledWith(
+          userId,
+          'backend-engineer-platform',
+        );
+        expect(res.body.tasks).toEqual([
+          ...(empty
+            ? [
+                { taskId: 'setup-laptop', status: 'pending' },
+                { taskId: 'meet-buddy', status: 'pending' },
+              ]
+            : [
+                {
+                  taskId: 'setup-laptop',
+                  status: 'done',
+                  completedAt: '2026-03-02T10:00:00.000Z',
+                },
+                {
+                  taskId: 'meet-buddy',
+                  status: 'blocked',
+                  blockedReason: 'waiting on IT',
+                },
+              ]),
+          {
+            taskId: 'devex-kt-sessions',
+            status: 'done',
+            completedAt: expect.any(String),
+          },
+        ]);
+        expect(mockStore.upsertProgress).toHaveBeenCalledTimes(1);
+        expect(mockStore.upsertProgress).toHaveBeenCalledWith(res.body);
+        expect(progress.tasks).toHaveLength(empty ? 0 : 2);
+      },
+    );
+
+    it('retains removed task history on writes and restores its state when re-added', async () => {
+      mockStore.getProgress.mockResolvedValue({
+        ...existingProgress,
+        tasks: [
+          { taskId: 'setup-laptop', status: 'pending' },
+          {
+            taskId: 'legacy-task',
+            status: 'done',
+            completedAt: '2026-03-02T10:00:00.000Z',
           },
         ],
       });
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [makeTemplate(['setup-laptop'])],
+      });
+      mockStore.upsertProgress.mockResolvedValue(undefined);
 
       const res = await request(app)
-        .post(`/progress/${enc('user:default/jane.doe')}/tasks/oncall-shadow`)
-        .set('Authorization', 'Bearer mock-token')
+        .post(`/progress/${enc('user:default/jane.doe')}/tasks/setup-laptop`)
+        .set('Authorization', '******')
         .send({ status: 'done' });
 
-      expect(res.status).toBe(400);
-      expect(res.body.error.message).toContain('Unmet dependencies');
+      expect(res.status).toBe(200);
+      // Hidden from the checklist...
+      expect(res.body.tasks.map((t: { taskId: string }) => t.taskId)).toEqual([
+        'setup-laptop',
+      ]);
+      // ...but its completion history survives in storage.
+      const persisted = mockStore.upsertProgress.mock.calls[0][0];
+      expect(persisted.tasks).toEqual([
+        expect.objectContaining({ taskId: 'setup-laptop', status: 'done' }),
+        {
+          taskId: 'legacy-task',
+          status: 'done',
+          completedAt: '2026-03-02T10:00:00.000Z',
+        },
+      ]);
+
+      const removed = await request(app)
+        .post(`/progress/${enc(existingProgress.userId)}/tasks/legacy-task`)
+        .send({ status: 'pending' });
+      expect(removed.status).toBe(404);
+      expect(mockStore.upsertProgress).toHaveBeenCalledTimes(1);
+
+      mockStore.listProgress.mockResolvedValue([persisted]);
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [makeTemplate(['legacy-task', 'setup-laptop'])],
+      });
+      // A fresh router sees the edited catalog without waiting for cache expiry.
+      app = await createApp();
+      const restored = await request(app).get(
+        '/progress/by-ref/user/default/jane.doe',
+      );
+      expect(restored.status).toBe(200);
+      expect(restored.body[0].tasks).toEqual([
+        {
+          taskId: 'legacy-task',
+          status: 'done',
+          completedAt: '2026-03-02T10:00:00.000Z',
+        },
+        expect.objectContaining({ taskId: 'setup-laptop', status: 'done' }),
+      ]);
+      expect(mockStore.upsertProgress).toHaveBeenCalledTimes(1);
     });
+
+    it.each([false, true])(
+      'rejects done status when dependencies are unmet (new dependency: %s)',
+      async newDependency => {
+        const progressWithDeps: OnboardingProgress = {
+          ...existingProgress,
+          tasks: [{ taskId: 'oncall-shadow', status: 'pending' }],
+        };
+        if (!newDependency) {
+          progressWithDeps.tasks.unshift({
+            taskId: 'security-training',
+            status: 'pending',
+          });
+        }
+        mockStore.getProgress.mockResolvedValue(progressWithDeps);
+        const template = makeTemplate(['security-training', 'oncall-shadow']);
+        template.spec.phases[0].tasks[1].dependsOn = ['security-training'];
+        mockCatalogApi.getEntities.mockResolvedValue({ items: [template] });
+
+        const res = await request(app)
+          .post(`/progress/${enc('user:default/jane.doe')}/tasks/oncall-shadow`)
+          .set('Authorization', 'Bearer mock-token')
+          .send({ status: 'done' });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error.message).toContain('Unmet dependencies');
+        expect(mockStore.upsertProgress).not.toHaveBeenCalled();
+      },
+    );
 
     it('updates only the record named by templateName (FR-004)', async () => {
       // Spec 001 FR-004: an explicit templateName selects which template's record to
       // update when the user has more than one assigned template.
-      mockStore.listProgress.mockResolvedValue([
-        { ...existingProgress, templateName: 'backend-engineer-platform' },
-        { ...existingProgress, templateName: 'manager-onboarding' },
-      ]);
-      mockStore.getProgress.mockResolvedValue({
+      const backendProgress: OnboardingProgress = {
+        ...existingProgress,
+        tasks: [
+          {
+            taskId: 'setup-laptop',
+            status: 'done',
+            completedAt: '2026-03-02T10:00:00.000Z',
+          },
+          { taskId: 'backend-only', status: 'pending' },
+        ],
+      };
+      const managerProgress: OnboardingProgress = {
         ...existingProgress,
         templateName: 'manager-onboarding',
+        tasks: [
+          {
+            taskId: 'meet-buddy',
+            status: 'blocked',
+            blockedReason: 'waiting on IT',
+          },
+        ],
+      };
+      const records = [backendProgress, managerProgress];
+      mockStore.listProgress.mockResolvedValue(records);
+      mockStore.getProgress.mockImplementationOnce(
+        async (userId, templateName) =>
+          records.find(
+            p => p.userId === userId && p.templateName === templateName,
+          ),
+      );
+      mockStore.upsertProgress.mockImplementationOnce(async progress => {
+        const index = records.findIndex(
+          p =>
+            p.userId === progress.userId &&
+            p.templateName === progress.templateName,
+        );
+        records[index] = progress;
+      });
+      mockCatalogApi.getEntities.mockResolvedValue({
+        items: [
+          makeTemplate(['setup-laptop', 'backend-only']),
+          makeTemplate(['setup-laptop', 'meet-buddy'], 'manager-onboarding'),
+        ],
       });
 
       const res = await request(app)
@@ -473,6 +842,32 @@ describe('createRouter', () => {
         'manager-onboarding',
       );
       expect(res.body.templateName).toBe('manager-onboarding');
+      expect(res.body.tasks).toEqual([
+        { taskId: 'setup-laptop', status: 'blocked' },
+        {
+          taskId: 'meet-buddy',
+          status: 'blocked',
+          blockedReason: 'waiting on IT',
+        },
+      ]);
+      expect(mockStore.getProgress).toHaveBeenCalledTimes(1);
+      expect(mockStore.upsertProgress).toHaveBeenCalledTimes(1);
+      expect(mockStore.upsertProgress).toHaveBeenCalledWith(res.body);
+
+      const all = await request(app).get(
+        '/progress/by-ref/user/default/jane.doe',
+      );
+      expect(all.status).toBe(200);
+      expect(all.body).toEqual([backendProgress, res.body]);
+      expect(backendProgress.tasks).toEqual([
+        {
+          taskId: 'setup-laptop',
+          status: 'done',
+          completedAt: '2026-03-02T10:00:00.000Z',
+        },
+        { taskId: 'backend-only', status: 'pending' },
+      ]);
+      expect(mockStore.upsertProgress).toHaveBeenCalledTimes(1);
     });
 
     it('returns 400 when templateName omitted and user has multiple templates (FR-004)', async () => {
