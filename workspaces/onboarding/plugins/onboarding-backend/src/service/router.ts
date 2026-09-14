@@ -37,6 +37,10 @@ import { DatabaseTemplateDraftStore } from './TemplateDraftStore';
 import { validateTemplate } from './templateValidation';
 import { templateToYaml } from './templateYaml';
 import { getBlockLibrary } from './blockLibrary';
+import {
+  reconcileProgressTasks,
+  toPersistableProgress,
+} from './reconcileProgress';
 import type { OnboardingVcsProvider } from '@estehsaan/backstage-plugin-onboarding-common';
 import {
   assertUserAccess,
@@ -249,10 +253,21 @@ export async function createRouter(
         }
       }
 
+      // Project the snapshot onto the live template without writing from a GET:
+      // a stale read must not overwrite a concurrent update or recreate a row.
+      const templates = list.length > 0 ? await getTemplatesCached() : [];
+      const reconciledList = list.map(record => {
+        const name = decodeParam(record.templateName).trim().toLowerCase();
+        const template = templates.find(
+          t => t.metadata.name.toLowerCase() === name,
+        );
+        return reconcileProgressTasks(record, template).progress;
+      });
+
       // Spec 001 FR-002 / SC-003: an empty roster is a 200 [] empty state (was 404). A
       // single-template user still gets exactly one element, preserving today's
       // behavior.
-      res.status(200).json(list);
+      res.status(200).json(reconciledList);
     },
   );
 
@@ -316,12 +331,19 @@ export async function createRouter(
         }
       }
 
-      const progress = await store.getProgress(userId, targetTemplate);
-      if (!progress) {
+      const stored = await store.getProgress(userId, targetTemplate);
+      if (!stored) {
         throw new NotFoundError(
           `No onboarding progress found for user ${userId} and template ${targetTemplate}`,
         );
       }
+
+      // Include newly added template tasks before validating the requested ID.
+      const template = await findTemplateByName(stored.templateName);
+      const { progress, orphanTasks } = reconcileProgressTasks(
+        stored,
+        template,
+      );
 
       const taskIndex = progress.tasks.findIndex(t => t.taskId === taskId);
       if (taskIndex === -1) {
@@ -329,8 +351,6 @@ export async function createRouter(
       }
 
       if (status === 'done') {
-        const template = await findTemplateByName(progress.templateName);
-
         if (template) {
           const allTasks = template.spec.phases.flatMap(p => p.tasks);
           const currentTask = allTasks.find(t => t.id === taskId);
@@ -359,7 +379,8 @@ export async function createRouter(
         blockedReason: status === 'blocked' ? blockedReason : undefined,
       };
 
-      await store.upsertProgress(progress);
+      // Retain removed tasks' history in storage, but not in the response.
+      await store.upsertProgress(toPersistableProgress(progress, orphanTasks));
       logger.info(`Updated task ${taskId} for user ${userId} to ${status}`);
 
       res.status(200).json(progress);
