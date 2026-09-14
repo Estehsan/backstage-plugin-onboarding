@@ -1,3 +1,11 @@
+## [1.6.1](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.6.0...v1.6.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* **onboarding-backend:** paginate catalog user search ([ce7d862](https://github.com/Estehsan/backstage-plugin-onboarding/commit/ce7d862332ecffc893084f93605d54f237a2614c))
+* **onboarding-backend:** reconcile stored progress with its live template ([454cfaf](https://github.com/Estehsan/backstage-plugin-onboarding/commit/454cfaf7d9731b847b3f838592b53146f15c7aa0))
+
 # [1.6.0](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.5.0...v1.6.0) (2026-09-09)
 
 
