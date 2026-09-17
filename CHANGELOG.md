@@ -1,3 +1,15 @@
+## [1.6.2](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.6.1...v1.6.2) (2026-09-17)
+
+
+### Bug Fixes
+
+* **onboarding:** implement GitHub/GitLab VCS providers so template publish can open PRs ([79c3fc7](https://github.com/Estehsan/backstage-plugin-onboarding/commit/79c3fc766d1cc3e7584d5bbe8d4165b0f0c42d8b))
+
+
+### Performance Improvements
+
+* **onboarding-backend:** cache VCS credentials/clients per repoUrl ([e68067a](https://github.com/Estehsan/backstage-plugin-onboarding/commit/e68067a07bbfb6c610a4703449b8dff1397daaab))
+
 ## [1.6.1](https://github.com/Estehsan/backstage-plugin-onboarding/compare/v1.6.0...v1.6.1) (2026-09-14)
 
 
