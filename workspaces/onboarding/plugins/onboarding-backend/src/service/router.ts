@@ -24,13 +24,12 @@ import {
   PermissionsService,
   RootConfigService,
 } from '@backstage/backend-plugin-api';
+import type {
+  BackstageCredentials,
+  BackstageUserPrincipal,
+} from '@backstage/backend-plugin-api';
 import { CatalogApi } from '@backstage/catalog-client';
-import {
-  InputError,
-  NotAllowedError,
-  NotFoundError,
-  NotImplementedError,
-} from '@backstage/errors';
+import { InputError, NotAllowedError, NotFoundError } from '@backstage/errors';
 import { AuthorizeResult } from '@backstage/plugin-permission-common';
 import { DatabaseOnboardingStore } from './OnboardingStore';
 import { DatabaseTemplateDraftStore } from './TemplateDraftStore';
@@ -42,6 +41,8 @@ import {
   toPersistableProgress,
 } from './reconcileProgress';
 import type { OnboardingVcsProvider } from '@estehsaan/backstage-plugin-onboarding-common';
+import { OnboardingVcsRegistry } from './OnboardingVcsRegistry';
+import { ProviderError } from './errors';
 import {
   assertUserAccess,
   getAssignerGroupRefs,
@@ -55,6 +56,7 @@ import {
   Phase,
   PublishTemplateRequest,
   PublishTemplateResponse,
+  PublishTemplateValidationErrorBody,
   ResourceType,
   TaskStatus,
   TaskType,
@@ -76,13 +78,17 @@ export interface RouterOptions {
   store: DatabaseOnboardingStore;
   draftStore: DatabaseTemplateDraftStore;
   /**
-   * VCS provider for `POST /templates/:name/publish`. Injected via
-   * `onboardingVcsExtensionPoint` (or passed directly). A real
-   * techdocs-editor-node `VcsProvider` satisfies this interface, so it can be
-   * registered with no adapter. When omitted, `POST /templates/:name/publish`
-   * responds with 501 Not Implemented instead of crashing.
+   * VCS provider(s) for `POST /templates/:name/publish`. Injected via
+   * `onboardingVcsExtensionPoint` (or passed directly) — normally an
+   * {@link OnboardingVcsRegistry}, but a single `OnboardingVcsProvider` is
+   * still accepted and is treated as a catch-all. A real techdocs-editor-node
+   * `VcsProvider` satisfies the interface, so it can be registered with no
+   * adapter.
+   *
+   * When no provider can handle the target repository, publishing responds
+   * with an actionable 400 explaining how to register one — never 501.
    */
-  vcs?: OnboardingVcsProvider;
+  vcs?: OnboardingVcsProvider | OnboardingVcsRegistry;
   permissions: PermissionsService;
   httpAuth: HttpAuthService;
   catalogApi: CatalogApi;
@@ -164,6 +170,11 @@ export async function createRouter(
     httpAuth,
     catalogApi,
   } = options;
+
+  // The option accepts either an ordered registry or a single provider (the
+  // pre-registry shape); normalize both to a registry so publish resolution
+  // has one code path.
+  const registry = toVcsRegistry(vcs);
 
   // Cache catalog template lookups to avoid thundering-herd of catalog queries
   // on every task update. Each createRouter() call gets its own isolated cache.
@@ -861,47 +872,99 @@ export async function createRouter(
     }
 
     const issues = validateTemplate(draft.template);
-    if (issues.some(i => i.severity === 'error')) {
-      res.status(400).json({ issues });
+    const errorCount = issues.filter(i => i.severity === 'error').length;
+    if (errorCount > 0) {
+      // Standard error envelope *plus* the machine-readable issues, so
+      // `ResponseError` on the client yields a readable message instead of
+      // falling back to the raw body.
+      const validationError: PublishTemplateValidationErrorBody = {
+        issues,
+        error: {
+          name: 'InputError',
+          message: `Template ${name} has ${errorCount} validation error(s) and cannot be published`,
+        },
+      };
+      res.status(400).json(validationError);
       return;
     }
 
-    if (!vcs) {
-      throw new NotImplementedError(
-        'VCS provider is not configured for template publishing',
+    const target = resolvePublishTarget(body, draft.sourceLocation);
+    const provider = getVcsProviderOrThrow(registry, target.repoUrl);
+    const providerId = provider.id ?? 'vcs';
+
+    const author = resolvePublishAuthor(config, credentials);
+    // `author.name` can come from `onboarding.publish.authorName` (e.g.
+    // "Backstage Bot"), and the template name from the catalog, so both are
+    // slugified — a space or `~^:?*[` in a ref name makes the SCM reject the
+    // branch creation with an opaque error.
+    const headBranch = `onboarding/template-${toBranchSegment(
+      name,
+    )}/${toBranchSegment(author.name)}/${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+
+    const baseBranch =
+      body.baseBranch ??
+      (await callProvider({
+        logger,
+        providerId,
+        repoUrl: target.repoUrl,
+        action: 'resolve the default branch',
+        call: () => provider.getDefaultBranch(target.repoUrl),
+      }));
+
+    const result = await callProvider({
+      logger,
+      providerId,
+      repoUrl: target.repoUrl,
+      action: 'open a pull request',
+      call: () =>
+        provider.openPullRequest({
+          repoUrl: target.repoUrl,
+          headBranch,
+          baseBranch,
+          title: body.title,
+          description: body.description,
+          files: new Map([
+            [
+              target.filePath,
+              { content: templateToYaml(draft.template), encoding: 'utf8' },
+            ],
+          ]),
+          commitMessage: body.commitMessage ?? body.title,
+          authorName: author.name,
+          authorEmail: author.email,
+          draft: body.draft,
+          reviewers: body.reviewers,
+        }),
+    });
+
+    if (
+      !result ||
+      typeof result.url !== 'string' ||
+      result.url.length === 0 ||
+      !Number.isFinite(result.number)
+    ) {
+      logger.error(
+        `Onboarding: ${providerId} returned an invalid pull request result for ${target.repoUrl}`,
+      );
+      throw new ProviderError(
+        `${providerId} returned an invalid pull request result for ${target.repoUrl} — no pull request URL or number was provided`,
       );
     }
-
-    const target = resolvePublishTarget(body, draft.sourceLocation);
-    const baseBranch =
-      body.baseBranch ?? (await vcs.getDefaultBranch(target.repoUrl));
-    const authorRef = credentials.principal.userEntityRef;
-    const authorName = authorRef ? parseEntityRef(authorRef).name : 'backstage';
-
-    const result = await vcs.openPullRequest({
-      repoUrl: target.repoUrl,
-      headBranch: `onboarding/template-${name}-${Date.now()}`,
-      baseBranch,
-      title: body.title,
-      description: body.description,
-      files: new Map([
-        [
-          target.filePath,
-          { content: templateToYaml(draft.template), encoding: 'utf8' },
-        ],
-      ]),
-      commitMessage: body.commitMessage ?? body.title,
-      authorName,
-      authorEmail: `${authorName}@users.noreply.github.com`,
-      draft: body.draft,
-      reviewers: body.reviewers,
-    });
 
     await draftStore.markPublished(name);
     const response: PublishTemplateResponse = {
       url: result.url,
       number: result.number,
+      headBranch,
+      repoUrl: target.repoUrl,
+      filePath: target.filePath,
+      providerId,
     };
+    logger.info(
+      `Onboarding: opened PR #${result.number} for template ${name}: ${result.url}`,
+    );
     res.status(200).json(response);
   });
 
@@ -1358,4 +1421,109 @@ function resolvePublishTarget(
   throw new InputError(
     'repoUrl and filePath are required to publish this template',
   );
+}
+
+/**
+ * Normalizes the `vcs` router option. A single `OnboardingVcsProvider` (the
+ * shape accepted before the registry existed) becomes a one-entry registry;
+ * `undefined` becomes an empty one, which yields an actionable 400 rather than
+ * the old 501.
+ */
+function toVcsRegistry(
+  vcs: OnboardingVcsProvider | OnboardingVcsRegistry | undefined,
+): OnboardingVcsRegistry {
+  if (vcs instanceof OnboardingVcsRegistry) {
+    return vcs;
+  }
+  const registry = new OnboardingVcsRegistry();
+  if (vcs) {
+    registry.register(vcs);
+  }
+  return registry;
+}
+
+/**
+ * Resolves the provider that handles `repoUrl`, or throws an `InputError`
+ * (400) that tells the operator exactly how to register one. This replaces the
+ * previous `NotImplementedError` (501), which described a permanent server
+ * state the caller could do nothing about.
+ */
+function getVcsProviderOrThrow(
+  registry: OnboardingVcsRegistry,
+  repoUrl: string,
+): OnboardingVcsProvider {
+  const provider = registry.getForUrl(repoUrl);
+  if (provider) {
+    return provider;
+  }
+  const ids = registry.ids();
+  throw new InputError(
+    `No VCS provider is registered that can publish to ${repoUrl}. ` +
+      `Registered providers: [${ids.length ? ids.join(', ') : 'none'}]. ` +
+      `Add \`backend.add(import('@estehsaan/backstage-plugin-onboarding-backend/alpha'))\` to your backend, ` +
+      `and configure a matching \`integrations.github\` or \`integrations.gitlab\` entry in app-config.yaml.`,
+  );
+}
+
+/**
+ * Makes a value safe to use as a single git ref path segment (see
+ * `git check-ref-format`): only `[A-Za-z0-9._-]` is kept, runs are collapsed
+ * and leading/trailing separators are trimmed.
+ */
+function toBranchSegment(value: string): string {
+  const slug = value
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^[-._]+|[-._]+$/g, '');
+  return slug || 'template';
+}
+
+/**
+ * Commit author identity for published templates: configurable so a shared
+ * bot identity can be used, defaulting to the requesting user.
+ */
+function resolvePublishAuthor(
+  config: RootConfigService,
+  credentials: BackstageCredentials<BackstageUserPrincipal>,
+): { name: string; email: string } {
+  const authorRef = credentials.principal.userEntityRef;
+  const userName = authorRef ? parseEntityRef(authorRef).name : 'backstage';
+  return {
+    name: config.getOptionalString('onboarding.publish.authorName') ?? userName,
+    email:
+      config.getOptionalString('onboarding.publish.authorEmail') ??
+      `${userName}@users.noreply.github.com`,
+  };
+}
+
+/**
+ * Runs a provider call, translating any failure into a `ProviderError` (502)
+ * that names the provider and repository. The upstream message is preserved
+ * because SCM errors ("protected branch", "403 Resource not accessible by
+ * integration") are the actionable part; credentials are never echoed since
+ * only `error.message` is forwarded.
+ */
+async function callProvider<T>(opts: {
+  logger: LoggerService;
+  providerId: string;
+  repoUrl: string;
+  action: string;
+  call: () => Promise<T>;
+}): Promise<T> {
+  try {
+    return await opts.call();
+  } catch (error) {
+    const cause = error instanceof Error ? error.message : String(error);
+    opts.logger.error(
+      `Onboarding: ${opts.providerId} failed to ${opts.action} for ${opts.repoUrl}`,
+      error instanceof Error ? error : new Error(cause),
+    );
+    // InputError from a provider (e.g. missing credentials) is a configuration
+    // problem the caller can act on; keep its 400 rather than masking it.
+    if (error instanceof InputError) {
+      throw error;
+    }
+    throw new ProviderError(
+      `${opts.providerId} failed to ${opts.action} for ${opts.repoUrl}: ${cause}`,
+    );
+  }
 }

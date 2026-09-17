@@ -324,4 +324,132 @@ describe('OnboardingClient', () => {
       expect(init?.method).toBe('POST');
     });
   });
+
+  describe('publishTemplate error handling', () => {
+    const publishRequest = {
+      title: 'Update template',
+      repoUrl: 'https://github.com/o/r',
+      filePath: 'eng.yaml',
+    };
+
+    const errorResponse = (status: number, body: unknown): Response =>
+      ({
+        ok: false,
+        status,
+        statusText: 'Bad Request',
+        headers: new Headers({ 'content-type': 'application/json' }),
+        url: `${baseUrl}/templates/eng/publish`,
+        text: async () =>
+          typeof body === 'string' ? body : JSON.stringify(body),
+      }) as unknown as Response;
+
+    it('throws with the backend error message when publish fails', async () => {
+      fetchApi.fetch.mockResolvedValue(
+        errorResponse(400, {
+          error: {
+            name: 'InputError',
+            message:
+              'No VcsProvider for https://github.com/o/r. Registered providers: none.',
+          },
+        }),
+      );
+
+      await expect(
+        createClient().publishTemplate('eng', publishRequest),
+      ).rejects.toThrow(
+        'No VcsProvider for https://github.com/o/r. Registered providers: none.',
+      );
+    });
+
+    it('surfaces validation issues from a 400 publish response', async () => {
+      fetchApi.fetch.mockResolvedValue(
+        errorResponse(400, {
+          issues: [
+            {
+              path: 'spec.phases',
+              message: 'at least one phase',
+              severity: 'error',
+            },
+            {
+              path: 'spec.role',
+              message: 'role is required',
+              severity: 'error',
+            },
+          ],
+        }),
+      );
+
+      const promise = createClient().publishTemplate('eng', publishRequest);
+
+      await expect(promise).rejects.toThrow('at least one phase');
+      await expect(promise).rejects.toMatchObject({
+        status: 400,
+        issues: [
+          {
+            path: 'spec.phases',
+            message: 'at least one phase',
+            severity: 'error',
+          },
+          { path: 'spec.role', message: 'role is required', severity: 'error' },
+        ],
+      });
+    });
+
+    it('falls back to the status when the error body is not a known envelope', async () => {
+      fetchApi.fetch.mockResolvedValue(errorResponse(500, 'boom'));
+
+      await expect(
+        createClient().publishTemplate('eng', publishRequest),
+      ).rejects.toThrow(/Publishing failed \(HTTP 500\)/);
+    });
+
+    it('throws when a 200 response has no pull request url', async () => {
+      fetchApi.fetch.mockResolvedValue(okResponse({}));
+
+      await expect(
+        createClient().publishTemplate('eng', publishRequest),
+      ).rejects.toThrow(
+        'Publish succeeded but the backend returned no pull request URL',
+      );
+    });
+
+    it('throws when a 200 response has no usable pull request number', async () => {
+      fetchApi.fetch.mockResolvedValue(okResponse({ url: 'http://pr/1' }));
+
+      await expect(
+        createClient().publishTemplate('eng', publishRequest),
+      ).rejects.toThrow(
+        'Publish succeeded but the backend returned no pull request URL',
+      );
+    });
+
+    it('does not abort publish at the generic 15s timeout', async () => {
+      jest.useFakeTimers();
+      try {
+        fetchApi.fetch.mockImplementation(
+          () =>
+            new Promise<Response>(resolve => {
+              setTimeout(
+                () => resolve(okResponse({ url: 'http://pr/7', number: 7 })),
+                20_000,
+              );
+            }),
+        );
+
+        const promise = createClient().publishTemplate('eng', publishRequest);
+        // Let the discovery promise settle before advancing timers.
+        await Promise.resolve();
+        await Promise.resolve();
+        jest.advanceTimersByTime(20_000);
+
+        await expect(promise).resolves.toEqual({
+          url: 'http://pr/7',
+          number: 7,
+        });
+      } finally {
+        jest.useRealTimers();
+        fetchApi.fetch.mockReset();
+      }
+    });
+  });
 });

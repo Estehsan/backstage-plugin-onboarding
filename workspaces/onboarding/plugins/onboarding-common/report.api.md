@@ -112,7 +112,9 @@ export const onboardingTemplateWritePermission: BasicPermission;
 
 // @public
 export interface OnboardingVcsProvider {
+  canHandle?(repoUrl: string): boolean;
   getDefaultBranch(repoUrl: string): Promise<string>;
+  readonly id?: string;
   openPullRequest(
     opts: OnboardingOpenPrOptions,
   ): Promise<OnboardingOpenPrResult>;
@@ -132,6 +134,13 @@ export interface OnboardingVcsWriteFile {
 export type Phase = 'day1' | 'week1' | 'week2' | 'month1';
 
 // @public
+export interface PublishTemplateFailure {
+  issues?: TemplateValidationIssue[];
+  message: string;
+  status?: number;
+}
+
+// @public
 export interface PublishTemplateRequest {
   baseBranch?: string;
   commitMessage?: string;
@@ -145,8 +154,21 @@ export interface PublishTemplateRequest {
 
 // @public
 export interface PublishTemplateResponse {
+  filePath: string;
+  headBranch: string;
   number: number;
+  providerId: string;
+  repoUrl: string;
   url: string;
+}
+
+// @public
+export interface PublishTemplateValidationErrorBody {
+  error: {
+    name: string;
+    message: string;
+  };
+  issues: TemplateValidationIssue[];
 }
 
 // @public

@@ -19,10 +19,11 @@ import {
   createBackendPlugin,
 } from '@backstage/backend-plugin-api';
 import { CatalogClient } from '@backstage/catalog-client';
-import { OnboardingVcsProvider } from '@estehsaan/backstage-plugin-onboarding-common';
 import { createRouter } from './service/router';
 import { DatabaseOnboardingStore } from './service/OnboardingStore';
 import { DatabaseTemplateDraftStore } from './service/TemplateDraftStore';
+import { OnboardingVcsRegistry } from './service/OnboardingVcsRegistry';
+import { createDefaultOnboardingVcsProviders } from './service/providers';
 import { seedDemoData } from './service/seedDemoData';
 import { onboardingVcsExtensionPoint } from './extensions';
 
@@ -35,16 +36,21 @@ import { onboardingVcsExtensionPoint } from './extensions';
 export const onboardingPlugin = createBackendPlugin({
   pluginId: 'onboarding',
   register(env) {
-    let vcsProvider: OnboardingVcsProvider | undefined;
+    const vcsRegistry = new OnboardingVcsRegistry();
+    let singleProviderSet = false;
 
     env.registerExtensionPoint(onboardingVcsExtensionPoint, {
       setVcsProvider(provider) {
-        if (vcsProvider) {
+        if (singleProviderSet) {
           throw new Error(
             'onboardingVcsExtensionPoint: a VCS provider was already set',
           );
         }
-        vcsProvider = provider;
+        singleProviderSet = true;
+        vcsRegistry.register(provider);
+      },
+      addVcsProvider(provider) {
+        vcsRegistry.register(provider);
       },
     });
 
@@ -92,6 +98,26 @@ export const onboardingPlugin = createBackendPlugin({
           },
         });
 
+        // Safety net: without this, a deployment that never adds
+        // `@estehsaan/backstage-plugin-onboarding-backend/alpha` (or its own
+        // module) has no provider at all and publishing cannot work. An
+        // explicitly registered provider always takes precedence, since it is
+        // registered before init runs and the registry resolves in order.
+        const autoRegister =
+          config.getOptionalBoolean(
+            'onboarding.publish.autoRegisterDefaultProviders',
+          ) ?? true;
+        if (vcsRegistry.isEmpty() && autoRegister) {
+          for (const provider of createDefaultOnboardingVcsProviders(config)) {
+            vcsRegistry.register(provider);
+          }
+          logger.info(
+            `Onboarding: no VCS provider was registered, falling back to the built-in providers [${vcsRegistry
+              .ids()
+              .join(', ')}]`,
+          );
+        }
+
         httpRouter.use(
           await createRouter({
             logger,
@@ -101,7 +127,7 @@ export const onboardingPlugin = createBackendPlugin({
             permissions,
             httpAuth,
             catalogApi,
-            vcs: vcsProvider,
+            vcs: vcsRegistry,
           }),
         );
 

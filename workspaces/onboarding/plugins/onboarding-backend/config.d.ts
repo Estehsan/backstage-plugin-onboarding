@@ -114,5 +114,35 @@ export interface Config {
        */
       assignerGroups?: string[];
     };
+
+    /**
+     * Template Studio publishing (pull/merge request creation) configuration.
+     */
+    publish?: {
+      /**
+       * Commit author name used for published template changes.
+       * Defaults to the name of the requesting user.
+       * @visibility backend
+       */
+      authorName?: string;
+
+      /**
+       * Commit author email used for published template changes.
+       * Defaults to `<user>@users.noreply.github.com`.
+       * @visibility backend
+       */
+      authorEmail?: string;
+
+      /**
+       * Whether the plugin registers its built-in GitHub/GitLab VCS providers
+       * when no backend module supplied one. Defaults to true, so publishing
+       * works from `integrations.*` alone. Set to false to require explicit
+       * wiring via
+       * `backend.add(import('@estehsaan/backstage-plugin-onboarding-backend/alpha'))`
+       * or a custom module.
+       * @visibility backend
+       */
+      autoRegisterDefaultProviders?: boolean;
+    };
   };
 }

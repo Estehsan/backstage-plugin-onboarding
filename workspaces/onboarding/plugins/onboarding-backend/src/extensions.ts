@@ -18,7 +18,7 @@ import { createExtensionPoint } from '@backstage/backend-plugin-api';
 import { OnboardingVcsProvider } from '@estehsaan/backstage-plugin-onboarding-common';
 
 /**
- * Extension point for supplying the VCS provider used by
+ * Extension point for supplying the VCS provider(s) used by
  * `POST /templates/:name/publish`. Register from a backend module.
  * @alpha
  */
@@ -26,8 +26,17 @@ export interface OnboardingVcsExtensionPoint {
   /**
    * Sets the VCS provider. Throws if called more than once.
    * A techdocs-editor-node `VcsProvider` satisfies `OnboardingVcsProvider`.
+   *
+   * @deprecated Use {@link OnboardingVcsExtensionPoint.addVcsProvider}, which
+   * supports registering several providers (e.g. GitHub and GitLab).
    */
   setVcsProvider(provider: OnboardingVcsProvider): void;
+  /**
+   * Adds a provider to the ordered registry. The first provider whose
+   * `canHandle` matches the target repository URL is used; a provider without
+   * `canHandle` acts as a catch-all fallback.
+   */
+  addVcsProvider(provider: OnboardingVcsProvider): void;
 }
 
 /**

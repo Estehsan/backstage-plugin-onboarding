@@ -25,6 +25,7 @@ import {
   mockServices,
 } from '@backstage/backend-test-utils';
 import { createRouter } from './router';
+import { OnboardingVcsRegistry } from './OnboardingVcsRegistry';
 import { DatabaseOnboardingStore } from './OnboardingStore';
 import {
   OnboardingProgress,
@@ -68,6 +69,7 @@ const mockDraftStore = {
 };
 
 const mockVcs = {
+  id: 'github',
   resolveProvider: jest.fn(),
   openPullRequest: jest
     .fn()
@@ -88,11 +90,15 @@ async function createApp(
 ) {
   const baseDefaults = { activeJoinerWindowDays: 90 };
   const overrideOnboarding = configOverrides?.onboarding as
-    | { defaults?: Record<string, unknown> }
+    | Record<string, unknown>
+    | undefined;
+  const overrideDefaults = overrideOnboarding?.defaults as
+    | Record<string, unknown>
     | undefined;
   const mergedConfig = {
     onboarding: {
-      defaults: { ...baseDefaults, ...overrideOnboarding?.defaults },
+      ...overrideOnboarding,
+      defaults: { ...baseDefaults, ...overrideDefaults },
     },
   };
 
@@ -2602,8 +2608,301 @@ describe('createRouter', () => {
       expect(mockDraftStore.markPublished).toHaveBeenCalledWith('eng');
     });
 
+    it('returns the PR url, number, headBranch, repoUrl, filePath and providerId', async () => {
+      mockDraftStore.getDraft.mockResolvedValue({
+        name: 'eng',
+        template: validTemplate,
+        sourceLocation: undefined,
+        updatedAt: '2026-08-01T00:00:00.000Z',
+        status: 'draft',
+      });
+
+      const res = await request(app)
+        .post('/templates/eng/publish')
+        .set('Authorization', '******')
+        .send({
+          title: 'Update onboarding template',
+          repoUrl: 'https://github.com/o/r',
+          filePath: 'catalog/onboarding/eng.yaml',
+        });
+
+      expect(res.status).toBe(200);
+      const sentBranch = mockVcs.openPullRequest.mock.calls[0][0].headBranch;
+      expect(res.body).toEqual({
+        url: 'http://pr/1',
+        number: 1,
+        headBranch: sentBranch,
+        repoUrl: 'https://github.com/o/r',
+        filePath: 'catalog/onboarding/eng.yaml',
+        providerId: 'github',
+      });
+      // Collision-safe, user-attributed branch name.
+      expect(sentBranch).toMatch(
+        /^onboarding\/template-eng\/jane\.doe\/\d+-[a-z0-9]+$/,
+      );
+    });
+
+    it('opens the pull request through the provider matching the repo URL', async () => {
+      const githubProvider = {
+        id: 'github',
+        canHandle: (url: string) => url.includes('github.com'),
+        getDefaultBranch: jest.fn().mockResolvedValue('main'),
+        openPullRequest: jest
+          .fn()
+          .mockResolvedValue({ url: 'http://pr/9', number: 9 }),
+      };
+      const gitlabProvider = {
+        id: 'gitlab',
+        canHandle: (url: string) => url.includes('gitlab.com'),
+        getDefaultBranch: jest.fn(),
+        openPullRequest: jest.fn(),
+      };
+      const registry = new OnboardingVcsRegistry();
+      registry.register(githubProvider);
+      registry.register(gitlabProvider);
+
+      const multiApp = await createApp('user:default/jane.doe', undefined, {
+        vcs: registry,
+      });
+      mockDraftStore.getDraft.mockResolvedValue({
+        name: 'eng',
+        template: validTemplate,
+        sourceLocation: undefined,
+        updatedAt: '2026-08-01T00:00:00.000Z',
+        status: 'draft',
+      });
+
+      const res = await request(multiApp)
+        .post('/templates/eng/publish')
+        .set('Authorization', '******')
+        .send({
+          title: 'Update onboarding template',
+          commitMessage: 'chore: update eng',
+          repoUrl: 'https://github.com/o/r',
+          filePath: 'catalog/onboarding/eng.yaml',
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.providerId).toBe('github');
+      expect(githubProvider.getDefaultBranch).toHaveBeenCalledWith(
+        'https://github.com/o/r',
+      );
+      expect(githubProvider.openPullRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          repoUrl: 'https://github.com/o/r',
+          baseBranch: 'main',
+          title: 'Update onboarding template',
+          commitMessage: 'chore: update eng',
+          authorName: 'jane.doe',
+          authorEmail: 'jane.doe@users.noreply.github.com',
+        }),
+      );
+      const files = githubProvider.openPullRequest.mock.calls[0][0].files;
+      expect([...files.keys()]).toEqual(['catalog/onboarding/eng.yaml']);
+      expect(gitlabProvider.openPullRequest).not.toHaveBeenCalled();
+      expect(gitlabProvider.getDefaultBranch).not.toHaveBeenCalled();
+    });
+
+    it('uses the configured publish author identity when present', async () => {
+      mockDraftStore.getDraft.mockResolvedValue({
+        name: 'eng',
+        template: validTemplate,
+        sourceLocation: undefined,
+        updatedAt: '2026-08-01T00:00:00.000Z',
+        status: 'draft',
+      });
+      const configuredApp = await createApp('user:default/jane.doe', {
+        onboarding: {
+          publish: {
+            authorName: 'Backstage Bot',
+            authorEmail: 'backstage@example.com',
+          },
+        },
+      });
+
+      const res = await request(configuredApp)
+        .post('/templates/eng/publish')
+        .set('Authorization', '******')
+        .send({
+          title: 'Update onboarding template',
+          repoUrl: 'https://github.com/o/r',
+          filePath: 'catalog/onboarding/eng.yaml',
+        });
+
+      expect(res.status).toBe(200);
+      expect(mockVcs.openPullRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authorName: 'Backstage Bot',
+          authorEmail: 'backstage@example.com',
+        }),
+      );
+    });
+
+    it('propagates provider failures as 502 with provider context and does not mark published', async () => {
+      mockDraftStore.getDraft.mockResolvedValue({
+        name: 'eng',
+        template: validTemplate,
+        sourceLocation: undefined,
+        updatedAt: '2026-08-01T00:00:00.000Z',
+        status: 'draft',
+      });
+      mockVcs.openPullRequest.mockRejectedValueOnce(
+        new Error('403 Resource not accessible by integration'),
+      );
+
+      const res = await request(app)
+        .post('/templates/eng/publish')
+        .set('Authorization', '******')
+        .send({
+          title: 'Update onboarding template',
+          repoUrl: 'https://github.com/o/r',
+          filePath: 'catalog/onboarding/eng.yaml',
+        });
+
+      expect(res.status).toBe(502);
+      expect(res.body.error.name).toBe('ProviderError');
+      expect(res.body.error.message).toContain('github');
+      expect(res.body.error.message).toContain('https://github.com/o/r');
+      expect(res.body.error.message).toContain(
+        '403 Resource not accessible by integration',
+      );
+      expect(mockDraftStore.markPublished).not.toHaveBeenCalled();
+    });
+
+    it('propagates default-branch lookup failures as 502', async () => {
+      mockDraftStore.getDraft.mockResolvedValue({
+        name: 'eng',
+        template: validTemplate,
+        sourceLocation: undefined,
+        updatedAt: '2026-08-01T00:00:00.000Z',
+        status: 'draft',
+      });
+      mockVcs.getDefaultBranch.mockRejectedValueOnce(
+        new Error('404 Repository not found'),
+      );
+
+      const res = await request(app)
+        .post('/templates/eng/publish')
+        .set('Authorization', '******')
+        .send({
+          title: 'Update onboarding template',
+          repoUrl: 'https://github.com/o/r',
+          filePath: 'catalog/onboarding/eng.yaml',
+        });
+
+      expect(res.status).toBe(502);
+      expect(res.body.error.name).toBe('ProviderError');
+      expect(res.body.error.message).toContain('404 Repository not found');
+      expect(mockVcs.openPullRequest).not.toHaveBeenCalled();
+      expect(mockDraftStore.markPublished).not.toHaveBeenCalled();
+    });
+
+    it('returns 502 when the provider returns a result without a url', async () => {
+      mockDraftStore.getDraft.mockResolvedValue({
+        name: 'eng',
+        template: validTemplate,
+        sourceLocation: undefined,
+        updatedAt: '2026-08-01T00:00:00.000Z',
+        status: 'draft',
+      });
+      mockVcs.openPullRequest.mockResolvedValueOnce({} as any);
+
+      const res = await request(app)
+        .post('/templates/eng/publish')
+        .set('Authorization', '******')
+        .send({
+          title: 'Update onboarding template',
+          repoUrl: 'https://github.com/o/r',
+          filePath: 'catalog/onboarding/eng.yaml',
+        });
+
+      expect(res.status).toBe(502);
+      expect(res.body.error.name).toBe('ProviderError');
+      expect(res.body.error.message).toMatch(/invalid pull request result/i);
+      expect(mockDraftStore.markPublished).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 with both issues and a standard error envelope for an invalid draft', async () => {
+      mockDraftStore.getDraft.mockResolvedValue({
+        name: 'eng',
+        template: {
+          ...validTemplate,
+          metadata: { name: '', title: '' },
+          spec: { role: '', phases: [] },
+        },
+        sourceLocation: undefined,
+        updatedAt: '2026-08-01T00:00:00.000Z',
+        status: 'draft',
+      });
+
+      const res = await request(app)
+        .post('/templates/eng/publish')
+        .set('Authorization', '******')
+        .send({
+          title: 'Update onboarding template',
+          repoUrl: 'https://github.com/o/r',
+          filePath: 'catalog/onboarding/eng.yaml',
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.issues.length).toBeGreaterThan(0);
+      expect(res.body.error.name).toBe('InputError');
+      expect(res.body.error.message).toMatch(/validation error/i);
+      expect(mockVcs.openPullRequest).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 when the draft has no resolvable repository location', async () => {
+      mockDraftStore.getDraft.mockResolvedValue({
+        name: 'eng',
+        template: validTemplate,
+        sourceLocation: undefined,
+        updatedAt: '2026-08-01T00:00:00.000Z',
+        status: 'draft',
+      });
+
+      const res = await request(app)
+        .post('/templates/eng/publish')
+        .set('Authorization', '******')
+        .send({ title: 'Update onboarding template' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.name).toBe('InputError');
+      expect(res.body.error.message).toMatch(/repoUrl and filePath/);
+      expect(mockVcs.openPullRequest).not.toHaveBeenCalled();
+    });
+
     describe('without a VCS provider (config #2)', () => {
-      it('returns 501 when publishing a valid draft', async () => {
+      it('never returns 501 when no VCS provider is registered', async () => {
+        const noVcsApp = await createApp('user:default/jane.doe', undefined, {
+          vcs: new OnboardingVcsRegistry(),
+        });
+        mockDraftStore.getDraft.mockResolvedValue({
+          name: 'eng',
+          template: validTemplate,
+          sourceLocation: undefined,
+          updatedAt: '2026-08-01T00:00:00.000Z',
+          status: 'draft',
+        });
+
+        const res = await request(noVcsApp)
+          .post('/templates/eng/publish')
+          .set('Authorization', '******')
+          .send({
+            title: 'Update onboarding template',
+            repoUrl: 'https://github.com/o/r',
+            filePath: 'catalog/onboarding/eng.yaml',
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error.name).toBe('InputError');
+        expect(res.body.error.message).toContain('https://github.com/o/r');
+        expect(res.body.error.message).toContain(
+          '@estehsaan/backstage-plugin-onboarding-backend/alpha',
+        );
+        expect(res.body.error.message).toContain('integrations');
+      });
+
+      it('never returns 501 when the option is omitted entirely', async () => {
         const noVcsApp = await createApp('user:default/jane.doe', undefined, {
           vcs: undefined,
         });
@@ -2624,11 +2923,8 @@ describe('createRouter', () => {
             filePath: 'catalog/onboarding/eng.yaml',
           });
 
-        expect(res.status).toBe(501);
-        expect(res.body.error.name).toBe('NotImplementedError');
-        expect(res.body.error.message).toBe(
-          'VCS provider is not configured for template publishing',
-        );
+        expect(res.status).toBe(400);
+        expect(res.body.error.name).toBe('InputError');
       });
 
       it('still 404s a missing draft without a provider', async () => {
