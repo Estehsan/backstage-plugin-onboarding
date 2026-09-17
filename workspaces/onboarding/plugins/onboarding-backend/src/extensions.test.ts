@@ -17,6 +17,7 @@
 import type { VcsProvider } from '@estehsaan/backstage-plugin-techdocs-editor-node';
 import type { OnboardingVcsProvider } from '@estehsaan/backstage-plugin-onboarding-common';
 import { onboardingVcsExtensionPoint } from './extensions';
+import type { OnboardingVcsExtensionPoint } from './extensions';
 
 describe('onboardingVcsExtensionPoint', () => {
   it('is exported with the stable id onboarding.vcs', () => {
@@ -33,5 +34,26 @@ describe('onboardingVcsExtensionPoint', () => {
     // interface (parameter/return types) breaks this build.
     const assign = (p: VcsProvider): OnboardingVcsProvider => p;
     expect(typeof assign).toBe('function');
+  });
+
+  it('exposes both setVcsProvider and addVcsProvider', () => {
+    // Structural contract of the extension point: adopters may keep using the
+    // single-provider setter, or register into the ordered registry.
+    const impl: OnboardingVcsExtensionPoint = {
+      setVcsProvider: jest.fn(),
+      addVcsProvider: jest.fn(),
+    };
+    const provider: OnboardingVcsProvider = {
+      id: 'github',
+      canHandle: () => true,
+      getDefaultBranch: async () => 'main',
+      openPullRequest: async () => ({ url: 'u', number: 1 }),
+    };
+
+    impl.setVcsProvider(provider);
+    impl.addVcsProvider(provider);
+
+    expect(impl.setVcsProvider).toHaveBeenCalledWith(provider);
+    expect(impl.addVcsProvider).toHaveBeenCalledWith(provider);
   });
 });

@@ -24,3 +24,6 @@ export {
   onboardingVcsExtensionPoint,
   type OnboardingVcsExtensionPoint,
 } from './extensions';
+
+export { onboardingModuleDefaultVcs } from './module';
+export { onboardingModuleDefaultVcs as default } from './module';

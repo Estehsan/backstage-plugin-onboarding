@@ -24,6 +24,7 @@ import {
   OnboardingTemplate,
   PublishTemplateRequest,
   PublishTemplateResponse,
+  type PublishTemplateFailure as PublishTemplateFailureBody,
   TaskStatus,
   TeamJoinerSummary,
   TeamOnboardingStats,
@@ -55,6 +56,130 @@ function userRefPathSegment(userId: string): string {
   } catch {
     return encodeURIComponent(userId);
   }
+}
+
+/**
+ * Default per-request timeout. Publishing overrides this — see
+ * {@link PUBLISH_TIMEOUT_MS}.
+ */
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+/**
+ * Opening a pull request is a multi-round-trip operation against an external
+ * SCM (resolve default branch → create branch → commit → open PR), so the
+ * generic 15s budget aborts legitimate in-flight publishes. 60s matches the
+ * publish timeout in the design for this flow.
+ */
+const PUBLISH_TIMEOUT_MS = 60_000;
+
+/**
+ * Error thrown by {@link OnboardingClient.publishTemplate} when publishing
+ * fails: a real `Error` carrying the canonical `PublishTemplateFailure` fields
+ * from `-common`. `message` is already provider-attributed and safe to render;
+ * `issues` is populated when the backend rejected the draft (HTTP 400).
+ * @public
+ */
+export type PublishTemplateFailure = Error & PublishTemplateFailureBody;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function parseIssues(body: unknown): TemplateValidationIssue[] | undefined {
+  if (!isRecord(body) || !Array.isArray(body.issues)) {
+    return undefined;
+  }
+  const issues = body.issues.filter(
+    (issue): issue is TemplateValidationIssue =>
+      isRecord(issue) && typeof issue.message === 'string',
+  );
+  return issues.length > 0 ? issues : undefined;
+}
+
+/**
+ * Maps a failed publish response onto a readable, provider-attributed error.
+ * The backend may answer with the standard `{ error: { name, message } }`
+ * envelope (provider 502s, the "no VCS provider" 400) or with the
+ * validation-specific `{ issues }` body; anything else falls back to the
+ * status plus the raw body.
+ */
+async function publishFailureFromResponse(
+  res: Response,
+): Promise<PublishTemplateFailure> {
+  const rawBody = await res.text().catch(() => '');
+
+  let parsed: unknown;
+  try {
+    parsed = rawBody ? JSON.parse(rawBody) : undefined;
+  } catch {
+    parsed = undefined;
+  }
+
+  const issues = parseIssues(parsed);
+
+  const envelope =
+    isRecord(parsed) && isRecord(parsed.error) ? parsed.error : undefined;
+  const envelopeMessage =
+    typeof envelope?.message === 'string' && envelope.message
+      ? envelope.message
+      : undefined;
+
+  let message: string;
+  if (envelopeMessage) {
+    message = envelopeMessage;
+  } else if (issues) {
+    const listed = issues
+      .slice(0, 3)
+      .map(issue => issue.message)
+      .join('; ');
+    message = `Template has ${issues.length} validation error${
+      issues.length === 1 ? '' : 's'
+    }: ${listed}`;
+  } else {
+    message = `Publishing failed (HTTP ${res.status})${
+      rawBody ? `: ${rawBody}` : ''
+    }`;
+  }
+
+  const error: PublishTemplateFailure = new Error(message);
+  error.status = res.status;
+  if (issues) {
+    error.issues = issues;
+  }
+  return error;
+}
+
+/**
+ * Guards against a provider returning a 200 with no usable pull-request data,
+ * which would otherwise render a success state with `#undefined` and a dead
+ * link.
+ */
+function assertPublishResponse(body: unknown): PublishTemplateResponse {
+  if (
+    !isRecord(body) ||
+    typeof body.url !== 'string' ||
+    body.url.length === 0 ||
+    !Number.isFinite(body.number)
+  ) {
+    throw new Error(
+      'Publish succeeded but the backend returned no pull request URL',
+    );
+  }
+  return body as unknown as PublishTemplateResponse;
+}
+
+/**
+ * Per-call overrides for {@link OnboardingClient.request}. Defaults preserve
+ * the shared behaviour (15s budget, `ResponseError`, unvalidated JSON).
+ */
+interface RequestOptions<T> {
+  timeoutMs?: number;
+  /** Message used when the request is aborted by the timeout. */
+  timeoutMessage?: string;
+  /** Builds the error thrown for a non-ok response. */
+  toError?: (res: Response) => Promise<Error>;
+  /** Validates/narrows the parsed 200 body. */
+  validate?: (body: unknown) => T;
 }
 
 /** @public */
@@ -216,14 +341,27 @@ export class OnboardingClient implements OnboardingApi {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
       },
+      {
+        timeoutMs: PUBLISH_TIMEOUT_MS,
+        timeoutMessage:
+          `Publishing timed out after ${PUBLISH_TIMEOUT_MS / 1000}s. ` +
+          'The pull request may still have been created — check the repository before retrying.',
+        toError: publishFailureFromResponse,
+        validate: assertPublishResponse,
+      },
     );
   }
 
-  private async request<T>(path: string, init?: RequestInit): Promise<T> {
+  private async request<T>(
+    path: string,
+    init?: RequestInit,
+    options?: RequestOptions<T>,
+  ): Promise<T> {
     const baseUrl = await this.discoveryApi.getBaseUrl('onboarding');
+    const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     let res: Response;
     try {
@@ -233,7 +371,10 @@ export class OnboardingClient implements OnboardingApi {
       });
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
-        throw new Error(`Request to ${path} timed out after 15s`);
+        throw new Error(
+          options?.timeoutMessage ??
+            `Request to ${path} timed out after ${timeoutMs / 1000}s`,
+        );
       }
       throw err;
     } finally {
@@ -241,6 +382,9 @@ export class OnboardingClient implements OnboardingApi {
     }
 
     if (!res.ok) {
+      if (options?.toError) {
+        throw await options.toError(res);
+      }
       // The DOM `Response` type satisfies `ConsumedResponse` at runtime; the
       // cast bridges the narrower `Headers` lib type used by this workspace.
       throw await ResponseError.fromResponse(
@@ -248,6 +392,7 @@ export class OnboardingClient implements OnboardingApi {
       );
     }
 
-    return res.json() as Promise<T>;
+    const body = await res.json();
+    return options?.validate ? options.validate(body) : (body as T);
   }
 }

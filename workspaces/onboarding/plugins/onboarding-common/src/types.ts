@@ -276,6 +276,44 @@ export interface PublishTemplateResponse {
   url: string;
   /** Provider-specific PR/MR number. */
   number: number;
+  /** Branch the backend created for the pull/merge request. */
+  headBranch: string;
+  /** Repository the pull/merge request targets. */
+  repoUrl: string;
+  /** File path written in the pull/merge request. */
+  filePath: string;
+  /** Id of the VCS provider that opened the PR (`github`, `gitlab`, …). */
+  providerId: string;
+}
+
+/**
+ * Body returned with HTTP 400 when a draft fails validation. Carries both the
+ * machine-readable `issues` list and the standard Backstage error envelope, so
+ * `ResponseError` yields a readable message instead of falling back to the raw
+ * body.
+ * @public
+ */
+export interface PublishTemplateValidationErrorBody {
+  /** The validation problems that blocked publishing. */
+  issues: TemplateValidationIssue[];
+  /** Standard Backstage error envelope, for generic error rendering. */
+  error: {
+    name: string;
+    message: string;
+  };
+}
+
+/**
+ * Shape of the error thrown client-side when publishing a template fails.
+ * @public
+ */
+export interface PublishTemplateFailure {
+  /** Human-readable, provider-attributed message for the UI. */
+  message: string;
+  /** HTTP status, when the failure came from the backend. */
+  status?: number;
+  /** Populated when the backend rejected the draft (HTTP 400). */
+  issues?: TemplateValidationIssue[];
 }
 
 /**
@@ -329,6 +367,18 @@ export interface OnboardingOpenPrResult {
  * @public
  */
 export interface OnboardingVcsProvider {
+  /**
+   * Stable id, e.g. `github`. Optional for backwards compatibility with
+   * providers registered before the registry existed; it is surfaced as
+   * `providerId` on {@link PublishTemplateResponse}.
+   */
+  readonly id?: string;
+  /**
+   * Returns true if this provider handles the given repository URL. Optional:
+   * a provider without `canHandle` is treated as a catch-all and only used
+   * when no scoped provider matches (the pre-registry behaviour).
+   */
+  canHandle?(repoUrl: string): boolean;
   /** Returns the default branch name (e.g. 'main'). */
   getDefaultBranch(repoUrl: string): Promise<string>;
   /** Opens a pull/merge request with the given file changes. */

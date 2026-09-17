@@ -24,11 +24,26 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTrigger,
+  Flex,
   Link,
+  Text,
   TextField,
 } from '@backstage/ui';
-import { PublishTemplateRequest, PublishTemplateResponse } from '../../types';
+import {
+  PublishTemplateFailure,
+  PublishTemplateRequest,
+  PublishTemplateResponse,
+  TemplateValidationIssue,
+} from '../../types';
 import styles from './TemplateStudio.module.css';
+
+function toPublishFailure(e: unknown): PublishTemplateFailure {
+  if (e instanceof Error) {
+    const issues = (e as Error & { issues?: TemplateValidationIssue[] }).issues;
+    return { message: e.message, ...(issues ? { issues } : {}) };
+  }
+  return { message: String(e) };
+}
 
 /** @public */
 export interface PublishDialogProps {
@@ -54,7 +69,7 @@ export function PublishDialog(props: PublishDialogProps) {
   const [filePath, setFilePath] = useState('');
   const [draft, setDraft] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | undefined>();
+  const [failure, setFailure] = useState<PublishTemplateFailure | undefined>();
   const [result, setResult] = useState<PublishTemplateResponse | undefined>();
 
   const targetRequired = !hasSourceLocation;
@@ -62,9 +77,13 @@ export function PublishDialog(props: PublishDialogProps) {
     !!title.trim() &&
     (!targetRequired || (!!repoUrl.trim() && !!filePath.trim()));
 
+  // Only a response that actually carries a pull request URL may render the
+  // success state — otherwise a malformed 200 would show a dead link.
+  const published = result?.url ? result : undefined;
+
   const handlePublish = async () => {
     setBusy(true);
-    setError(undefined);
+    setFailure(undefined);
     try {
       const response = await onPublish({
         title: title.trim(),
@@ -74,9 +93,14 @@ export function PublishDialog(props: PublishDialogProps) {
         repoUrl: repoUrl.trim() || undefined,
         filePath: filePath.trim() || undefined,
       });
+      if (!response?.url) {
+        throw new Error(
+          'Publish succeeded but the backend returned no pull request URL',
+        );
+      }
       setResult(response);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setFailure(toPublishFailure(e));
     } finally {
       setBusy(false);
     }
@@ -91,11 +115,45 @@ export function PublishDialog(props: PublishDialogProps) {
         <DialogHeader>Publish template</DialogHeader>
         <DialogBody>
           <div className={styles.dialogBody}>
-            {result ? (
-              <Alert status="success">
-                Pull request opened:{' '}
-                <Link href={result.url}>#{result.number}</Link>
-              </Alert>
+            {published ? (
+              <Alert
+                status="success"
+                title={
+                  <Text variant="body-small">
+                    Pull request opened:{' '}
+                    <Link href={published.url}>#{published.number}</Link>
+                    {published.providerId ? ` via ${published.providerId}` : ''}
+                  </Text>
+                }
+                description={
+                  <Flex direction="column" gap="1">
+                    {published.headBranch && (
+                      <Text variant="body-small">
+                        Branch:{' '}
+                        <span className={styles.issuePath}>
+                          {published.headBranch}
+                        </span>
+                      </Text>
+                    )}
+                    {published.repoUrl && (
+                      <Text variant="body-small">
+                        Repository:{' '}
+                        <span className={styles.issuePath}>
+                          {published.repoUrl}
+                        </span>
+                      </Text>
+                    )}
+                    {published.filePath && (
+                      <Text variant="body-small">
+                        File:{' '}
+                        <span className={styles.issuePath}>
+                          {published.filePath}
+                        </span>
+                      </Text>
+                    )}
+                  </Flex>
+                }
+              />
             ) : (
               <>
                 <TextField
@@ -133,16 +191,38 @@ export function PublishDialog(props: PublishDialogProps) {
                 <Checkbox isSelected={draft} onChange={setDraft}>
                   Open as draft pull request
                 </Checkbox>
-                {error && <Alert status="danger">{error}</Alert>}
+                {failure && (
+                  <Alert
+                    status="danger"
+                    title={failure.message}
+                    description={
+                      failure.issues && failure.issues.length > 0 ? (
+                        <Flex direction="column" gap="1">
+                          {failure.issues.map((issue, i) => (
+                            <Text
+                              key={`${issue.path}-${i}`}
+                              variant="body-small"
+                            >
+                              <span className={styles.issuePath}>
+                                {issue.path}
+                              </span>{' '}
+                              {issue.message}
+                            </Text>
+                          ))}
+                        </Flex>
+                      ) : undefined
+                    }
+                  />
+                )}
               </>
             )}
           </div>
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onPress={() => setOpen(false)}>
-            {result ? 'Close' : 'Cancel'}
+            {published ? 'Close' : 'Cancel'}
           </Button>
-          {!result && (
+          {!published && (
             <Button
               variant="primary"
               isDisabled={!canSubmit || busy}

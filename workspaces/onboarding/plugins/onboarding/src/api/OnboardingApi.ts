@@ -100,7 +100,14 @@ export interface OnboardingApi {
     name: string,
     template: OnboardingTemplate,
   ): Promise<TemplateValidationIssue[]>;
-  /** Publishes a template draft as a pull/merge request. */
+  /**
+   * Publishes a template draft as a pull/merge request.
+   *
+   * Rejects with a `PublishTemplateFailure`-shaped `Error`: `message` is
+   * already provider-attributed and safe to render, and `status`/`issues` are
+   * populated when the backend rejected the draft. Also rejects when a 200
+   * response carries no usable pull request URL.
+   */
   publishTemplate(
     name: string,
     request: PublishTemplateRequest,

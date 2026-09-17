@@ -36,6 +36,8 @@ export type {
   TemplateValidationIssue,
   PublishTemplateRequest,
   PublishTemplateResponse,
+  PublishTemplateValidationErrorBody,
+  PublishTemplateFailure,
   OnboardingVcsWriteFile,
   OnboardingOpenPrOptions,
   OnboardingOpenPrResult,
