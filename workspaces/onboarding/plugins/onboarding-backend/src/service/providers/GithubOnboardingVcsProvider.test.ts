@@ -197,4 +197,30 @@ describe('GithubOnboardingVcsProvider', () => {
       buildProvider().getDefaultBranch('https://github.com/only-owner'),
     ).rejects.toThrow(/Cannot parse owner\/repo/);
   });
+
+  it('resolves credentials once per repoUrl and reuses the client across calls', async () => {
+    mockReposGet.mockResolvedValue({ data: { default_branch: 'main' } });
+    const provider = buildProvider();
+
+    // A real publish calls getDefaultBranch() then openPullRequest() for the
+    // same repoUrl; both should share one credential exchange/client.
+    await provider.getDefaultBranch(REPO_URL);
+    await provider.openPullRequest(openPrOptions());
+
+    expect(mockGetCredentials).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache a failed credential resolution', async () => {
+    mockGetCredentials.mockRejectedValueOnce(new Error('token endpoint down'));
+    const provider = buildProvider();
+
+    await expect(provider.getDefaultBranch(REPO_URL)).rejects.toThrow(
+      'token endpoint down',
+    );
+
+    mockReposGet.mockResolvedValue({ data: { default_branch: 'main' } });
+    mockGetCredentials.mockResolvedValue({ token: 'fake-token', headers: {} });
+    await expect(provider.getDefaultBranch(REPO_URL)).resolves.toBe('main');
+    expect(mockGetCredentials).toHaveBeenCalledTimes(2);
+  });
 });

@@ -22,6 +22,7 @@ const mockBranchesCreate = jest.fn();
 const mockCommitsCreate = jest.fn();
 const mockMergeRequestsCreate = jest.fn();
 const mockRepositoryFilesShow = jest.fn();
+const mockGitlabConstructor = jest.fn();
 
 jest.mock('@gitbeaker/rest', () => ({
   Gitlab: class MockGitlab {
@@ -30,6 +31,10 @@ jest.mock('@gitbeaker/rest', () => ({
     Commits = { create: mockCommitsCreate };
     MergeRequests = { create: mockMergeRequestsCreate };
     RepositoryFiles = { show: mockRepositoryFilesShow };
+
+    constructor(...args: unknown[]) {
+      mockGitlabConstructor(...args);
+    }
   },
 }));
 
@@ -168,5 +173,17 @@ describe('GitlabOnboardingVcsProvider', () => {
     await expect(provider.getDefaultBranch(REPO_URL)).rejects.toThrow(
       /no token configured[\s\S]*app-config\.yaml/,
     );
+  });
+
+  it('builds one client per host and reuses it across calls', async () => {
+    const provider = buildProvider();
+
+    // A real publish calls getDefaultBranch() then openPullRequest() for the
+    // same repoUrl; both should share one cached client instead of each
+    // re-validating the integration/token from scratch.
+    await provider.getDefaultBranch(REPO_URL);
+    await provider.openPullRequest(openPrOptions());
+
+    expect(mockGitlabConstructor).toHaveBeenCalledTimes(1);
   });
 });
