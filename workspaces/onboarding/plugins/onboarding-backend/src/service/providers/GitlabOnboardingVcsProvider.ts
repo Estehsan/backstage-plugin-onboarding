@@ -25,6 +25,17 @@ import type {
 import { Gitlab } from '@gitbeaker/rest';
 
 /**
+ * Constructs a Gitlab client. Extracted to a plain function (rather than
+ * inlining `new Gitlab(...)` at each call site) purely so its return type can
+ * be captured with `ReturnType<typeof newGitlabClient>` below — `Gitlab` is
+ * generic over a `Camelize` response-shape parameter that `InstanceType<typeof
+ * Gitlab>` fails to resolve, but inference through a real call site works.
+ */
+function newGitlabClient(host: string, token: string) {
+  return new Gitlab({ host, token });
+}
+
+/**
  * Minimal GitLab implementation of {@link OnboardingVcsProvider}, built on the
  * standard Backstage `integrations.gitlab` configuration. Supports self-hosted
  * instances, since the host is taken from the repository URL and matched
@@ -35,17 +46,28 @@ import { Gitlab } from '@gitbeaker/rest';
 export class GitlabOnboardingVcsProvider implements OnboardingVcsProvider {
   readonly id = 'gitlab';
 
-  private readonly config: Config;
+  // Parsing `integrations.gitlab` out of the raw config is pure but not
+  // free, and `canHandle` + `getClient` are both called at least once per
+  // publish — cache it once instead of re-parsing config on every call.
+  private readonly integrations: ScmIntegrations;
+
+  // Gitlab clients are cheap to construct (no network round trip), but a
+  // single publish still calls `getClient` twice for the same repoUrl
+  // (`getDefaultBranch` then `openPullRequest`); caching by host avoids
+  // rebuilding it and re-validating the token each time.
+  private readonly clientCache = new Map<
+    string,
+    ReturnType<typeof newGitlabClient>
+  >();
 
   constructor(config: Config) {
-    this.config = config;
+    this.integrations = ScmIntegrations.fromConfig(config);
   }
 
   canHandle(repoUrl: string): boolean {
     try {
       const url = new URL(repoUrl);
-      const integrations = ScmIntegrations.fromConfig(this.config);
-      return integrations.gitlab.byHost(url.host) !== undefined;
+      return this.integrations.gitlab.byHost(url.host) !== undefined;
     } catch {
       return false;
     }
@@ -134,8 +156,13 @@ export class GitlabOnboardingVcsProvider implements OnboardingVcsProvider {
     } catch {
       throw new InputError(`Cannot parse a GitLab project from: ${repoUrl}`);
     }
-    const integrations = ScmIntegrations.fromConfig(this.config);
-    const integration = integrations.gitlab.byHost(url.host);
+
+    const cached = this.clientCache.get(url.host);
+    if (cached) {
+      return cached;
+    }
+
+    const integration = this.integrations.gitlab.byHost(url.host);
     if (!integration) {
       throw new InputError(
         `No GitLab integration for host ${url.host}. ` +
@@ -149,7 +176,9 @@ export class GitlabOnboardingVcsProvider implements OnboardingVcsProvider {
           `Set integrations.gitlab[].token in app-config.yaml.`,
       );
     }
-    return new Gitlab({ host: `${url.protocol}//${url.host}`, token });
+    const client = newGitlabClient(`${url.protocol}//${url.host}`, token);
+    this.clientCache.set(url.host, client);
+    return client;
   }
 
   private getProjectPath(repoUrl: string): string {

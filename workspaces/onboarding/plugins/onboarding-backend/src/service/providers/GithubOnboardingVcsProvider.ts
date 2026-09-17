@@ -46,6 +46,16 @@ export class GithubOnboardingVcsProvider implements OnboardingVcsProvider {
   private readonly credentialsProvider: GithubCredentialsProvider;
   private readonly baseApiUrl: string;
 
+  /**
+   * A single publish (`getDefaultBranch` + `openPullRequest`) always targets
+   * the same `repoUrl` twice. Without caching, each call independently
+   * re-resolves credentials — a real network round trip for GitHub App
+   * installation tokens — and builds a fresh `Octokit` client. Caching the
+   * in-flight/resolved client per `repoUrl` collapses that to a single
+   * credential exchange per publish.
+   */
+  private readonly octokitCache = new Map<string, Promise<Octokit>>();
+
   constructor(config: Config) {
     const integrations = ScmIntegrations.fromConfig(config);
     this.credentialsProvider =
@@ -147,7 +157,23 @@ export class GithubOnboardingVcsProvider implements OnboardingVcsProvider {
     return { url: pr.data.html_url, number: pr.data.number };
   }
 
-  private async getOctokit(repoUrl: string): Promise<Octokit> {
+  private getOctokit(repoUrl: string): Promise<Octokit> {
+    const cached = this.octokitCache.get(repoUrl);
+    if (cached) {
+      return cached;
+    }
+    const clientPromise = this.resolveOctokit(repoUrl).catch(err => {
+      // Don't cache a failed resolution — a transient credential error
+      // (e.g. a momentarily unreachable token endpoint) would otherwise
+      // permanently poison this repoUrl for the lifetime of the provider.
+      this.octokitCache.delete(repoUrl);
+      throw err;
+    });
+    this.octokitCache.set(repoUrl, clientPromise);
+    return clientPromise;
+  }
+
+  private async resolveOctokit(repoUrl: string): Promise<Octokit> {
     const credentials = await this.credentialsProvider.getCredentials({
       url: repoUrl,
     });
